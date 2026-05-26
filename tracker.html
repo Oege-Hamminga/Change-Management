@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Change Management Tracker</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-900: #111827;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .header-logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+      padding: 18px 0;
+      white-space: nowrap;
+    }
+    .tabs { display: flex; }
+    .tab {
+      padding: 20px 18px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-500);
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .tab:hover { color: var(--gray-900); }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .record-count {
+      font-size: 13px;
+      color: var(--gray-500);
+      background: var(--gray-100);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ── Main ── */
+    .main { padding: 24px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card h2 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+    .card > p { color: var(--gray-500); font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+
+    /* ── Import tab ── */
+    .import-wrap { max-width: 780px; margin: 0 auto; }
+    .paste-area {
+      width: 100%;
+      height: 180px;
+      border: 2px dashed var(--gray-300);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: monospace;
+      font-size: 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .15s;
+      color: var(--gray-700);
+    }
+    .paste-area:focus { border-color: var(--primary); }
+    .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background .15s, color .15s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
+    .btn-secondary:hover { background: var(--gray-50); }
+    .btn-danger { background: white; color: #dc2626; border: 1px solid #fecaca; }
+    .btn-danger:hover { background: #fef2f2; }
+
+    .column-hint { background: var(--gray-50); border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .column-hint h4 { font-size: 12px; font-weight: 600; color: var(--gray-700); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .04em; }
+    .col-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .col-chip {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 5px;
+      padding: 3px 10px;
+      font-size: 12px;
+      color: var(--gray-700);
+    }
+    .col-chip.update { background: #eff6ff; border-color: #bfdbfe; color: var(--primary); }
+    .import-status {
+      margin-top: 12px;
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      display: none;
+    }
+    .import-status.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .import-status.error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+    /* ── Tracker toolbar ── */
+    .toolbar {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .search-box {
+      flex: 1;
+      min-width: 180px;
+      padding: 8px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .search-box:focus { border-color: var(--primary); }
+    .filter-sel {
+      padding: 8px 10px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+      background: white;
+      cursor: pointer;
+      color: var(--gray-700);
+    }
+    .filter-sel:focus { border-color: var(--primary); }
+    .toolbar-right { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+    .badge-count {
+      font-size: 12px;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      padding: 4px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      overflow: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--gray-50);
+      border-bottom: 2px solid var(--gray-200);
+      padding: 9px 11px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 11.5px;
+      color: var(--gray-700);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    thead th:hover { background: var(--gray-100); }
+    thead th.sort-asc::after  { content: ' ↑'; color: var(--primary); }
+    thead th.sort-desc::after { content: ' ↓'; color: var(--primary); }
+    thead th.update-col { background: #eff6ff; color: var(--primary); }
+    thead th.update-col:hover { background: #dbeafe; }
+    tbody tr { border-bottom: 1px solid var(--gray-100); transition: background .1s; }
+    tbody tr:hover { background: #f8faff; }
+    tbody tr:last-child { border-bottom: none; }
+    td { padding: 9px 11px; vertical-align: top; }
+
+    /* Priority row stripes */
+    tr.pr-1 { border-left: 3px solid #ef4444; }
+    tr.pr-2 { border-left: 3px solid #f97316; }
+    tr.pr-3 { border-left: 3px solid #eab308; }
+    tr.pr-4 { border-left: 3px solid #22c55e; }
+    tr.pr-5 { border-left: 3px solid var(--gray-300); }
+
+    .cell-id { font-weight: 700; color: var(--primary); white-space: nowrap; font-size: 12px; }
+
+    .p-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%;
+      font-weight: 700; font-size: 12px;
+    }
+    .pb-1 { background: #fef2f2; color: #dc2626; }
+    .pb-2 { background: #fff7ed; color: #ea580c; }
+    .pb-3 { background: #fefce8; color: #ca8a04; }
+    .pb-4 { background: #f0fdf4; color: #16a34a; }
+    .pb-5 { background: var(--gray-100); color: var(--gray-500); }
+    .pb-x  { background: var(--gray-100); color: var(--gray-600); }
+
+    .phase-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .ph-1 { background: #f5f3ff; color: #7c3aed; }
+    .ph-2 { background: #eff6ff; color: #2563eb; }
+    .ph-3 { background: #fffbeb; color: #d97706; }
+    .ph-4 { background: #ecfdf5; color: #059669; }
+    .ph-5 { background: var(--gray-100); color: var(--gray-600); }
+    .ph-x  { background: var(--gray-100); color: var(--gray-600); }
+
+    .cell-text { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gray-700); }
+    .cell-text.wrap { white-space: normal; word-break: break-word; max-width: 260px; }
+
+    /* Editable update cells */
+    .upd-status-sel {
+      padding: 4px 6px;
+      border: 1px solid var(--gray-200);
+      border-radius: 5px;
+      font-size: 12px;
+      background: white;
+      cursor: pointer;
+      outline: none;
+      min-width: 110px;
+    }
+    .upd-status-sel:focus { border-color: var(--primary); }
+    .upd-status-sel.st-open     { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
+    .upd-status-sel.st-progress { color: #d97706; background: #fffbeb; border-color: #fde68a; }
+    .upd-status-sel.st-blocked  { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+    .upd-status-sel.st-resolved { color: #059669; background: #ecfdf5; border-color: #a7f3d0; }
+    .upd-status-sel.st-closed   { color: var(--gray-500); background: var(--gray-100); }
+    .upd-textarea {
+      width: 100%;
+      min-width: 160px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-family: inherit;
+      background: transparent;
+      resize: none;
+      outline: none;
+      color: var(--gray-700);
+      transition: border-color .15s, background .15s;
+      min-height: 36px;
+    }
+    .upd-textarea:hover  { border-color: var(--gray-300); background: white; }
+    .upd-textarea:focus  { border-color: var(--primary); background: white; }
+    .upd-date-input {
+      padding: 4px 6px;
+      border: 1px solid var(--gray-200);
+      border-radius: 5px;
+      font-size: 12px;
+      font-family: inherit;
+      background: white;
+      outline: none;
+      color: var(--gray-700);
+      cursor: pointer;
+    }
+    .upd-date-input:focus { border-color: var(--primary); }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 64px 24px; color: var(--gray-500); }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; }
+
+    /* ── Insights tab ── */
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      padding: 20px;
+    }
+    .stat-val  { font-size: 30px; font-weight: 700; color: var(--primary); line-height: 1; }
+    .stat-label { font-size: 12px; color: var(--gray-500); margin-top: 6px; }
+
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .ins-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      padding: 22px;
+    }
+    .ins-card h3 { font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 18px; text-transform: uppercase; letter-spacing: .04em; }
+
+    /* Phase bars */
+    .phase-row { margin-bottom: 14px; }
+    .phase-row-head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+    .phase-row-label { font-weight: 500; }
+    .phase-row-meta  { color: var(--gray-500); font-size: 12px; }
+    .bar-track { height: 10px; background: var(--gray-100); border-radius: 5px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 5px; transition: width .6s ease; }
+    .bar-ph-1  { background: #7c3aed; }
+    .bar-ph-2  { background: #2563eb; }
+    .bar-ph-3  { background: #d97706; }
+    .bar-ph-4  { background: #059669; }
+    .bar-ph-5  { background: var(--gray-400); }
+
+    /* Priority bars */
+    .pri-row { margin-bottom: 12px; }
+    .pri-row-head { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+    .pri-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .dot-1 { background: #ef4444; }
+    .dot-2 { background: #f97316; }
+    .dot-3 { background: #eab308; }
+    .dot-4 { background: #22c55e; }
+    .dot-5 { background: var(--gray-300); }
+
+    /* PM list */
+    .pm-list { list-style: none; }
+    .pm-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: 13px;
+    }
+    .pm-item:last-child { border-bottom: none; }
+    .pm-name { font-weight: 500; }
+    .pm-pill { background: var(--primary-light); color: var(--primary); padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+
+    /* Top priority list */
+    .top-list { list-style: none; }
+    .top-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .top-item:last-child { border-bottom: none; }
+    .top-item-id { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; padding-top: 1px; }
+    .top-item-body { flex: 1; }
+    .top-item-summary { font-size: 13px; color: var(--gray-700); }
+    .top-item-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--gray-900);
+      color: white;
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all .3s;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 768px) {
+      .main { padding: 14px; }
+      .header { padding: 0 14px; }
+      .header-logo { font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header class="header">
+  <div class="header-logo">📋 Change Management Tracker</div>
+  <nav class="tabs">
+    <div class="tab active" data-tab="import">Import Data</div>
+    <div class="tab" data-tab="tracker">Tracker</div>
+    <div class="tab" data-tab="insights">Insights</div>
+  </nav>
+  <div class="header-right">
+    <span class="record-count" id="headerCount">0 tickets</span>
+  </div>
+</header>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<main class="main">
+
+  <!-- ─── IMPORT TAB ─── -->
+  <div class="tab-content active" id="tab-import">
+    <div class="import-wrap">
+      <div class="card">
+        <h2>Import Bugtracker Tickets</h2>
+        <p>Copy your rows directly from Excel or Google Sheets (including the header row) and paste them below. The data is automatically detected from tab-separated columns.</p>
+
+        <textarea class="paste-area" id="pasteArea"
+          placeholder="Paste your copied rows here — with or without the header row…"></textarea>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="importData()">Import Data</button>
+          <button class="btn btn-secondary" onclick="loadDemo()">Load Demo Data</button>
+          <button class="btn btn-danger" onclick="clearAll()" style="margin-left:auto">Clear All Data</button>
+        </div>
+
+        <div class="import-status" id="importStatus"></div>
+      </div>
+
+      <div class="card">
+        <h2>Expected Column Order</h2>
+        <p>Paste the columns in the order below (headers are detected automatically). The blue columns are added by the tracker and are editable.</p>
+        <div class="column-hint">
+          <h4>Source Columns</h4>
+          <div class="col-chips">
+            <span class="col-chip">ID</span>
+            <span class="col-chip">P</span>
+            <span class="col-chip">Model (CR)</span>
+            <span class="col-chip">Date Submitted</span>
+            <span class="col-chip">Updated</span>
+            <span class="col-chip">SOP (CW)</span>
+            <span class="col-chip">Product Manager</span>
+            <span class="col-chip">Summary</span>
+            <span class="col-chip">Phase</span>
+            <span class="col-chip">Finish Phase (CW)</span>
+            <span class="col-chip">Progress Update / Next Step</span>
+            <span class="col-chip">Responsible Person (CR)</span>
+          </div>
+        </div>
+        <div class="column-hint" style="margin-top:10px">
+          <h4>Tracker Update Columns (editable)</h4>
+          <div class="col-chips">
+            <span class="col-chip update">Status</span>
+            <span class="col-chip update">Internal Notes</span>
+            <span class="col-chip update">Last Action Date</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TRACKER TAB ─── -->
+  <div class="tab-content" id="tab-tracker">
+    <div class="toolbar">
+      <input class="search-box" id="searchBox" type="text" placeholder="Search ID, summary, PM, responsible…" oninput="renderTable()">
+      <select class="filter-sel" id="filterPriority" onchange="renderTable()">
+        <option value="">All Priorities</option>
+        <option value="1">P1 – Critical</option>
+        <option value="2">P2 – High</option>
+        <option value="3">P3 – Medium</option>
+        <option value="4">P4 – Low</option>
+        <option value="5">P5 – Minimal</option>
+      </select>
+      <select class="filter-sel" id="filterPhase" onchange="renderTable()">
+        <option value="">All Phases</option>
+        <option value="1">Phase 1 – Investigation</option>
+        <option value="2">Phase 2 – Design</option>
+        <option value="3">Phase 3 – Testing</option>
+        <option value="4">Phase 4 – Implementation</option>
+        <option value="5">Phase 5 – Finalization</option>
+      </select>
+      <select class="filter-sel" id="filterStatus" onchange="renderTable()">
+        <option value="">All Statuses</option>
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Blocked">Blocked</option>
+        <option value="Resolved">Resolved</option>
+        <option value="Closed">Closed</option>
+      </select>
+      <div class="toolbar-right">
+        <span class="badge-count" id="tableCount">0 shown</span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="trackerTable">
+        <thead>
+          <tr>
+            <th onclick="sortBy('id')">ID</th>
+            <th onclick="sortBy('p')">P</th>
+            <th onclick="sortBy('model')">Model (CR)</th>
+            <th onclick="sortBy('dateSubmitted')">Date Submitted</th>
+            <th onclick="sortBy('updated')">Updated</th>
+            <th onclick="sortBy('sop')">SOP (CW)</th>
+            <th onclick="sortBy('productManager')">Product Manager</th>
+            <th onclick="sortBy('summary')">Summary</th>
+            <th onclick="sortBy('phase')">Phase</th>
+            <th onclick="sortBy('finishPhase')">Finish Phase (CW)</th>
+            <th onclick="sortBy('progressUpdate')">Progress / Next Step</th>
+            <th onclick="sortBy('responsiblePerson')">Responsible (CR)</th>
+            <th class="update-col" onclick="sortBy('updStatus')">Status</th>
+            <th class="update-col">Internal Notes</th>
+            <th class="update-col" onclick="sortBy('updDate')">Last Action</th>
+          </tr>
+        </thead>
+        <tbody id="trackerBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">📂</div>
+        <h3>No tickets yet</h3>
+        <p>Go to <strong>Import Data</strong> and paste your bugtracker rows to get started.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── INSIGHTS TAB ─── -->
+  <div class="tab-content" id="tab-insights">
+    <div class="stat-cards" id="statCards"></div>
+    <div class="insights-grid">
+      <div class="ins-card">
+        <h3>Phase Distribution</h3>
+        <div id="phaseChart"></div>
+      </div>
+      <div class="ins-card">
+        <h3>Priority Distribution</h3>
+        <div id="priorityChart"></div>
+      </div>
+      <div class="ins-card">
+        <h3>Top Priority Tickets</h3>
+        <ul class="top-list" id="topList"></ul>
+      </div>
+      <div class="ins-card">
+        <h3>Tickets by Product Manager</h3>
+        <ul class="pm-list" id="pmList"></ul>
+      </div>
+    </div>
+    <div class="empty-state" id="insightsEmpty" style="display:none">
+      <div class="empty-icon">📊</div>
+      <h3>No data to visualise</h3>
+      <p>Import your bugtracker tickets first.</p>
+    </div>
+  </div>
+
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA STORE
+// ═══════════════════════════════════════════════
+let tickets = [];      // raw parsed rows
+let updates = {};      // { [id]: { status, notes, date } }
+let sortKey  = 'p';
+let sortDir  = 'asc';
+
+const PHASE_NAMES = {
+  '1': 'Phase 1 – Investigation',
+  '2': 'Phase 2 – Design',
+  '3': 'Phase 3 – Testing',
+  '4': 'Phase 4 – Implementation',
+  '5': 'Phase 5 – Finalization',
+};
+
+const STATUS_CLASS = {
+  'Open':       'st-open',
+  'In Progress':'st-progress',
+  'Blocked':    'st-blocked',
+  'Resolved':   'st-resolved',
+  'Closed':     'st-closed',
+};
+
+// ═══════════════════════════════════════════════
+//  PERSISTENCE
+// ═══════════════════════════════════════════════
+function save() {
+  try {
+    localStorage.setItem('cm_tickets', JSON.stringify(tickets));
+    localStorage.setItem('cm_updates', JSON.stringify(updates));
+  } catch(e) {}
+}
+
+function load() {
+  try {
+    const t = localStorage.getItem('cm_tickets');
+    const u = localStorage.getItem('cm_updates');
+    if (t) tickets = JSON.parse(t);
+    if (u) updates  = JSON.parse(u);
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  PARSING
+// ═══════════════════════════════════════════════
+const SOURCE_KEYS = ['id','p','model','dateSubmitted','updated','sop','productManager','summary','phase','finishPhase','progressUpdate','responsiblePerson'];
+const HEADER_ALIASES = {
+  'id':'id', '#':'id', 'nr':'id',
+  'p':'p', 'priority':'p', 'prio':'p',
+  'model':'model', 'model (cr)':'model', 'cr':'model',
+  'date submitted':'dateSubmitted', 'datesubmitted':'dateSubmitted', 'submitted':'dateSubmitted',
+  'updated':'updated', 'date updated':'updated',
+  'sop':'sop', 'sop (cw)':'sop',
+  'product manager':'productManager', 'productmanager':'productManager', 'pm':'productManager',
+  'summary':'summary', 'title':'summary', 'description':'summary',
+  'phase':'phase',
+  'finish phase':'finishPhase', 'finish phase (cw)':'finishPhase', 'finishphase':'finishPhase',
+  'progress update/next step':'progressUpdate', 'progress':'progressUpdate', 'next step':'progressUpdate', 'progress update':'progressUpdate',
+  'responsible person':'responsiblePerson', 'responsible person (cr)':'responsiblePerson', 'responsible':'responsiblePerson',
+};
+
+function parsePhase(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  // Extract leading digit
+  const m = s.match(/^(\d)/);
+  if (m) return m[1];
+  const lc = s.toLowerCase();
+  if (lc.includes('invest')) return '1';
+  if (lc.includes('design')) return '2';
+  if (lc.includes('test'))   return '3';
+  if (lc.includes('impl'))   return '4';
+  if (lc.includes('final'))  return '5';
+  return s;
+}
+
+function parsePriority(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  // pure number
+  if (/^\d+$/.test(s)) return s;
+  // P1, P2…
+  const m = s.match(/^[Pp](\d+)$/);
+  if (m) return m[1];
+  const lc = s.toLowerCase();
+  if (lc === 'critical') return '1';
+  if (lc === 'high')     return '2';
+  if (lc === 'medium')   return '3';
+  if (lc === 'low')      return '4';
+  if (lc === 'minimal' || lc === 'trivial') return '5';
+  return s;
+}
+
+function parseTSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length === 0) return [];
+
+  const rows = lines.map(l => l.split('\t'));
+
+  // Detect header row
+  let dataStart = 0;
+  let keyMap = null; // index → field key
+
+  const firstRow = rows[0].map(c => c.trim().toLowerCase().replace(/\s+/g,' '));
+  const isHeader = firstRow.some(c => HEADER_ALIASES[c] !== undefined);
+
+  if (isHeader) {
+    keyMap = {};
+    firstRow.forEach((cell, i) => {
+      const key = HEADER_ALIASES[cell];
+      if (key) keyMap[i] = key;
+    });
+    dataStart = 1;
+  }
+
+  const result = [];
+  for (let r = dataStart; r < rows.length; r++) {
+    const cells = rows[r];
+    if (cells.every(c => !c.trim())) continue;
+
+    let obj = {};
+    if (keyMap) {
+      Object.entries(keyMap).forEach(([i, key]) => {
+        obj[key] = (cells[i] || '').trim();
+      });
+    } else {
+      SOURCE_KEYS.forEach((key, i) => {
+        obj[key] = (cells[i] || '').trim();
+      });
+    }
+
+    obj.p     = parsePriority(obj.p);
+    obj.phase = parsePhase(obj.phase);
+
+    // Ensure we have at least an ID
+    if (!obj.id) obj.id = `T-${r}`;
+
+    result.push(obj);
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════
+//  IMPORT / CLEAR
+// ═══════════════════════════════════════════════
+function importData() {
+  const text = document.getElementById('pasteArea').value;
+  if (!text.trim()) {
+    showStatus('error', 'Nothing pasted — copy rows from your spreadsheet first.');
+    return;
+  }
+
+  const parsed = parseTSV(text);
+  if (parsed.length === 0) {
+    showStatus('error', 'Could not parse any rows. Make sure you copy from a spreadsheet (tab-separated).');
+    return;
+  }
+
+  // Merge: preserve existing update data
+  tickets = parsed;
+  save();
+  showStatus('success', `✓ Imported ${parsed.length} ticket${parsed.length > 1 ? 's' : ''}. Switch to the Tracker or Insights tab.`);
+  updateHeaderCount();
+  document.getElementById('pasteArea').value = '';
+  toast(`Imported ${parsed.length} tickets`);
+}
+
+function clearAll() {
+  if (!confirm('Clear all tickets and update notes? This cannot be undone.')) return;
+  tickets = [];
+  updates = {};
+  save();
+  updateHeaderCount();
+  renderTable();
+  renderInsights();
+  toast('All data cleared');
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('importStatus');
+  el.style.display = 'block';
+  el.className = `import-status ${type}`;
+  el.textContent = msg;
+}
+
+// ═══════════════════════════════════════════════
+//  SORTING & FILTERING
+// ═══════════════════════════════════════════════
+function sortBy(key) {
+  if (sortKey === key) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey = key;
+    sortDir = 'asc';
+  }
+  renderTable();
+}
+
+function getVal(ticket, key) {
+  if (key === 'updStatus') return (updates[ticket.id] || {}).status || '';
+  if (key === 'updDate')   return (updates[ticket.id] || {}).date   || '';
+  return ticket[key] || '';
+}
+
+function sortVal(v, key) {
+  if (key === 'p') {
+    const n = parseInt(v, 10);
+    return isNaN(n) ? 99 : n;
+  }
+  if (['dateSubmitted','updated','finishPhase','updDate'].includes(key)) {
+    const d = new Date(v);
+    return isNaN(d) ? 0 : d.getTime();
+  }
+  return v.toLowerCase();
+}
+
+function filteredTickets() {
+  const q      = document.getElementById('searchBox').value.toLowerCase();
+  const priF   = document.getElementById('filterPriority').value;
+  const phaseF = document.getElementById('filterPhase').value;
+  const statF  = document.getElementById('filterStatus').value;
+
+  return tickets.filter(t => {
+    if (priF   && t.p     !== priF)   return false;
+    if (phaseF && t.phase !== phaseF) return false;
+    if (statF) {
+      const s = (updates[t.id] || {}).status || '';
+      if (s !== statF) return false;
+    }
+    if (q) {
+      const blob = [t.id, t.summary, t.productManager, t.responsiblePerson, t.model, t.sop].join(' ').toLowerCase();
+      if (!blob.includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    const va = sortVal(getVal(a, sortKey), sortKey);
+    const vb = sortVal(getVal(b, sortKey), sortKey);
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    // secondary: priority asc
+    const pa = parseInt(a.p, 10) || 99;
+    const pb = parseInt(b.p, 10) || 99;
+    return pa - pb;
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  TABLE RENDER
+// ═══════════════════════════════════════════════
+function pBadge(p) {
+  const cls = ['1','2','3','4','5'].includes(p) ? `pb-${p}` : 'pb-x';
+  return `<span class="p-badge ${cls}">${p || '–'}</span>`;
+}
+
+function phaseBadge(ph) {
+  const cls = ['1','2','3','4','5'].includes(ph) ? `ph-${ph}` : 'ph-x';
+  const names = {
+    '1':'Investigation','2':'Design','3':'Testing',
+    '4':'Implementation','5':'Finalization'
+  };
+  const label = names[ph] ? `${ph}. ${names[ph]}` : (ph || '–');
+  return `<span class="phase-badge ${cls}">${label}</span>`;
+}
+
+function priorRowClass(p) {
+  if (['1','2','3','4','5'].includes(p)) return `pr-${p}`;
+  return '';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function statusSel(id) {
+  const cur = (updates[id] || {}).status || '';
+  const cls = STATUS_CLASS[cur] || '';
+  const opts = ['','Open','In Progress','Blocked','Resolved','Closed'].map(v =>
+    `<option value="${v}" ${v===cur?'selected':''}>${v||'— set status —'}</option>`
+  ).join('');
+  return `<select class="upd-status-sel ${cls}" onchange="setUpdate('${esc(id)}','status',this.value); this.className='upd-status-sel '+(window.STATUS_CLASS[this.value]||'')">${opts}</select>`;
+}
+
+function renderTable() {
+  const rows  = filteredTickets();
+  const tbody = document.getElementById('trackerBody');
+  const empty = document.getElementById('emptyState');
+
+  // Update sort indicators
+  document.querySelectorAll('#trackerTable thead th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+  });
+  const thIdx = ['id','p','model','dateSubmitted','updated','sop','productManager','summary','phase','finishPhase','progressUpdate','responsiblePerson','updStatus',null,'updDate'];
+  const si = thIdx.indexOf(sortKey);
+  if (si >= 0) {
+    const ths = document.querySelectorAll('#trackerTable thead th');
+    if (ths[si]) ths[si].classList.add(`sort-${sortDir}`);
+  }
+
+  document.getElementById('tableCount').textContent = `${rows.length} shown`;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = tickets.length === 0 ? 'block' : 'block';
+    if (tickets.length > 0) {
+      empty.querySelector('h3').textContent = 'No matching tickets';
+      empty.querySelector('p').textContent  = 'Try adjusting your filters or search.';
+    } else {
+      empty.querySelector('h3').textContent = 'No tickets yet';
+      empty.querySelector('p').innerHTML    = 'Go to <strong>Import Data</strong> and paste your bugtracker rows.';
+    }
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  tbody.innerHTML = rows.map(t => {
+    const upd   = updates[t.id] || {};
+    const notes = esc(upd.notes || '');
+    const date  = esc(upd.date  || '');
+    return `<tr class="${priorRowClass(t.p)}">
+      <td class="cell-id">${esc(t.id)}</td>
+      <td>${pBadge(t.p)}</td>
+      <td><span class="cell-text" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
+      <td><span class="cell-text">${esc(t.dateSubmitted)||'–'}</span></td>
+      <td><span class="cell-text">${esc(t.updated)||'–'}</span></td>
+      <td><span class="cell-text" title="${esc(t.sop)}">${esc(t.sop)||'–'}</span></td>
+      <td><span class="cell-text" title="${esc(t.productManager)}">${esc(t.productManager)||'–'}</span></td>
+      <td><span class="cell-text wrap" title="${esc(t.summary)}">${esc(t.summary)||'–'}</span></td>
+      <td>${phaseBadge(t.phase)}</td>
+      <td><span class="cell-text">${esc(t.finishPhase)||'–'}</span></td>
+      <td><span class="cell-text wrap" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate)||'–'}</span></td>
+      <td><span class="cell-text" title="${esc(t.responsiblePerson)}">${esc(t.responsiblePerson)||'–'}</span></td>
+      <td>${statusSel(t.id)}</td>
+      <td><textarea class="upd-textarea" rows="2" placeholder="Add notes…" onblur="setUpdate('${esc(t.id)}','notes',this.value)">${notes}</textarea></td>
+      <td><input type="date" class="upd-date-input" value="${date}" onchange="setUpdate('${esc(t.id)}','date',this.value)" /></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  UPDATE HANDLING
+// ═══════════════════════════════════════════════
+window.STATUS_CLASS = STATUS_CLASS;
+
+function setUpdate(id, field, value) {
+  if (!updates[id]) updates[id] = {};
+  updates[id][field] = value;
+  save();
+}
+
+// ═══════════════════════════════════════════════
+//  INSIGHTS RENDER
+// ═══════════════════════════════════════════════
+function renderInsights() {
+  const total = tickets.length;
+  const el_empty = document.getElementById('insightsEmpty');
+
+  if (total === 0) {
+    document.getElementById('statCards').innerHTML = '';
+    document.getElementById('phaseChart').innerHTML = '';
+    document.getElementById('priorityChart').innerHTML = '';
+    document.getElementById('topList').innerHTML = '';
+    document.getElementById('pmList').innerHTML = '';
+    el_empty.style.display = 'block';
+    return;
+  }
+  el_empty.style.display = 'none';
+
+  // ── Stat cards ──
+  const blocked   = tickets.filter(t => (updates[t.id]||{}).status === 'Blocked').length;
+  const p1count   = tickets.filter(t => t.p === '1').length;
+  const openCount = tickets.filter(t => {
+    const s = (updates[t.id]||{}).status || '';
+    return s === 'Open' || s === '';
+  }).length;
+
+  document.getElementById('statCards').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Total Tickets</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#dc2626">${p1count}</div><div class="stat-label">P1 Critical</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#d97706">${openCount}</div><div class="stat-label">Open / Unset</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#dc2626">${blocked}</div><div class="stat-label">Blocked</div></div>
+  `;
+
+  // ── Phase distribution ──
+  const phaseCounts = {};
+  tickets.forEach(t => { phaseCounts[t.phase] = (phaseCounts[t.phase]||0) + 1; });
+  const phaseOrder = ['1','2','3','4','5'];
+  const phaseNames = { '1':'1. Investigation','2':'2. Design','3':'3. Testing','4':'4. Implementation','5':'5. Finalization' };
+  const phaseColors= { '1':'bar-ph-1','2':'bar-ph-2','3':'bar-ph-3','4':'bar-ph-4','5':'bar-ph-5' };
+  const maxPhase = Math.max(...phaseOrder.map(p => phaseCounts[p]||0), 1);
+
+  // Also include unknown phases
+  const knownPhases = new Set(phaseOrder);
+  Object.keys(phaseCounts).forEach(p => { if (!knownPhases.has(p)) phaseOrder.push(p); });
+
+  document.getElementById('phaseChart').innerHTML = phaseOrder.map(p => {
+    const cnt  = phaseCounts[p] || 0;
+    if (cnt === 0 && !['1','2','3','4','5'].includes(p)) return '';
+    const pct  = Math.round(cnt / total * 100);
+    const w    = Math.round(cnt / maxPhase * 100);
+    const name = phaseNames[p] || `Phase ${p}`;
+    const cls  = phaseColors[p] || 'bar-ph-5';
+    return `<div class="phase-row">
+      <div class="phase-row-head">
+        <span class="phase-row-label">${name}</span>
+        <span class="phase-row-meta">${cnt} ticket${cnt!==1?'s':''} &nbsp;(${pct}%)</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill ${cls}" style="width:${w}%"></div></div>
+    </div>`;
+  }).join('');
+
+  // ── Priority distribution ──
+  const priCounts = {};
+  tickets.forEach(t => { priCounts[t.p] = (priCounts[t.p]||0) + 1; });
+  const priOrder = ['1','2','3','4','5'];
+  const priNames = { '1':'P1 – Critical','2':'P2 – High','3':'P3 – Medium','4':'P4 – Low','5':'P5 – Minimal' };
+  const priDots  = { '1':'dot-1','2':'dot-2','3':'dot-3','4':'dot-4','5':'dot-5' };
+  const maxPri   = Math.max(...priOrder.map(p => priCounts[p]||0), 1);
+
+  document.getElementById('priorityChart').innerHTML = priOrder.map(p => {
+    const cnt = priCounts[p] || 0;
+    const pct = Math.round(cnt / total * 100);
+    const w   = Math.round(cnt / maxPri * 100);
+    const name = priNames[p] || `P${p}`;
+    const dot  = priDots[p]  || 'dot-5';
+    return `<div class="pri-row">
+      <div class="pri-row-head">
+        <span><span class="pri-dot ${dot}"></span>${name}</span>
+        <span style="color:var(--gray-500);font-size:12px">${cnt} (${pct}%)</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill ${phaseColors[p]||'bar-ph-5'}" style="width:${w}%"></div></div>
+    </div>`;
+  }).join('');
+
+  // ── Top priority tickets ──
+  const top = [...tickets]
+    .sort((a,b) => (parseInt(a.p)||99)-(parseInt(b.p)||99))
+    .slice(0, 10);
+  document.getElementById('topList').innerHTML = top.map(t => {
+    const status = (updates[t.id]||{}).status || '';
+    return `<li class="top-item">
+      <span class="top-item-id">${esc(t.id)}</span>
+      <div class="top-item-body">
+        <div class="top-item-summary">${esc(t.summary)||'(no summary)'}</div>
+        <div class="top-item-meta">${phaseBadge(t.phase)} ${status ? `&nbsp;<strong>${esc(status)}</strong>` : ''} ${t.productManager ? `&nbsp;· ${esc(t.productManager)}` : ''}</div>
+      </div>
+      ${pBadge(t.p)}
+    </li>`;
+  }).join('');
+
+  // ── PM list ──
+  const pmMap = {};
+  tickets.forEach(t => {
+    const pm = (t.productManager || '(unknown)').trim();
+    pmMap[pm] = (pmMap[pm]||0) + 1;
+  });
+  const pmSorted = Object.entries(pmMap).sort((a,b) => b[1]-a[1]);
+  document.getElementById('pmList').innerHTML = pmSorted.map(([pm, cnt]) =>
+    `<li class="pm-item"><span class="pm-name">${esc(pm)}</span><span class="pm-pill">${cnt}</span></li>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  DEMO DATA
+// ═══════════════════════════════════════════════
+function loadDemo() {
+  const demo = `ID\tP\tModel (CR)\tDate Submitted\tUpdated\tSOP (CW)\tProduct Manager\tSummary\tPhase\tFinish Phase (CW)\tProgress Update/Next Step\tResponsible Person (CR)
+BT-001\t1\tModel A\t2024-01-10\t2024-03-15\tSOP-12\tAlice van der Berg\tCritical braking system fault on wet roads\t1. Investigation\t2024-04-01\tRoot cause analysis ongoing, waiting for sensor logs\tJan de Vries
+BT-002\t2\tModel B\t2024-01-18\t2024-03-10\tSOP-07\tBob Janssen\tDashboard display flicker at low temperatures\t2. Design\t2024-04-15\tDesign spec drafted, review scheduled next week\tSara Linden
+BT-003\t1\tModel A\t2024-02-02\t2024-03-20\tSOP-12\tAlice van der Berg\tEngine warning light false positive (error code E4)\t3. Testing\t2024-04-10\tFirmware patch under test, 2 test cycles remaining\tJan de Vries
+BT-004\t3\tModel C\t2024-02-14\t2024-03-05\tSOP-09\tCarla Mulder\tSeat memory preset not saving after restart\t4. Implementation\t2024-05-01\tImplementation done, awaiting final sign-off\tTom Bakker
+BT-005\t2\tModel B\t2024-02-20\t2024-03-22\tSOP-07\tBob Janssen\tHands-free call audio cuts out above 80 km/h\t1. Investigation\t2024-04-20\tReproduced in test lab, audio module under review\tSara Linden
+BT-006\t4\tModel D\t2024-02-28\t2024-03-01\tSOP-14\tCarla Mulder\tAmbient lighting colour slightly off from spec\t5. Finalization\t2024-03-30\tDocs and sign-off pending marketing approval\tTom Bakker
+BT-007\t1\tModel A\t2024-03-01\t2024-03-18\tSOP-12\tAlice van der Berg\tAutomatic emergency braking activates incorrectly\t2. Design\t2024-04-25\tSafety team reviewing sensor fusion algorithm\tJan de Vries
+BT-008\t3\tModel C\t2024-03-05\t2024-03-19\tSOP-09\tBob Janssen\tNavigation reroutes to toll roads despite preference off\t3. Testing\t2024-05-10\tSoftware patch tested on 3 vehicles, 1 regression found\tSara Linden
+BT-009\t2\tModel B\t2024-03-08\t2024-03-21\tSOP-07\tCarla Mulder\tWiper speed drops inconsistently in heavy rain\t1. Investigation\t2024-04-28\tProcuring replacement wiper motor samples\tTom Bakker
+BT-010\t5\tModel D\t2024-03-10\t2024-03-11\tSOP-14\tAlice van der Berg\tFont size on climate panel slightly too small\t5. Finalization\t2024-04-05\tChange approved, updating UI style guide\tJan de Vries`;
+
+  document.getElementById('pasteArea').value = demo;
+  showStatus('success', 'Demo data loaded — click "Import Data" to proceed.');
+}
+
+// ═══════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+    if (tab.dataset.tab === 'tracker')  renderTable();
+    if (tab.dataset.tab === 'insights') renderInsights();
+  });
+});
+
+function updateHeaderCount() {
+  document.getElementById('headerCount').textContent =
+    `${tickets.length} ticket${tickets.length !== 1 ? 's' : ''}`;
+}
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+load();
+updateHeaderCount();
+// Pre-render in case data was already saved
+if (tickets.length > 0) {
+  renderTable();
+  renderInsights();
+}
+</script>
+</body>
+</html>
