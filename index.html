@@ -211,6 +211,20 @@
     .sort-row th.upd-th { background: #f0fdf4; color: #166534; }
     .sort-row th.upd-th:hover { background: #dcfce7; }
 
+    /* Ticket status badge (source column) */
+    .ts-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+    .ts-assigned { background: #eff6ff; color: #2563eb; }
+    .ts-closed   { background: var(--gray-100); color: var(--gray-500); }
+    .ts-other    { background: #fff7ed; color: #c2410c; }
+
+    /* Closed ticket rows are dimmed */
+    tr.row-closed { opacity: 0.45; }
+    tr.row-closed:hover { opacity: 0.7; }
+    tr.row-closed .cell-id { text-decoration: line-through; color: var(--gray-500); }
+
+    /* Dashboard excluded-closed notice */
+    .closed-note { font-size: 11px; color: var(--gray-500); background: var(--gray-100); border-radius: 6px; padding: 5px 10px; display: inline-block; margin-bottom: 14px; }
+
     /* Empty state */
     .empty-state { text-align: center; padding: 60px 24px; color: var(--gray-500); }
     .empty-icon { font-size: 44px; margin-bottom: 14px; }
@@ -322,7 +336,7 @@
         <div class="col-hint">
           <h4>Source Columns (from your spreadsheet)</h4>
           <div class="chips">
-            <span class="chip">ID</span><span class="chip">P</span><span class="chip">Model (CR)</span>
+            <span class="chip">Status</span><span class="chip">ID</span><span class="chip">P</span><span class="chip">Model (CR)</span>
             <span class="chip">Date Submitted</span><span class="chip">Updated</span><span class="chip">SOP (CW)</span>
             <span class="chip">Product Manager</span><span class="chip">Summary</span><span class="chip">Phase</span>
             <span class="chip">Finish Phase (CW)</span><span class="chip">Progress Update / Next Step</span>
@@ -450,8 +464,9 @@ function loadStorage() {
 // ═══════════════════════════════════════════════════════
 //  PARSING
 // ═══════════════════════════════════════════════════════
-const SRC_KEYS = ['id','p','model','dateSubmitted','updated','sop','productManager','summary','phase','finishPhase','progressUpdate','responsiblePerson'];
+const SRC_KEYS = ['ticketStatus','id','p','model','dateSubmitted','updated','sop','productManager','summary','phase','finishPhase','progressUpdate','responsiblePerson'];
 const HDR_MAP  = {
+  'status':'ticketStatus','ticket status':'ticketStatus',
   'id':'id','#':'id',
   'p':'p','priority':'p','prio':'p',
   'model':'model','model (cr)':'model',
@@ -572,7 +587,7 @@ function filteredTickets() {
   return tickets.filter(t => {
     // Global search
     if (search) {
-      const blob = [t.id,t.summary,t.productManager,t.responsiblePerson,t.model,t.sop].join(' ').toLowerCase();
+      const blob = [t.ticketStatus,t.id,t.summary,t.productManager,t.responsiblePerson,t.model,t.sop].join(' ').toLowerCase();
       if (!blob.includes(search)) return false;
     }
     // Per-column filters
@@ -581,8 +596,8 @@ function filteredTickets() {
       const v = val.toLowerCase();
       if (key === 'updStatus') {
         if (!((getUpd(t.id).status||'').toLowerCase().includes(v))) return false;
-      } else if (key === 'p' || key === 'phase') {
-        if ((t[key]||'') !== val) return false;
+      } else if (key === 'p' || key === 'phase' || key === 'ticketStatus') {
+        if ((t[key]||'').toLowerCase() !== val.toLowerCase()) return false;
       } else {
         if (!((t[key]||'').toLowerCase().includes(v))) return false;
       }
@@ -630,6 +645,7 @@ const ST_CLS = { 'Open':'st-open','In Progress':'st-progress','Blocked':'st-bloc
 //  TABLE RENDER
 // ═══════════════════════════════════════════════════════
 const STATIC_COLS = [
+  { key:'ticketStatus',    label:'Status',              sortable:true },
   { key:'id',              label:'ID',                  sortable:true },
   { key:'p',               label:'P',                   sortable:true },
   { key:'model',           label:'Model (CR)',           sortable:true },
@@ -650,7 +666,19 @@ const P_FILTER_OPTS   = ['','1','2','3','4','5'];
 const PH_FILTER_OPTS  = ['','1','2','3','4','5'];
 const ST_FILTER_OPTS  = ['','Open','In Progress','Blocked','Resolved','Closed'];
 
+function tsBadge(v) {
+  const lc = (v||'').toLowerCase();
+  const cls = lc === 'assigned' ? 'ts-assigned' : lc === 'closed' ? 'ts-closed' : v ? 'ts-other' : 'ts-other';
+  return v ? `<span class="ts-badge ${cls}">${esc(v)}</span>` : `<span class="ts-badge ts-other">–</span>`;
+}
+
+function isClosed(t) { return (t.ticketStatus||'').toLowerCase() === 'closed'; }
+
 function buildFilterInput(key) {
+  if (key === 'ticketStatus') {
+    const opts = ['','Assigned','Closed'].map(v => `<option value="${v}" ${(colFilters[key]||'')=== v?'selected':''}>${v||'All'}</option>`).join('');
+    return `<select class="col-filter" onchange="setColFilter('${key}',this.value)">${opts}</select>`;
+  }
   if (key === 'p') {
     const opts = P_FILTER_OPTS.map(v => `<option value="${v}" ${(colFilters[key]||'')=== v?'selected':''}>${v||'All'}</option>`).join('');
     return `<select class="col-filter" onchange="setColFilter('${key}',this.value)">${opts}</select>`;
@@ -726,7 +754,9 @@ function renderTable() {
       return `<td><textarea class="cw-ta${cls}" rows="2" data-id="${esc(t.id)}" data-wk="${key}" onblur="setCW(this)">${val}</textarea></td>`;
     }).join('');
 
-    return `<tr class="${prClass(t.p)}">
+    const closedCls = isClosed(t) ? ' row-closed' : '';
+    return `<tr class="${prClass(t.p)}${closedCls}">
+      <td>${tsBadge(t.ticketStatus)}</td>
       <td class="cell-id">${esc(t.id)}</td>
       <td>${pBadge(t.p)}</td>
       <td><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
@@ -815,40 +845,52 @@ function renderDashboard() {
   }
   dashEmpty.style.display = 'none';
 
-  const p1     = tickets.filter(t=>t.p==='1').length;
-  const blocked = tickets.filter(t=>(getUpd(t.id).status||'')==='Blocked').length;
-  const open    = tickets.filter(t=>{ const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
-  const resolved= tickets.filter(t=>(getUpd(t.id).status||'')==='Resolved').length;
+  // Closed tickets are excluded from all statistics
+  const closedTickets = tickets.filter(t => isClosed(t));
+  const active        = tickets.filter(t => !isClosed(t));
+  const activeTotal   = active.length;
+  const closedCount   = closedTickets.length;
+
+  const p1      = active.filter(t=>t.p==='1').length;
+  const blocked  = active.filter(t=>(getUpd(t.id).status||'')==='Blocked').length;
+  const open     = active.filter(t=>{ const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
+  const resolved = active.filter(t=>(getUpd(t.id).status||'')==='Resolved').length;
 
   statCards.innerHTML = [
-    { val: total,    label: 'Total Tickets', color: 'var(--primary)' },
-    { val: p1,       label: 'P1 Critical',   color: '#dc2626' },
-    { val: open,     label: 'Open / Unset',  color: '#d97706' },
-    { val: blocked,  label: 'Blocked',        color: '#dc2626' },
-    { val: resolved, label: 'Resolved',       color: '#059669' },
+    { val: activeTotal, label: 'Active Tickets', color: 'var(--primary)' },
+    { val: closedCount, label: 'Closed (excl.)',  color: 'var(--gray-500)' },
+    { val: p1,          label: 'P1 Critical',     color: '#dc2626' },
+    { val: open,        label: 'Open / Unset',    color: '#d97706' },
+    { val: blocked,     label: 'Blocked',          color: '#dc2626' },
+    { val: resolved,    label: 'Resolved',         color: '#059669' },
   ].map(s => `<div class="stat-card"><div class="stat-val" style="color:${s.color}">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
 
-  // ── Phase data ──
+  const closedNote = closedCount > 0
+    ? `<div class="closed-note">📌 ${closedCount} closed ticket${closedCount>1?'s':''} excluded from all charts and statistics below</div>`
+    : '';
+
+  // ── Phase data (active only) ──
   const phOrder  = ['1','2','3','4','5'];
   const phLabels = { '1':'1. Investigation','2':'2. Design','3':'3. Testing','4':'4. Implementation','5':'5. Finalization' };
   const phColors = { '1':'#7c3aed','2':'#2563eb','3':'#d97706','4':'#059669','5':'#9ca3af' };
   const phFill   = { '1':'c-ph1','2':'c-ph2','3':'c-ph3','4':'c-ph4','5':'c-ph5' };
   const phCounts = {};
-  tickets.forEach(t => { phCounts[t.phase] = (phCounts[t.phase]||0)+1; });
+  active.forEach(t => { phCounts[t.phase] = (phCounts[t.phase]||0)+1; });
   const maxPh = Math.max(...phOrder.map(p=>phCounts[p]||0), 1);
 
   // Stacked bar
   const stackedSegs = phOrder.map(p => {
     const cnt = phCounts[p]||0;
-    const pct = (cnt/total*100).toFixed(1);
-    const label = cnt > 0 ? (parseFloat(pct)>8 ? `${cnt}` : '') : '';
+    if (!cnt) return '';
+    const pct = (cnt/activeTotal*100).toFixed(1);
+    const label = parseFloat(pct)>8 ? `${cnt}` : '';
     return `<div class="stacked-seg" style="width:${pct}%;background:${phColors[p]}" title="${phLabels[p]}: ${cnt} (${pct}%)">${label}</div>`;
   }).join('');
 
   // Phase bar rows
   const phaseBars = phOrder.map(p => {
     const cnt = phCounts[p]||0;
-    const pct = Math.round(cnt/total*100);
+    const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
     const w   = Math.round(cnt/maxPh*100);
     return `<div class="hbar-row">
       <div class="hbar-head"><span class="hbar-lbl">${phLabels[p]}</span><span class="hbar-meta">${cnt} (${pct}%)</span></div>
@@ -856,24 +898,22 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  // ── Priority data ──
+  // ── Priority data (active only) ──
   const priColors = { '1':'#ef4444','2':'#f97316','3':'#eab308','4':'#22c55e','5':'#9ca3af' };
-  const priFill   = { '1':'c-p1','2':'c-p2','3':'c-p3','4':'c-p4','5':'c-p5' };
   const priLabels = { '1':'P1 – Critical','2':'P2 – High','3':'P3 – Medium','4':'P4 – Low','5':'P5 – Minimal' };
   const priCounts = {};
-  tickets.forEach(t => { priCounts[t.p] = (priCounts[t.p]||0)+1; });
-  const maxPri = Math.max(...['1','2','3','4','5'].map(p=>priCounts[p]||0), 1);
+  active.forEach(t => { priCounts[t.p] = (priCounts[t.p]||0)+1; });
 
   const donutData = ['1','2','3','4','5'].map(p => ({ v: priCounts[p]||0, color: priColors[p] }));
   const donutSVG  = drawDonut(donutData, 130);
   const legendRows = ['1','2','3','4','5'].map(p => {
     const cnt = priCounts[p]||0;
-    const pct = total ? Math.round(cnt/total*100) : 0;
+    const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
     return `<div class="leg-row"><span class="leg-dot" style="background:${priColors[p]}"></span><span class="leg-name">${priLabels[p]}</span><span class="leg-val">${cnt}</span><span class="leg-pct">${pct}%</span></div>`;
   }).join('');
 
-  // ── Top tickets ──
-  const top10 = [...tickets].sort((a,b)=>(parseInt(a.p,10)||99)-(parseInt(b.p,10)||99)).slice(0,10);
+  // ── Top tickets (active only, sorted by priority) ──
+  const top10 = [...active].sort((a,b)=>(parseInt(a.p,10)||99)-(parseInt(b.p,10)||99)).slice(0,10);
   const topHTML = top10.map(t => {
     const st = getUpd(t.id).status || '';
     return `<li class="top-item">
@@ -886,9 +926,9 @@ function renderDashboard() {
     </li>`;
   }).join('');
 
-  // ── PM workload ──
+  // ── PM workload (active only) ──
   const pmMap = {};
-  tickets.forEach(t => { const pm=(t.productManager||'(unknown)').trim(); pmMap[pm]=(pmMap[pm]||0)+1; });
+  active.forEach(t => { const pm=(t.productManager||'(unknown)').trim(); pmMap[pm]=(pmMap[pm]||0)+1; });
   const pmRows = Object.entries(pmMap).sort((a,b)=>b[1]-a[1]).map(([pm,cnt]) =>
     `<li class="pm-item"><span class="pm-name">${esc(pm)}</span><span class="pm-pill">${cnt}</span></li>`
   ).join('');
@@ -896,9 +936,10 @@ function renderDashboard() {
   dashGrid.innerHTML = `
     <div class="dash-card" style="grid-column:1/-1">
       <h3>Phase Overview</h3>
+      ${closedNote}
       <div class="stacked-wrap">
-        <div class="stacked-label">All ${total} tickets across phases</div>
-        <div class="stacked-bar">${stackedSegs}</div>
+        <div class="stacked-label">${activeTotal} active tickets across phases</div>
+        <div class="stacked-bar">${stackedSegs||'<div style="width:100%;background:var(--gray-200);height:100%"></div>'}</div>
       </div>
       ${phaseBars}
     </div>
@@ -913,7 +954,7 @@ function renderDashboard() {
 
     <div class="dash-card">
       <h3>Top Priority Tickets</h3>
-      <ul class="top-list">${topHTML}</ul>
+      <ul class="top-list">${topHTML||'<li style="padding:16px 0;color:var(--gray-500);font-size:13px">No active tickets</li>'}</ul>
     </div>
 
     <div class="dash-card">
@@ -927,17 +968,17 @@ function renderDashboard() {
 //  DEMO DATA
 // ═══════════════════════════════════════════════════════
 function loadDemo() {
-  document.getElementById('pasteArea').value = `ID\tP\tModel (CR)\tDate Submitted\tUpdated\tSOP (CW)\tProduct Manager\tSummary\tPhase\tFinish Phase (CW)\tProgress Update/Next Step\tResponsible Person (CR)
-BT-001\t1\tModel A\t2026-01-10\t2026-03-15\t12\tAlice van der Berg\tCritical braking system fault on wet roads\t1. Investigation\t18\tRoot cause analysis ongoing, waiting for sensor logs\tJan de Vries
-BT-002\t2\tModel B\t2026-01-18\t2026-03-10\t7\tBob Janssen\tDashboard display flicker at low temperatures\t2. Design\t20\tDesign spec drafted, review scheduled next week\tSara Linden
-BT-003\t1\tModel A\t2026-02-02\t2026-03-20\t12\tAlice van der Berg\tEngine warning light false positive (error code E4)\t3. Testing\t19\tFirmware patch under test, 2 cycles remaining\tJan de Vries
-BT-004\t3\tModel C\t2026-02-14\t2026-03-05\t9\tCarla Mulder\tSeat memory preset not saving after restart\t4. Implementation\t24\tImplementation done, awaiting final sign-off\tTom Bakker
-BT-005\t2\tModel B\t2026-02-20\t2026-03-22\t7\tBob Janssen\tHands-free call audio cuts out above 80 km/h\t1. Investigation\t22\tReproduced in test lab, audio module under review\tSara Linden
-BT-006\t4\tModel D\t2026-02-28\t2026-03-01\t14\tCarla Mulder\tAmbient lighting colour slightly off from spec\t5. Finalization\t16\tDocs and sign-off pending marketing approval\tTom Bakker
-BT-007\t1\tModel A\t2026-03-01\t2026-03-18\t12\tAlice van der Berg\tAutomatic emergency braking activates incorrectly\t2. Design\t23\tSafety team reviewing sensor fusion algorithm\tJan de Vries
-BT-008\t3\tModel C\t2026-03-05\t2026-03-19\t9\tBob Janssen\tNavigation reroutes to toll roads despite preference off\t3. Testing\t25\tPatch tested on 3 vehicles, 1 regression found\tSara Linden
-BT-009\t2\tModel B\t2026-03-08\t2026-03-21\t7\tCarla Mulder\tWiper speed drops inconsistently in heavy rain\t1. Investigation\t26\tProcuring replacement wiper motor samples\tTom Bakker
-BT-010\t5\tModel D\t2026-03-10\t2026-03-11\t14\tAlice van der Berg\tFont size on climate panel slightly too small\t5. Finalization\t17\tChange approved, updating UI style guide\tJan de Vries`;
+  document.getElementById('pasteArea').value = `Status\tID\tP\tModel (CR)\tDate Submitted\tUpdated\tSOP (CW)\tProduct Manager\tSummary\tPhase\tFinish Phase (CW)\tProgress Update/Next Step\tResponsible Person (CR)
+Assigned\tBT-001\t1\tModel A\t2026-01-10\t2026-03-15\t12\tAlice van der Berg\tCritical braking system fault on wet roads\t1. Investigation\t18\tRoot cause analysis ongoing, waiting for sensor logs\tJan de Vries
+Assigned\tBT-002\t2\tModel B\t2026-01-18\t2026-03-10\t7\tBob Janssen\tDashboard display flicker at low temperatures\t2. Design\t20\tDesign spec drafted, review scheduled next week\tSara Linden
+Assigned\tBT-003\t1\tModel A\t2026-02-02\t2026-03-20\t12\tAlice van der Berg\tEngine warning light false positive (error code E4)\t3. Testing\t19\tFirmware patch under test, 2 cycles remaining\tJan de Vries
+Closed\tBT-004\t3\tModel C\t2026-02-14\t2026-03-05\t9\tCarla Mulder\tSeat memory preset not saving after restart\t4. Implementation\t24\tImplementation done, awaiting final sign-off\tTom Bakker
+Assigned\tBT-005\t2\tModel B\t2026-02-20\t2026-03-22\t7\tBob Janssen\tHands-free call audio cuts out above 80 km/h\t1. Investigation\t22\tReproduced in test lab, audio module under review\tSara Linden
+Closed\tBT-006\t4\tModel D\t2026-02-28\t2026-03-01\t14\tCarla Mulder\tAmbient lighting colour slightly off from spec\t5. Finalization\t16\tDocs and sign-off pending marketing approval\tTom Bakker
+Assigned\tBT-007\t1\tModel A\t2026-03-01\t2026-03-18\t12\tAlice van der Berg\tAutomatic emergency braking activates incorrectly\t2. Design\t23\tSafety team reviewing sensor fusion algorithm\tJan de Vries
+Assigned\tBT-008\t3\tModel C\t2026-03-05\t2026-03-19\t9\tBob Janssen\tNavigation reroutes to toll roads despite preference off\t3. Testing\t25\tPatch tested on 3 vehicles, 1 regression found\tSara Linden
+Assigned\tBT-009\t2\tModel B\t2026-03-08\t2026-03-21\t7\tCarla Mulder\tWiper speed drops inconsistently in heavy rain\t1. Investigation\t26\tProcuring replacement wiper motor samples\tTom Bakker
+Closed\tBT-010\t5\tModel D\t2026-03-10\t2026-03-11\t14\tAlice van der Berg\tFont size on climate panel slightly too small\t5. Finalization\t17\tChange approved, updating UI style guide\tJan de Vries`;
   showMsg('ok', 'Demo data loaded — click "Import Data" to continue.');
 }
 
@@ -968,7 +1009,10 @@ function toast(msg) {
 }
 
 function updateHdrCount() {
-  document.getElementById('hdrCount').textContent = `${tickets.length} ticket${tickets.length!==1?'s':''}`;
+  const closed = tickets.filter(t => isClosed(t)).length;
+  const active = tickets.length - closed;
+  document.getElementById('hdrCount').textContent =
+    closed > 0 ? `${active} active · ${closed} closed` : `${tickets.length} ticket${tickets.length!==1?'s':''}`;
 }
 
 // ═══════════════════════════════════════════════════════
