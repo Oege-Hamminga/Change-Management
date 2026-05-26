@@ -247,6 +247,32 @@
     .import-msg.ok  { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
     .import-msg.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
+    /* File upload drop zone */
+    .file-drop { border: 2px dashed var(--gray-300); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+    .file-drop:hover, .file-drop.drag-over { border-color: var(--primary); background: var(--primary-light); }
+    .file-drop p { font-size: 13px; color: var(--gray-500); margin-top: 6px; }
+    .file-drop strong { color: var(--gray-700); }
+    #fileInput { display: none; }
+
+    /* Bookmarklet */
+    .bookmarklet-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px 18px; }
+    .bookmarklet-box h4 { font-size: 13px; font-weight: 600; color: var(--gray-800); margin-bottom: 6px; }
+    .bookmarklet-box p { font-size: 12px; color: var(--gray-600); margin-bottom: 12px; line-height: 1.5; }
+    .bookmarklet-steps { font-size: 12px; color: var(--gray-600); margin: 8px 0 14px 0; padding-left: 18px; line-height: 1.8; }
+    .bm-drag { display: inline-block; padding: 7px 16px; background: #f59e0b; color: white; font-weight: 700; font-size: 13px; border-radius: 7px; text-decoration: none; cursor: grab; border: 2px solid #d97706; box-shadow: 0 2px 4px rgba(0,0,0,.1); user-select: none; }
+    .bm-drag:hover { background: #d97706; }
+    .bm-drag:active { cursor: grabbing; }
+    .bm-note { font-size: 11px; color: var(--gray-500); margin-top: 8px; }
+
+    /* Auto-import banner */
+    .auto-import-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+    .auto-import-banner p { font-size: 13px; color: #1e40af; flex: 1; }
+    .auto-import-banner strong { font-weight: 700; }
+
+    /* Divider */
+    .import-or { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: var(--gray-400); font-size: 12px; }
+    .import-or::before, .import-or::after { content: ''; flex: 1; height: 1px; background: var(--gray-200); }
+
     /* Toast */
     .toast { position: fixed; bottom: 22px; right: 22px; background: var(--gray-900); color: white; padding: 10px 16px; border-radius: 8px; font-size: 13px; opacity: 0; transform: translateY(8px); transition: all .3s; z-index: 999; pointer-events: none; }
     .toast.show { opacity: 1; transform: translateY(0); }
@@ -319,22 +345,64 @@
   <!-- ════ IMPORT ════ -->
   <div class="tab-content" id="tab-import">
     <div class="import-wrap">
+
+      <!-- Auto-import banner shown when ?import= param is detected -->
+      <div class="auto-import-banner" id="autoImportBanner" style="display:none">
+        <span style="font-size:22px">🔗</span>
+        <p id="autoImportMsg">Data received from bookmarklet — <strong>0 rows</strong> ready to import.</p>
+        <button class="btn btn-primary" onclick="confirmAutoImport()">Import Now</button>
+        <button class="btn btn-secondary" onclick="dismissAutoImport()">Dismiss</button>
+      </div>
+
+      <!-- Method 1: Bookmarklet -->
       <div class="card">
-        <h2>Import Bugtracker Tickets</h2>
-        <p>Copy rows directly from Excel or Google Sheets (with or without header row) and paste below. Data is saved automatically in your browser.</p>
+        <h2>🔖 One-click from Bugtracker</h2>
+        <p>Drag the button below to your browser's bookmarks bar. Then open <strong>srvr-bugtracker/view_all_bug_page.php</strong>, click the bookmark — the data loads here automatically.</p>
+        <div class="bookmarklet-box">
+          <h4>Step-by-step</h4>
+          <ol class="bookmarklet-steps">
+            <li>Drag the yellow button into your browser bookmarks bar</li>
+            <li>Navigate to <code>http://srvr-bugtracker/view_all_bug_page.php</code></li>
+            <li>Click the bookmark — this tracker opens with data pre-loaded</li>
+            <li>Click <strong>Import Now</strong> in the blue banner at the top</li>
+          </ol>
+          <a id="bookmarkletLink" href="#" class="bm-drag" title="Drag me to your bookmarks bar">📋 Import to Tracker</a>
+          <p class="bm-note">⚠️ Works only while your browser can reach srvr-bugtracker. The bookmarklet reads the page you're on — no server connection needed from GitHub Pages.</p>
+        </div>
+      </div>
+
+      <!-- Method 2: File upload -->
+      <div class="card">
+        <h2>📁 Upload a File</h2>
+        <p>If your bugtracker lets you export, upload the file here. Accepts <strong>.csv</strong>, <strong>.tsv</strong>, or <strong>.txt</strong> (tab-separated) exports.</p>
+        <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()">
+          <div style="font-size:28px">📂</div>
+          <strong>Click to choose a file</strong>
+          <p>or drag and drop a CSV / TSV export here</p>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.tsv,.txt" onchange="handleFileUpload(this.files[0])">
+        <div class="import-msg" id="fileMsg"></div>
+      </div>
+
+      <!-- Method 3: Paste -->
+      <div class="card">
+        <h2>📋 Paste from Spreadsheet</h2>
+        <p>Select all rows in your bugtracker or Excel/Sheets (Ctrl+A → Ctrl+C) and paste below. Headers are detected automatically.</p>
         <textarea class="paste-area" id="pasteArea" placeholder="Paste tab-separated rows here…"></textarea>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="importData()">Import Data</button>
+          <button class="btn btn-primary" onclick="importData()">Import Pasted Data</button>
           <button class="btn btn-secondary" onclick="loadDemo()">Load Demo Data</button>
           <button class="btn btn-danger" onclick="clearAll()" style="margin-left:auto">Clear All</button>
         </div>
         <div class="import-msg" id="importMsg"></div>
       </div>
+
+      <!-- Column reference -->
       <div class="card">
         <h2>Expected Columns</h2>
-        <p>Paste in the order below. Headers are auto-detected. Blue = tracker update columns, green = auto-generated calendar-week columns.</p>
+        <p>Headers are auto-detected by name so column order doesn't matter. Blue = editable tracker columns added by this tool.</p>
         <div class="col-hint">
-          <h4>Source Columns (from your spreadsheet)</h4>
+          <h4>Source Columns (from your bugtracker)</h4>
           <div class="chips">
             <span class="chip">Status</span><span class="chip">ID</span><span class="chip">P</span><span class="chip">Model (CR)</span>
             <span class="chip">Date Submitted</span><span class="chip">Updated</span><span class="chip">SOP (CW)</span>
@@ -344,9 +412,9 @@
           </div>
         </div>
         <div class="col-hint" style="margin-top:10px">
-          <h4>Tracker Columns (editable)</h4>
+          <h4>Tracker Columns (editable, not from source)</h4>
           <div class="chips">
-            <span class="chip upd">Status</span>
+            <span class="chip upd">Tracker Status</span>
             <span class="chip upd">Internal Notes</span>
             <span class="chip cw">CW20</span>
             <span class="chip cw">CW21</span>
@@ -354,6 +422,7 @@
           </div>
         </div>
       </div>
+
     </div>
   </div>
 
@@ -1016,6 +1085,168 @@ function updateHdrCount() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  BOOKMARKLET
+// ═══════════════════════════════════════════════════════
+function buildBookmarklet() {
+  // The tracker URL on GitHub Pages (works for any page origin too)
+  const trackerUrl = (location.origin + location.pathname).replace(/\/$/, '') + '/';
+
+  // Minified bookmarklet — runs on the bugtracker page:
+  // 1. Finds the largest <table> (most likely the bug list)
+  // 2. Converts to TSV (tabs replace internal whitespace)
+  // 3. Base64-encodes the TSV
+  // 4. Opens this tracker with ?import=<data>
+  const code = `(function(){
+    var tables=document.querySelectorAll('table');
+    if(!tables.length){alert('No table found on this page.');return;}
+    var best=null,bestRows=0;
+    tables.forEach(function(t){if(t.rows.length>bestRows){bestRows=t.rows.length;best=t;}});
+    var tsv=Array.from(best.rows).map(function(r){
+      return Array.from(r.cells).map(function(c){return c.innerText.replace(/\\t/g,' ').replace(/\\n/g,' ').trim();}).join('\\t');
+    }).join('\\n');
+    var b64=btoa(unescape(encodeURIComponent(tsv)));
+    window.open('${trackerUrl}?import='+encodeURIComponent(b64),'_blank');
+  })();`;
+
+  // Encode as a javascript: URL for the bookmark
+  return 'javascript:' + encodeURIComponent(code);
+}
+
+function initBookmarklet() {
+  const link = document.getElementById('bookmarkletLink');
+  if (link) link.href = buildBookmarklet();
+}
+
+// ═══════════════════════════════════════════════════════
+//  URL-PARAMETER AUTO-IMPORT (?import=<base64>)
+// ═══════════════════════════════════════════════════════
+let _pendingAutoImport = null;
+
+function checkUrlImport() {
+  const params = new URLSearchParams(location.search);
+  const raw = params.get('import');
+  if (!raw) return;
+
+  // Clean the URL immediately so a refresh doesn't re-trigger
+  const cleanUrl = location.pathname;
+  history.replaceState(null, '', cleanUrl);
+
+  try {
+    const tsv = decodeURIComponent(escape(atob(decodeURIComponent(raw))));
+    const parsed = parseTSV(tsv);
+    if (!parsed.length) throw new Error('No rows parsed');
+
+    _pendingAutoImport = parsed;
+
+    // Switch to Import tab and show banner
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-tab="import"]').classList.add('active');
+    document.getElementById('tab-import').classList.add('active');
+
+    const banner = document.getElementById('autoImportBanner');
+    document.getElementById('autoImportMsg').innerHTML =
+      `Data received from bookmarklet — <strong>${parsed.length} rows</strong> detected. Your existing update notes will be preserved.`;
+    banner.style.display = 'flex';
+    banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {
+    console.warn('Auto-import failed:', e);
+  }
+}
+
+function confirmAutoImport() {
+  if (!_pendingAutoImport) return;
+  tickets = _pendingAutoImport;
+  _pendingAutoImport = null;
+  save();
+  updateHdrCount();
+  renderDashboard();
+  document.getElementById('autoImportBanner').style.display = 'none';
+  toast(`Imported ${tickets.length} tickets from bookmarklet`);
+}
+
+function dismissAutoImport() {
+  _pendingAutoImport = null;
+  document.getElementById('autoImportBanner').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+//  FILE UPLOAD (CSV / TSV)
+// ═══════════════════════════════════════════════════════
+function handleFileUpload(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let text = e.target.result;
+      // Detect CSV vs TSV by checking first line
+      const firstLine = text.split(/\r?\n/)[0] || '';
+      const tabCount   = (firstLine.match(/\t/g) || []).length;
+      const commaCount = (firstLine.match(/,/g) || []).length;
+      if (commaCount > tabCount) text = csvToTsv(text);
+
+      const parsed = parseTSV(text);
+      if (!parsed.length) throw new Error('No rows found');
+      tickets = parsed;
+      save();
+      updateHdrCount();
+      renderDashboard();
+      showFileMsg('ok', `✓ Imported ${parsed.length} ticket${parsed.length>1?'s':''} from ${file.name}.`);
+      toast(`Imported ${parsed.length} tickets`);
+    } catch(err) {
+      showFileMsg('err', `Could not parse file: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
+  // Reset so same file can be re-uploaded
+  document.getElementById('fileInput').value = '';
+}
+
+function showFileMsg(type, msg) {
+  const el = document.getElementById('fileMsg');
+  el.style.display = 'block';
+  el.className = `import-msg ${type}`;
+  el.textContent = msg;
+}
+
+// Naive CSV → TSV: handles double-quoted fields with embedded commas/newlines
+function csvToTsv(csv) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < csv.length; i++) {
+    const ch = csv[i], nx = csv[i+1];
+    if (inQ) {
+      if (ch === '"' && nx === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQ = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"') { inQ = true; }
+      else if (ch === ',') { row.push(field.replace(/\t/g,' ')); field = ''; }
+      else if (ch === '\n' || (ch === '\r' && nx === '\n')) {
+        if (ch === '\r') i++;
+        row.push(field.replace(/\t/g,' ')); rows.push(row); row = []; field = '';
+      } else { field += ch; }
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.map(r => r.join('\t')).join('\n');
+}
+
+// Drag-and-drop on the file drop zone
+document.addEventListener('DOMContentLoaded', () => {
+  const drop = document.getElementById('fileDrop');
+  if (!drop) return;
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
+  });
+});
+
+// ═══════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════
 loadStorage();
@@ -1023,6 +1254,8 @@ initWeekRange();
 updateHdrCount();
 renderDashboard();
 if (tickets.length) renderTable();
+initBookmarklet();
+checkUrlImport();
 </script>
 </body>
 </html>
