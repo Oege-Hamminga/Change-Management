@@ -412,7 +412,7 @@
 // ═══════════════════════════════════════════════════════
 let tickets    = [];
 let updates    = {};   // { [id]: { status, notes, taskThisWeek, taskNextWeek, taskWeekKey } }
-let sortKey    = 'p';
+let sortKey    = 'priority';
 let sortDir    = 'asc';
 let colFilters = {};
 
@@ -434,7 +434,12 @@ function isoWeekInfo(date) {
 }
 
 function isoWeekCount(year) {
-  return isoWeekInfo(new Date(year, 11, 28)).week;
+  // A year has 53 ISO weeks iff Jan 1 is Thursday,
+  // or it's a leap year with Jan 1 on Wednesday.
+  // This avoids calling isoWeekInfo (which would cause infinite recursion).
+  const jan1 = new Date(year, 0, 1).getDay() || 7;
+  const leap  = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  return (jan1 === 4 || (leap && jan1 === 3)) ? 53 : 52;
 }
 
 function weekKey(year, week) { return `${year}-W${String(week).padStart(2,'0')}`; }
