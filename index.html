@@ -256,13 +256,15 @@
 
     /* Bookmarklet */
     .bookmarklet-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px 18px; }
-    .bookmarklet-box h4 { font-size: 13px; font-weight: 600; color: var(--gray-800); margin-bottom: 6px; }
-    .bookmarklet-box p { font-size: 12px; color: var(--gray-600); margin-bottom: 12px; line-height: 1.5; }
-    .bookmarklet-steps { font-size: 12px; color: var(--gray-600); margin: 8px 0 14px 0; padding-left: 18px; line-height: 1.8; }
-    .bm-drag { display: inline-block; padding: 7px 16px; background: #f59e0b; color: white; font-weight: 700; font-size: 13px; border-radius: 7px; text-decoration: none; cursor: grab; border: 2px solid #d97706; box-shadow: 0 2px 4px rgba(0,0,0,.1); user-select: none; }
-    .bm-drag:hover { background: #d97706; }
-    .bm-drag:active { cursor: grabbing; }
-    .bm-note { font-size: 11px; color: var(--gray-500); margin-top: 8px; }
+    .bookmarklet-box h4 { font-size: 13px; font-weight: 600; color: #78350f; margin-bottom: 6px; }
+    .bookmarklet-steps { font-size: 12px; color: var(--gray-600); margin: 8px 0 14px 0; padding-left: 18px; line-height: 1.9; }
+    .bookmarklet-steps li { margin-bottom: 2px; }
+    .bm-url-row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+    .bm-url-box { flex: 1; font-family: monospace; font-size: 11px; padding: 6px 8px; border: 1px solid #fde68a; border-radius: 6px; background: white; color: var(--gray-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; user-select: all; }
+    .bm-copy-btn { padding: 7px 16px; background: #f59e0b; color: white; font-weight: 700; font-size: 13px; border-radius: 7px; border: none; cursor: pointer; white-space: nowrap; }
+    .bm-copy-btn:hover { background: #d97706; }
+    .bm-copy-btn.copied { background: #059669; }
+    .bm-note { font-size: 11px; color: var(--gray-500); margin-top: 10px; line-height: 1.5; }
 
     /* Auto-import banner */
     .auto-import-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
@@ -357,21 +359,28 @@
       <!-- Method 1: Bookmarklet -->
       <div class="card">
         <h2>🔖 One-click from Bugtracker</h2>
-        <p>Drag the button below to your browser's bookmarks bar once. After that, two clicks is all it takes to refresh the tracker.</p>
+        <p>Creates a browser bookmark that, when clicked on the bugtracker page, sends the table data straight here.</p>
         <div class="bookmarklet-box">
-          <h4>Setup (once)</h4>
+          <h4>Setup — add the bookmark (once)</h4>
           <ol class="bookmarklet-steps">
-            <li>Drag the yellow button into your browser bookmarks bar</li>
+            <li>Click <strong>Copy Bookmarklet URL</strong> below — the yellow box shows a preview of what's copied</li>
+            <li>Open your browser's bookmark manager:<br>
+                <strong>Chrome / Edge:</strong> Ctrl+Shift+O → right-click a folder → "Add new bookmark"<br>
+                <strong>Firefox:</strong> Ctrl+Shift+B → right-click → "New Bookmark"</li>
+            <li>Set the name to <em>Import to Tracker</em>, paste the URL in the address field, save</li>
           </ol>
-          <a id="bookmarkletLink" href="#" class="bm-drag" title="Drag me to your bookmarks bar">📋 Import to Tracker</a>
-          <h4 style="margin-top:16px">Every time you want to refresh</h4>
+          <div class="bm-url-row">
+            <input id="bmUrlBox" class="bm-url-box" readonly value="Click 'Copy' to generate…" title="The full bookmarklet URL — click Copy to copy it">
+            <button class="bm-copy-btn" id="bmCopyBtn" onclick="copyBookmarkletUrl()">📋 Copy Bookmarklet URL</button>
+          </div>
+          <h4 style="margin-top:16px">Every time you want to refresh data</h4>
           <ol class="bookmarklet-steps">
-            <li>Open <code>http://srvr-bugtracker/view_all_bug_page.php</code> in your browser</li>
-            <li>Click the <strong>📋 Import to Tracker</strong> bookmark — the page navigates here automatically</li>
-            <li>A blue banner appears at the top — click <strong>Import Now</strong></li>
-            <li>If the blue banner says to use clipboard instead, click <strong>Read from Clipboard</strong> in the Paste card below</li>
+            <li>Open <code>http://srvr-bugtracker/view_all_bug_page.php</code></li>
+            <li>Click the <strong>Import to Tracker</strong> bookmark you just created</li>
+            <li>This tracker opens — a blue banner appears, click <strong>Import Now</strong></li>
+            <li>If the banner says "use clipboard": click <strong>Read from Clipboard</strong> in the Paste card below</li>
           </ol>
-          <p class="bm-note">The bookmarklet always copies data to your clipboard as a backup, so step 4 is a guaranteed fallback if the automatic path doesn't work.</p>
+          <p class="bm-note">The bookmarklet also copies the table data to your clipboard as a backup, so step 4 always works even if the automatic URL transfer doesn't.</p>
         </div>
       </div>
 
@@ -1131,8 +1140,30 @@ try{
 }
 
 function initBookmarklet() {
-  const link = document.getElementById('bookmarkletLink');
-  if (link) link.href = buildBookmarklet();
+  // Pre-fill the URL preview box so users can see something is there
+  const box = document.getElementById('bmUrlBox');
+  if (box) box.value = 'Click "Copy Bookmarklet URL" to generate and copy';
+}
+
+async function copyBookmarkletUrl() {
+  const url = buildBookmarklet();
+  const box = document.getElementById('bmUrlBox');
+  const btn = document.getElementById('bmCopyBtn');
+
+  // Show a short preview in the text box
+  if (box) box.value = url.slice(0, 80) + '…';
+
+  try {
+    await navigator.clipboard.writeText(url);
+    if (btn) { btn.textContent = '✓ Copied!'; btn.classList.add('copied'); }
+    setTimeout(() => {
+      if (btn) { btn.textContent = '📋 Copy Bookmarklet URL'; btn.classList.remove('copied'); }
+    }, 2500);
+  } catch(e) {
+    // Clipboard API blocked — select the text box so user can Ctrl+C manually
+    if (box) { box.value = url; box.select(); }
+    if (btn) btn.textContent = 'Select all & Ctrl+C';
+  }
 }
 
 // ═══════════════════════════════════════════════════════
