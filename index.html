@@ -171,6 +171,13 @@
     td.cw-od { background: #fff1f2; }
     td.cw-od .ct { color: #be123c; font-weight: 600; }
 
+    /* Editable CW inputs (SOP / Finish Phase) */
+    .cw-input { width: 52px; border: 1px solid transparent; border-radius: 4px; padding: 3px 5px; font-size: 11px; font-family: inherit; background: transparent; outline: none; color: var(--gray-700); transition: border-color .15s, background .15s; }
+    .cw-input:hover { border-color: var(--gray-300); background: white; }
+    .cw-input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .cw-input.od { color: #be123c; font-weight: 600; }
+    td.cw-od .cw-input { background: transparent; }
+
     .st-sel { padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; background: white; cursor: pointer; outline: none; min-width: 95px; }
     .st-sel:focus { border-color: var(--primary); }
     .st-open     { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
@@ -650,7 +657,7 @@ function filteredTickets() {
       } else if (key === 'ticketStatus') {
         const tv = (t.ticketStatus||'').toLowerCase();
         if (v === 'assigned' && !tv.includes('assigned')) return false;
-        else if (v === 'closed' && tv !== 'closed') return false;
+        else if (v === 'closed' && !tv.startsWith('closed')) return false;
         else if (v !== 'assigned' && v !== 'closed' && !tv.includes(v)) return false;
       } else if (key === 'priority') {
         if (effPri(t) !== val) return false;
@@ -707,12 +714,12 @@ const ST_CLS = { 'Open':'st-open','In Progress':'st-progress','Blocked':'st-bloc
 
 function tsBadge(v) {
   const lc  = (v||'').toLowerCase();
-  const cls = lc.includes('assigned') ? 'ts-assigned' : lc === 'closed' ? 'ts-closed' : v ? 'ts-other' : 'ts-other';
+  const cls = lc.includes('assigned') ? 'ts-assigned' : lc.startsWith('closed') ? 'ts-closed' : v ? 'ts-other' : 'ts-other';
   return v ? `<span class="ts-badge ${cls}" title="${esc(v)}">${esc(v)}</span>`
            : `<span class="ts-badge ts-other">–</span>`;
 }
 
-function isClosed(t) { return (t.ticketStatus||'').toLowerCase() === 'closed'; }
+function isClosed(t) { return (t.ticketStatus||'').toLowerCase().startsWith('closed'); }
 
 // ═══════════════════════════════════════════════════════
 //  TABLE COLUMNS
@@ -825,15 +832,17 @@ function renderTable() {
     const thisVal = esc(upd.taskThisWeek || '');
     const nextVal = esc(upd.taskNextWeek || '');
 
-    const sopOD = !isClosed(t) && cwIsOverdue(t.sop);
-    const fpOD  = !isClosed(t) && cwIsOverdue(t.finishPhase);
+    const effSop = (upd.sopCW !== undefined) ? upd.sopCW : t.sop;
+    const effFP  = (upd.finishPhaseCW !== undefined) ? upd.finishPhaseCW : t.finishPhase;
+    const sopOD  = !isClosed(t) && cwIsOverdue(effSop);
+    const fpOD   = !isClosed(t) && cwIsOverdue(effFP);
 
     const idCell = t.url
       ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="cell-id">${esc(t.id)}</a>`
       : `<span class="cell-id">${esc(t.id)}</span>`;
 
-    const sopCell      = `<td${sopOD?' class="cw-od"':''}><span class="ct" title="${sopOD?'⚠ Overdue — ':''} CW ${esc(t.sop)}">${sopOD?'⚠ ':''}${esc(t.sop)||'–'}</span></td>`;
-    const finishCell   = `<td${fpOD?' class="cw-od"':''}><span class="ct" title="${fpOD?'⚠ Overdue — ':''} CW ${esc(t.finishPhase)}">${fpOD?'⚠ ':''}${esc(t.finishPhase)||'–'}</span></td>`;
+    const sopCell    = `<td${sopOD?' class="cw-od"':''}><input class="cw-input${sopOD?' od':''}" type="text" value="${esc(effSop||'')}" placeholder="CW" title="${sopOD?'⚠ Overdue':'SOP (calendar week)'}" data-id="${esc(t.id)}" data-field="sopCW" onblur="setCwField(this)"></td>`;
+    const finishCell = `<td${fpOD?' class="cw-od"':''}><input class="cw-input${fpOD?' od':''}" type="text" value="${esc(effFP||'')}" placeholder="CW" title="${fpOD?'⚠ Overdue':'Finish Phase (calendar week)'}" data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setCwField(this)"></td>`;
 
     const ep       = effPri(t);
     const priCls   = ep ? `pp-${ep}` : '';
@@ -905,6 +914,20 @@ function setTask(el) {
   save();
 }
 
+function setCwField(el) {
+  const id    = el.dataset.id;
+  const field = el.dataset.field;
+  if (!updates[id]) updates[id] = {};
+  updates[id][field] = el.value.trim();
+  const ticket = tickets.find(t => t.id === id);
+  const isOD   = ticket && !isClosed(ticket) && cwIsOverdue(el.value.trim());
+  const td = el.closest('td');
+  if (td) td.className = isOD ? 'cw-od' : '';
+  el.className = `cw-input${isOD ? ' od' : ''}`;
+  save();
+  renderDashboard();
+}
+
 // ═══════════════════════════════════════════════════════
 //  DASHBOARD
 // ═══════════════════════════════════════════════════════
@@ -957,7 +980,8 @@ function renderDashboard() {
   const blocked  = active.filter(t => (getUpd(t.id).status||'')==='Blocked').length;
   const open     = active.filter(t => { const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
   const resolved = active.filter(t => (getUpd(t.id).status||'')==='Resolved').length;
-  const overdue  = active.filter(t => cwIsOverdue(t.sop) || cwIsOverdue(t.finishPhase)).length;
+  const effCw    = t => { const u=updates[t.id]||{}; return { sop: u.sopCW!==undefined?u.sopCW:t.sop, fp: u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase }; };
+  const overdue  = active.filter(t => { const c=effCw(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); }).length;
 
   statCards.innerHTML = [
     { val: activeTotal, label: 'Active Tickets',  color: 'var(--primary)' },
@@ -1060,19 +1084,19 @@ function renderDashboard() {
 
   // Overdue list (SOP and Finish Phase)
   const overdueItems = active
-    .filter(t => cwIsOverdue(t.sop) || cwIsOverdue(t.finishPhase))
+    .filter(t => { const c=effCw(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); })
     .sort((a,b) => {
-      const cwA = Math.min(parseCW(a.sop)||999, parseCW(a.finishPhase)||999);
-      const cwB = Math.min(parseCW(b.sop)||999, parseCW(b.finishPhase)||999);
-      return cwA - cwB;
+      const ca=effCw(a), cb=effCw(b);
+      return Math.min(parseCW(ca.sop)||999, parseCW(ca.fp)||999) - Math.min(parseCW(cb.sop)||999, parseCW(cb.fp)||999);
     });
 
   const overdueHTML = overdueItems.length === 0
     ? '<p style="font-size:13px;color:var(--gray-500);padding:8px 0">No overdue CW deadlines ✓</p>'
     : `<ul class="overdue-list">${overdueItems.map(t => {
         const parts = [];
-        if (cwIsOverdue(t.sop))        parts.push(`SOP CW${esc(t.sop)}`);
-        if (cwIsOverdue(t.finishPhase)) parts.push(`Finish CW${esc(t.finishPhase)}`);
+        const c = effCw(t);
+        if (cwIsOverdue(c.sop)) parts.push(`SOP CW${esc(c.sop)}`);
+        if (cwIsOverdue(c.fp))  parts.push(`Finish CW${esc(c.fp)}`);
         const idTag = t.url
           ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="overdue-id">${esc(t.id)}</a>`
           : `<span class="overdue-id">${esc(t.id)}</span>`;
