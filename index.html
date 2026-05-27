@@ -179,6 +179,15 @@
     .st-resolved { color: #059669; background: #ecfdf5; border-color: #a7f3d0; }
     .st-closed   { color: var(--gray-500); background: var(--gray-100); border-color: var(--gray-200); }
 
+    /* Priority dropdown (editable) */
+    .pri-sel { padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; background: white; cursor: pointer; outline: none; min-width: 88px; font-weight: 600; }
+    .pri-sel:focus { box-shadow: 0 0 0 2px #bfdbfe; }
+    .pri-sel.pp-1 { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    .pri-sel.pp-2 { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+    .pri-sel.pp-3 { background: #fefce8; color: #ca8a04; border-color: #fde68a; }
+    .pri-sel.pp-4 { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+    .pri-sel.pp-5 { background: var(--gray-100); color: var(--gray-500); border-color: var(--gray-300); }
+
     /* Task textareas */
     .task-ta { width: 100%; border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; font-size: 11px; font-family: inherit; background: transparent; resize: none; outline: none; color: var(--gray-700); min-height: 44px; line-height: 1.5; transition: border-color .15s, background .15s; }
     .task-ta.cur { background: #f0f7ff; }
@@ -612,7 +621,7 @@ function sortBy(key) {
 }
 
 function sortVal(v, key) {
-  if (key === 'p') { const n = parseInt(v,10); return isNaN(n) ? 99 : n; }
+  if (key === 'priority') { const n = parseInt(v,10); return isNaN(n) ? 99 : n; }
   if (['dateSubmitted','updated'].includes(key)) { const d = new Date(v); return isNaN(d) ? v.toLowerCase() : d.getTime(); }
   if (['sop','finishPhase'].includes(key)) { const n = parseCW(v); return n === null ? 9999 : n; }
   return (v||'').toLowerCase();
@@ -638,7 +647,9 @@ function filteredTickets() {
         if (v === 'assigned' && !tv.includes('assigned')) return false;
         else if (v === 'closed' && tv !== 'closed') return false;
         else if (v !== 'assigned' && v !== 'closed' && !tv.includes(v)) return false;
-      } else if (['p','phase','model','productManager'].includes(key)) {
+      } else if (key === 'priority') {
+        if (effPri(t) !== val) return false;
+      } else if (['phase','model','productManager'].includes(key)) {
         if ((t[key]||'').toLowerCase() !== v) return false;
       } else if (key === 'dateSubmitted' || key === 'updated') {
         if (!(t[key]||'').includes(val)) return false;
@@ -649,12 +660,13 @@ function filteredTickets() {
     return true;
   }).sort((a,b) => {
     let va, vb;
-    if (sortKey === 'updStatus') { va = getUpd(a.id).status||''; vb = getUpd(b.id).status||''; }
+    if (sortKey === 'updStatus')  { va = getUpd(a.id).status||''; vb = getUpd(b.id).status||''; }
+    else if (sortKey === 'priority') { va = effPri(a); vb = effPri(b); }
     else { va = a[sortKey]||''; vb = b[sortKey]||''; }
     const sa = sortVal(va, sortKey), sb = sortVal(vb, sortKey);
     if (sa < sb) return sortDir==='asc' ? -1 : 1;
     if (sa > sb) return sortDir==='asc' ?  1 : -1;
-    return (parseInt(a.p,10)||99) - (parseInt(b.p,10)||99);
+    return (parseInt(effPri(a),10)||99) - (parseInt(effPri(b),10)||99);
   });
 }
 
@@ -683,6 +695,9 @@ function phaseBadge(ph) {
 
 function prClass(p) { return ['1','2','3','4','5'].includes(p) ? `pr-${p}` : ''; }
 
+// Effective priority: editable override takes precedence over imported value
+function effPri(t) { return (updates[t.id] && updates[t.id].priority) || t.p || ''; }
+
 const ST_CLS = { 'Open':'st-open','In Progress':'st-progress','Blocked':'st-blocked','Resolved':'st-resolved','Closed':'st-closed' };
 
 function tsBadge(v) {
@@ -700,7 +715,6 @@ function isClosed(t) { return (t.ticketStatus||'').toLowerCase() === 'closed'; }
 const STATIC_COLS = [
   { key:'ticketStatus',     label:'Status',               sortable:true  },
   { key:'id',               label:'ID',                   sortable:true  },
-  { key:'p',                label:'P',                    sortable:true  },
   { key:'model',            label:'Model (CR)',            sortable:true  },
   { key:'dateSubmitted',    label:'Date Submitted',        sortable:true  },
   { key:'updated',          label:'Updated',              sortable:true  },
@@ -712,6 +726,7 @@ const STATIC_COLS = [
   { key:'progressUpdate',   label:'Progress / Next Step',  sortable:true  },
   { key:'responsiblePerson',label:'Responsible (CR)',      sortable:true  },
   { key:'updStatus',        label:'Status',                sortable:true,  cls:'upd-th' },
+  { key:'priority',         label:'Priority',              sortable:true,  cls:'upd-th' },
   { key:'notes',            label:'Internal Notes',        sortable:false, cls:'upd-th' },
   { key:'taskThisWeek',     label:`Tasks This Week (CW${CUR_WEEK})`, sortable:false, cls:'task-cur' },
   { key:'taskNextWeek',     label:'Tasks Next Week',       sortable:false, cls:'task-nxt' },
@@ -723,8 +738,9 @@ function buildFilterInput(key) {
   if (key === 'ticketStatus') {
     return mkSelect(key, ['','Assigned','Closed'], cur, v => v||'All');
   }
-  if (key === 'p') {
-    return mkSelect(key, ['','1','2','3','4','5'], cur, v => v||'All');
+  if (key === 'priority') {
+    const priLbl = {'':'All','1':'P1 Critical','2':'P2 High','3':'P3 Medium','4':'P4 Low','5':'P5 Minimal'};
+    return mkSelect(key, ['','1','2','3','4','5'], cur, v => priLbl[v]||v);
   }
   if (key === 'phase') {
     const lbl = {'':'All','1':'1-Inv','2':'2-Des','3':'3-Tst','4':'4-Imp','5':'5-Fin'};
@@ -814,11 +830,15 @@ function renderTable() {
     const sopCell      = `<td${sopOD?' class="cw-od"':''}><span class="ct" title="${sopOD?'⚠ Overdue — ':''} CW ${esc(t.sop)}">${sopOD?'⚠ ':''}${esc(t.sop)||'–'}</span></td>`;
     const finishCell   = `<td${fpOD?' class="cw-od"':''}><span class="ct" title="${fpOD?'⚠ Overdue — ':''} CW ${esc(t.finishPhase)}">${fpOD?'⚠ ':''}${esc(t.finishPhase)||'–'}</span></td>`;
 
+    const ep       = effPri(t);
+    const priCls   = ep ? `pp-${ep}` : '';
+    const priOpts  = [['','— priority —'],['1','P1 Critical'],['2','P2 High'],['3','P3 Medium'],['4','P4 Low'],['5','P5 Minimal']]
+      .map(([v,l]) => `<option value="${v}" ${ep===v?'selected':''}>${l}</option>`).join('');
+
     const closedCls = isClosed(t) ? ' row-closed' : '';
-    return `<tr class="${prClass(t.p)}${closedCls}">
+    return `<tr class="${prClass(ep)}${closedCls}">
       <td>${tsBadge(t.ticketStatus)}</td>
       <td>${idCell}</td>
-      <td>${pBadge(t.p)}</td>
       <td><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
       <td><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
       <td><span class="ct">${esc(t.updated)||'–'}</span></td>
@@ -830,6 +850,7 @@ function renderTable() {
       <td><span class="ct wide" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate)||'–'}</span></td>
       <td><span class="ct" title="${esc(t.responsiblePerson)}">${esc(t.responsiblePerson)||'–'}</span></td>
       <td><select class="st-sel ${stCls}" data-id="${esc(t.id)}" onchange="setSt(this)">${stOpts}</select></td>
+      <td><select class="pri-sel ${priCls}" data-id="${esc(t.id)}" onchange="setPriority(this)">${priOpts}</select></td>
       <td><textarea class="note-ta" rows="2" data-id="${esc(t.id)}" onblur="setNote(this)">${esc(upd.notes||'')}</textarea></td>
       <td><textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea></td>
       <td><textarea class="task-ta nxt${nextVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskNextWeek" onblur="setTask(this)">${nextVal}</textarea></td>
@@ -845,6 +866,21 @@ function setSt(el) {
   if (!updates[id]) updates[id] = {};
   updates[id].status = el.value;
   el.className = `st-sel ${ST_CLS[el.value]||''}`;
+  save();
+}
+
+function setPriority(el) {
+  const id = el.dataset.id;
+  if (!updates[id]) updates[id] = {};
+  updates[id].priority = el.value;
+  el.className = `pri-sel${el.value ? ` pp-${el.value}` : ''}`;
+  // Update the row's left-border colour live
+  const row = el.closest('tr');
+  if (row) {
+    row.className = row.className.replace(/\bpr-\d\b/g, '').trim();
+    const pc = prClass(el.value);
+    if (pc) row.classList.add(pc);
+  }
   save();
 }
 
@@ -912,7 +948,7 @@ function renderDashboard() {
   const closedCount = closed.length;
   const activeTotal = active.length;
 
-  const p1       = active.filter(t => t.p==='1').length;
+  const p1       = active.filter(t => effPri(t)==='1').length;
   const blocked  = active.filter(t => (getUpd(t.id).status||'')==='Blocked').length;
   const open     = active.filter(t => { const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
   const resolved = active.filter(t => (getUpd(t.id).status||'')==='Resolved').length;
@@ -965,7 +1001,7 @@ function renderDashboard() {
   const priColors = { '1':'#ef4444','2':'#f97316','3':'#eab308','4':'#22c55e','5':'#9ca3af' };
   const priLabels = { '1':'P1 – Critical','2':'P2 – High','3':'P3 – Medium','4':'P4 – Low','5':'P5 – Minimal' };
   const priCounts = {};
-  active.forEach(t => { priCounts[t.p] = (priCounts[t.p]||0)+1; });
+  active.forEach(t => { const p = effPri(t); priCounts[p] = (priCounts[p]||0)+1; });
   const donutData = ['1','2','3','4','5'].map(p => ({ v: priCounts[p]||0, color: priColors[p] }));
   const donutSVG  = drawDonut(donutData, 130);
   const legendRows = ['1','2','3','4','5'].map(p => {
