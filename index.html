@@ -1088,27 +1088,26 @@ function updateHdrCount() {
 //  BOOKMARKLET
 // ═══════════════════════════════════════════════════════
 function buildBookmarklet() {
-  // The tracker URL on GitHub Pages (works for any page origin too)
   const trackerUrl = (location.origin + location.pathname).replace(/\/$/, '') + '/';
 
-  // Minified bookmarklet — runs on the bugtracker page:
-  // 1. Finds the largest <table> (most likely the bug list)
-  // 2. Converts to TSV (tabs replace internal whitespace)
-  // 3. Base64-encodes the TSV
-  // 4. Opens this tracker with ?import=<data>
+  // Runs on the bugtracker page.
+  // Navigates the SAME tab to the tracker (avoids popup blockers entirely).
+  // Uses location.hash so the full data never reaches any server.
   const code = `(function(){
-    var tables=document.querySelectorAll('table');
-    if(!tables.length){alert('No table found on this page.');return;}
-    var best=null,bestRows=0;
-    tables.forEach(function(t){if(t.rows.length>bestRows){bestRows=t.rows.length;best=t;}});
-    var tsv=Array.from(best.rows).map(function(r){
-      return Array.from(r.cells).map(function(c){return c.innerText.replace(/\\t/g,' ').replace(/\\n/g,' ').trim();}).join('\\t');
-    }).join('\\n');
-    var b64=btoa(unescape(encodeURIComponent(tsv)));
-    window.open('${trackerUrl}?import='+encodeURIComponent(b64),'_blank');
-  })();`;
+try{
+  var tables=document.querySelectorAll('table');
+  if(!tables.length){alert('Change Management Tracker:\\nNo <table> found on this page.');return;}
+  var best=null,bestRows=0;
+  tables.forEach(function(t){if(t.rows.length>bestRows){bestRows=t.rows.length;best=t;}});
+  if(bestRows<2){alert('Change Management Tracker:\\nTable appears empty (fewer than 2 rows).');return;}
+  var tsv=Array.from(best.rows).map(function(r){
+    return Array.from(r.cells).map(function(c){return c.innerText.replace(/[\\t]/g,' ').replace(/[\\r\\n]+/g,' ').trim();}).join('\\t');
+  }).join('\\n');
+  var b64=btoa(unescape(encodeURIComponent(tsv)));
+  location.href='${trackerUrl}#import='+b64;
+}catch(e){alert('Change Management Tracker:\\nError: '+e.message);}
+})();`;
 
-  // Encode as a javascript: URL for the bookmark
   return 'javascript:' + encodeURIComponent(code);
 }
 
@@ -1123,18 +1122,19 @@ function initBookmarklet() {
 let _pendingAutoImport = null;
 
 function checkUrlImport() {
-  const params = new URLSearchParams(location.search);
-  const raw = params.get('import');
-  if (!raw) return;
+  // Read from hash (#import=...) — never touches any server
+  const hash = location.hash;
+  if (!hash.startsWith('#import=')) return;
 
-  // Clean the URL immediately so a refresh doesn't re-trigger
-  const cleanUrl = location.pathname;
-  history.replaceState(null, '', cleanUrl);
+  const raw = hash.slice('#import='.length);
+
+  // Strip the hash immediately so a refresh doesn't re-trigger
+  history.replaceState(null, '', location.pathname);
 
   try {
-    const tsv = decodeURIComponent(escape(atob(decodeURIComponent(raw))));
+    const tsv = decodeURIComponent(escape(atob(raw)));
     const parsed = parseTSV(tsv);
-    if (!parsed.length) throw new Error('No rows parsed');
+    if (!parsed.length) throw new Error('No rows could be parsed from the bookmarklet data');
 
     _pendingAutoImport = parsed;
 
@@ -1151,6 +1151,7 @@ function checkUrlImport() {
     banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch(e) {
     console.warn('Auto-import failed:', e);
+    alert('Change Management Tracker:\nCould not read bookmarklet data — ' + e.message);
   }
 }
 
