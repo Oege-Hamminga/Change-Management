@@ -638,7 +638,6 @@ function filteredTickets() {
   const search = ((document.getElementById('searchBox')||{}).value || '').toLowerCase();
 
   return tickets.filter(t => {
-    if (isClosed(t)) return false;   // always hide closed tickets in tracker
     if (search) {
       const blob = [t.ticketStatus,t.id,t.summary,t.productManager,t.responsiblePerson,t.model,t.sop].join(' ').toLowerCase();
       if (!blob.includes(search)) return false;
@@ -719,6 +718,7 @@ function isClosed(t) { return (t.ticketStatus||'').toLowerCase() === 'closed'; }
 //  TABLE COLUMNS
 // ═══════════════════════════════════════════════════════
 const STATIC_COLS = [
+  { key:'ticketStatus',     label:'Status',               sortable:true  },
   { key:'id',               label:'ID',                   sortable:true  },
   { key:'model',            label:'Model (CR)',            sortable:true  },
   { key:'dateSubmitted',    label:'Date Submitted',        sortable:true  },
@@ -840,7 +840,9 @@ function renderTable() {
     const priOpts  = [['','— priority —'],['1','P1 Critical'],['2','P2 High'],['3','P3 Medium'],['4','P4 Low'],['5','P5 Minimal']]
       .map(([v,l]) => `<option value="${v}" ${ep===v?'selected':''}>${l}</option>`).join('');
 
-    return `<tr class="${prClass(ep)}">
+    const closedCls = isClosed(t) ? ' row-closed' : '';
+    return `<tr class="${prClass(ep)}${closedCls}">
+      <td>${tsBadge(t.ticketStatus)}</td>
       <td>${idCell}</td>
       <td><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
       <td><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
@@ -1037,9 +1039,13 @@ function renderDashboard() {
     `<li class="pm-item"><span class="pm-name">${esc(pm)}</span><span class="pm-pill">${cnt}</span></li>`
   ).join('');
 
-  // Model breakdown
+  // Model breakdown — split comma/slash-separated values so "K0, K9" counts for both
   const modelMap = {};
-  active.forEach(t => { const m=(t.model||'(unknown)').trim(); modelMap[m]=(modelMap[m]||0)+1; });
+  active.forEach(t => {
+    const raw = (t.model||'').trim();
+    const parts = raw ? raw.split(/[,\/;]+/).map(s => s.trim()).filter(Boolean) : ['(unknown)'];
+    parts.forEach(m => { modelMap[m] = (modelMap[m]||0) + 1; });
+  });
   const modelEntries = Object.entries(modelMap).sort((a,b) => b[1]-a[1]);
   const maxModel = Math.max(...modelEntries.map(e=>e[1]), 1);
   const modelBars = modelEntries.map(([m, cnt], i) => {
