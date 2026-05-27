@@ -14,7 +14,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-50); color: var(--gray-900); min-height: 100vh; }
 
-    /* ─── Header ─── */
     .header { background: white; border-bottom: 1px solid var(--gray-200); padding: 0 24px; display: flex; align-items: center; gap: 24px; position: sticky; top: 0; z-index: 300; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
     .header-logo { font-size: 15px; font-weight: 700; color: var(--primary); padding: 18px 0; white-space: nowrap; }
     .tabs { display: flex; }
@@ -24,17 +23,14 @@
     .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .rec-count { font-size: 13px; color: var(--gray-500); background: var(--gray-100); padding: 4px 12px; border-radius: 20px; }
 
-    /* ─── Layout ─── */
     .main { padding: 20px 24px; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* ─── Shared card ─── */
     .card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 22px; margin-bottom: 16px; }
     .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
     .card > p { color: var(--gray-500); font-size: 13px; margin-bottom: 14px; line-height: 1.5; }
 
-    /* ─── Buttons ─── */
     .btn { padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: background .15s; }
     .btn-primary { background: var(--primary); color: white; }
     .btn-primary:hover { background: #1d4ed8; }
@@ -46,11 +42,10 @@
     .btn-sm:hover { background: var(--gray-100); }
     .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
 
-    /* ════════════════════════════════════
-       DASHBOARD TAB
-    ════════════════════════════════════ */
+    /* ── Dashboard ── */
     .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px; }
     .stat-card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 18px 20px; }
+    .stat-card.alert { border-color: #fca5a5; background: #fff7f7; }
     .stat-val { font-size: 30px; font-weight: 700; line-height: 1; }
     .stat-label { font-size: 12px; color: var(--gray-500); margin-top: 5px; }
 
@@ -58,13 +53,11 @@
     .dash-card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 22px; }
     .dash-card h3 { font-size: 11px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 18px; }
 
-    /* Phase stacked bar */
     .stacked-wrap { margin-bottom: 20px; }
     .stacked-label { font-size: 11px; color: var(--gray-500); margin-bottom: 6px; }
     .stacked-bar { height: 28px; border-radius: 6px; overflow: hidden; display: flex; }
     .stacked-seg { height: 100%; transition: width .5s ease; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; overflow: hidden; white-space: nowrap; }
 
-    /* SVG donut */
     .donut-section { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
     .donut-legend { flex: 1; min-width: 120px; }
     .leg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 12px; }
@@ -73,28 +66,24 @@
     .leg-val { font-weight: 700; color: var(--gray-900); }
     .leg-pct { color: var(--gray-500); font-size: 11px; width: 32px; text-align: right; }
 
-    /* Horizontal bar rows */
     .hbar-row { margin-bottom: 13px; }
     .hbar-head { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
-    .hbar-lbl { font-weight: 500; color: var(--gray-700); }
-    .hbar-meta { color: var(--gray-500); }
+    .hbar-lbl { font-weight: 500; color: var(--gray-700); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hbar-meta { color: var(--gray-500); flex-shrink: 0; margin-left: 8px; }
     .bar-track { height: 10px; background: var(--gray-100); border-radius: 5px; overflow: hidden; }
     .bar-fill { height: 100%; border-radius: 5px; transition: width .5s ease; }
     .c-ph1 { background: #7c3aed; } .c-ph2 { background: #2563eb; } .c-ph3 { background: #d97706; }
     .c-ph4 { background: #059669; } .c-ph5 { background: #9ca3af; }
-    .c-p1 { background: #ef4444; } .c-p2 { background: #f97316; } .c-p3 { background: #eab308; }
-    .c-p4 { background: #22c55e; } .c-p5 { background: #9ca3af; }
 
-    /* Top-priority list */
     .top-list { list-style: none; }
     .top-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--gray-100); align-items: flex-start; }
     .top-item:last-child { border-bottom: none; }
-    .top-id { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; padding-top: 2px; }
+    .top-id { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; padding-top: 2px; text-decoration: none; }
+    .top-id:hover { text-decoration: underline; }
     .top-body { flex: 1; }
     .top-summary { font-size: 13px; color: var(--gray-700); }
     .top-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
 
-    /* PM list */
     .pm-list { list-style: none; }
     .pm-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
     .pm-item:last-child { border-bottom: none; }
@@ -105,63 +94,52 @@
     .dash-empty .ei { font-size: 40px; margin-bottom: 12px; }
     .dash-empty p { font-size: 14px; }
 
-    /* ════════════════════════════════════
-       TRACKER TAB
-    ════════════════════════════════════ */
+    .closed-note { font-size: 11px; color: var(--gray-500); background: var(--gray-100); border-radius: 6px; padding: 5px 10px; display: inline-block; margin-bottom: 14px; }
+    .overdue-list { list-style: none; margin-top: 8px; }
+    .overdue-item { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #fecdd3; font-size: 12px; align-items: baseline; }
+    .overdue-item:last-child { border-bottom: none; }
+    .overdue-id { font-weight: 700; color: #be123c; white-space: nowrap; }
+    .overdue-text { flex: 1; color: var(--gray-700); }
+    .overdue-cw { color: #be123c; font-weight: 600; white-space: nowrap; }
+
+    /* ── Tracker ── */
     .toolbar { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 10px 14px; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .search-box { flex: 1; min-width: 160px; padding: 7px 10px; border: 1px solid var(--gray-300); border-radius: 7px; font-size: 13px; outline: none; }
     .search-box:focus { border-color: var(--primary); }
-
-    .week-ctrl { display: flex; align-items: center; gap: 5px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 7px; padding: 4px 8px; }
-    .week-ctrl label { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; }
-    .week-num { width: 44px; padding: 3px 5px; border: 1px solid #bfdbfe; border-radius: 4px; font-size: 12px; outline: none; text-align: center; background: white; }
-    .week-num:focus { border-color: var(--primary); }
-    .wk-btn { width: 24px; height: 24px; border: 1px solid #bfdbfe; border-radius: 4px; background: white; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; color: var(--primary); }
-    .wk-btn:hover { background: var(--primary-light); }
-
     .tbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .badge-count { font-size: 12px; background: var(--gray-100); color: var(--gray-600); padding: 4px 10px; border-radius: 10px; white-space: nowrap; }
 
-    /* Table container */
-    .tbl-wrap { background: white; border-radius: 12px; border: 1px solid var(--gray-200); overflow: auto; max-height: calc(100vh - 190px); }
+    .tbl-wrap { background: white; border-radius: 12px; border: 1px solid var(--gray-200); overflow: auto; max-height: calc(100vh - 175px); }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
 
-    /* Sort header row */
     .sort-row th {
       position: sticky; top: 0; z-index: 20;
-      background: #f1f5f9;
-      border-bottom: 1px solid var(--gray-200);
-      padding: 8px 9px;
-      text-align: left;
-      font-weight: 700; font-size: 10.5px;
-      color: var(--gray-700);
-      white-space: nowrap;
-      cursor: pointer; user-select: none;
+      background: #f1f5f9; border-bottom: 1px solid var(--gray-200);
+      padding: 8px 9px; text-align: left;
+      font-weight: 700; font-size: 10.5px; color: var(--gray-700);
+      white-space: nowrap; cursor: pointer; user-select: none;
       text-transform: uppercase; letter-spacing: .04em;
     }
     .sort-row th:hover { background: #e2e8f0; }
     .sort-row th.sort-asc::after  { content: ' ↑'; color: var(--primary); }
     .sort-row th.sort-desc::after { content: ' ↓'; color: var(--primary); }
-    .sort-row th.cw-th { background: #dbeafe; color: #1e40af; cursor: default; min-width: 110px; }
-    .sort-row th.cw-th:hover { background: #bfdbfe; }
-    .cw-th-inner { font-size: 11px; font-weight: 700; }
-    .cw-th-date { font-size: 9.5px; font-weight: 400; color: #3b82f6; margin-top: 1px; }
+    .sort-row th.upd-th  { background: #f0fdf4; color: #166534; }
+    .sort-row th.upd-th:hover { background: #dcfce7; }
+    .sort-row th.task-cur { background: #dbeafe; color: #1e40af; min-width: 170px; }
+    .sort-row th.task-cur:hover { background: #bfdbfe; }
+    .sort-row th.task-nxt { background: #dcfce7; color: #166534; min-width: 170px; }
+    .sort-row th.task-nxt:hover { background: #bbf7d0; }
 
-    /* Filter row */
     .filter-row th {
       position: sticky; top: 33px; z-index: 19;
-      background: white;
-      border-bottom: 2px solid var(--gray-200);
-      padding: 4px 5px;
-      cursor: default;
+      background: white; border-bottom: 2px solid var(--gray-200);
+      padding: 4px 5px; cursor: default;
     }
     .filter-row th:hover { background: white; }
     .col-filter { width: 100%; padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; outline: none; font-family: inherit; color: var(--gray-700); background: white; }
     .col-filter:focus { border-color: var(--primary); box-shadow: 0 0 0 2px #bfdbfe; }
-    .filter-clear-btn { font-size: 10px; color: var(--gray-500); cursor: pointer; text-align: center; display: block; margin-top: 2px; }
-    .filter-clear-btn:hover { color: var(--primary); }
+    .col-filter[type="date"] { padding: 2px 4px; }
 
-    /* Rows */
     tbody tr { border-bottom: 1px solid var(--gray-100); transition: background .1s; }
     tbody tr:hover { background: #f8faff; }
     tbody tr:last-child { border-bottom: none; }
@@ -173,7 +151,9 @@
     tr.pr-4 { border-left: 3px solid #22c55e; }
     tr.pr-5 { border-left: 3px solid var(--gray-300); }
 
-    .cell-id { font-weight: 700; color: var(--primary); white-space: nowrap; font-size: 11px; }
+    .cell-id { font-weight: 700; color: var(--primary); white-space: nowrap; font-size: 11px; text-decoration: none; }
+    a.cell-id:hover { text-decoration: underline; }
+
     .p-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; font-size: 11px; }
     .pb-1 { background: #fef2f2; color: #dc2626; } .pb-2 { background: #fff7ed; color: #ea580c; }
     .pb-3 { background: #fefce8; color: #ca8a04; } .pb-4 { background: #f0fdf4; color: #16a34a; }
@@ -184,10 +164,13 @@
     .ph-3 { background: #fffbeb; color: #d97706; } .ph-4 { background: #ecfdf5; color: #059669; }
     .ph-5 { background: var(--gray-100); color: var(--gray-600); } .ph-x { background: var(--gray-100); color: var(--gray-600); }
 
-    .ct { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; color: var(--gray-700); }
-    .ct.wrap { white-space: normal; word-break: break-word; max-width: 220px; }
+    .ct { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; color: var(--gray-700); }
+    .ct.wide { max-width: 280px; min-width: 200px; white-space: normal; word-break: break-word; }
 
-    /* Status select */
+    /* Overdue CW cells */
+    td.cw-od { background: #fff1f2; }
+    td.cw-od .ct { color: #be123c; font-weight: 600; }
+
     .st-sel { padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; background: white; cursor: pointer; outline: none; min-width: 95px; }
     .st-sel:focus { border-color: var(--primary); }
     .st-open     { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
@@ -196,44 +179,37 @@
     .st-resolved { color: #059669; background: #ecfdf5; border-color: #a7f3d0; }
     .st-closed   { color: var(--gray-500); background: var(--gray-100); border-color: var(--gray-200); }
 
-    /* CW textarea */
-    .cw-ta { width: 100%; min-width: 95px; border: 1px solid transparent; border-radius: 4px; padding: 3px 5px; font-size: 11px; font-family: inherit; background: transparent; resize: none; outline: none; color: var(--gray-700); min-height: 30px; transition: border-color .15s, background .15s; }
-    .cw-ta:hover  { border-color: var(--gray-300); background: #f0f7ff; }
-    .cw-ta:focus  { border-color: var(--primary); background: white; }
-    .cw-ta.filled { background: #eff6ff; }
+    /* Task textareas */
+    .task-ta { width: 100%; border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; font-size: 11px; font-family: inherit; background: transparent; resize: none; outline: none; color: var(--gray-700); min-height: 44px; line-height: 1.5; transition: border-color .15s, background .15s; }
+    .task-ta.cur { background: #f0f7ff; }
+    .task-ta.cur:hover { background: #dbeafe; border-color: #93c5fd; }
+    .task-ta.cur:focus { background: white; border-color: var(--primary); }
+    .task-ta.cur.has-val { background: #dbeafe; }
+    .task-ta.nxt { background: #f0fdf4; }
+    .task-ta.nxt:hover { background: #dcfce7; border-color: #86efac; }
+    .task-ta.nxt:focus { background: white; border-color: #22c55e; }
+    .task-ta.nxt.has-val { background: #dcfce7; }
 
     /* Notes textarea */
     .note-ta { width: 100%; min-width: 130px; border: 1px solid transparent; border-radius: 4px; padding: 3px 5px; font-size: 11px; font-family: inherit; background: transparent; resize: none; outline: none; color: var(--gray-700); min-height: 30px; transition: border-color .15s, background .15s; }
     .note-ta:hover { border-color: var(--gray-300); background: white; }
     .note-ta:focus { border-color: var(--primary); background: white; }
 
-    /* Update col header highlight */
-    .sort-row th.upd-th { background: #f0fdf4; color: #166534; }
-    .sort-row th.upd-th:hover { background: #dcfce7; }
-
-    /* Ticket status badge (source column) */
-    .ts-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+    .ts-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 600; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
     .ts-assigned { background: #eff6ff; color: #2563eb; }
     .ts-closed   { background: var(--gray-100); color: var(--gray-500); }
     .ts-other    { background: #fff7ed; color: #c2410c; }
 
-    /* Closed ticket rows are dimmed */
     tr.row-closed { opacity: 0.45; }
     tr.row-closed:hover { opacity: 0.7; }
     tr.row-closed .cell-id { text-decoration: line-through; color: var(--gray-500); }
 
-    /* Dashboard excluded-closed notice */
-    .closed-note { font-size: 11px; color: var(--gray-500); background: var(--gray-100); border-radius: 6px; padding: 5px 10px; display: inline-block; margin-bottom: 14px; }
-
-    /* Empty state */
     .empty-state { text-align: center; padding: 60px 24px; color: var(--gray-500); }
     .empty-icon { font-size: 44px; margin-bottom: 14px; }
     .empty-state h3 { font-size: 17px; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; }
     .empty-state p { font-size: 14px; }
 
-    /* ════════════════════════════════════
-       IMPORT TAB
-    ════════════════════════════════════ */
+    /* ── Import tab ── */
     .import-wrap { max-width: 760px; margin: 0 auto; }
     .paste-area { width: 100%; height: 170px; border: 2px dashed var(--gray-300); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; resize: vertical; outline: none; transition: border-color .15s; color: var(--gray-700); }
     .paste-area:focus { border-color: var(--primary); }
@@ -247,14 +223,12 @@
     .import-msg.ok  { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
     .import-msg.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-    /* File upload drop zone */
     .file-drop { border: 2px dashed var(--gray-300); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
     .file-drop:hover, .file-drop.drag-over { border-color: var(--primary); background: var(--primary-light); }
     .file-drop p { font-size: 13px; color: var(--gray-500); margin-top: 6px; }
     .file-drop strong { color: var(--gray-700); }
     #fileInput { display: none; }
 
-    /* Bookmarklet */
     .bookmarklet-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px 18px; }
     .bookmarklet-box h4 { font-size: 13px; font-weight: 600; color: #78350f; margin-bottom: 6px; }
     .bookmarklet-steps { font-size: 12px; color: var(--gray-600); margin: 8px 0 14px 0; padding-left: 18px; line-height: 1.9; }
@@ -266,23 +240,19 @@
     .bm-copy-btn.copied { background: #059669; }
     .bm-note { font-size: 11px; color: var(--gray-500); margin-top: 10px; line-height: 1.5; }
 
-    /* Auto-import banner */
     .auto-import-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
     .auto-import-banner p { font-size: 13px; color: #1e40af; flex: 1; }
     .auto-import-banner strong { font-weight: 700; }
 
-    /* Divider */
     .import-or { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: var(--gray-400); font-size: 12px; }
     .import-or::before, .import-or::after { content: ''; flex: 1; height: 1px; background: var(--gray-200); }
 
-    /* Toast */
     .toast { position: fixed; bottom: 22px; right: 22px; background: var(--gray-900); color: white; padding: 10px 16px; border-radius: 8px; font-size: 13px; opacity: 0; transform: translateY(8px); transition: all .3s; z-index: 999; pointer-events: none; }
     .toast.show { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
 
-<!-- ═══ HEADER ═══ -->
 <header class="header">
   <div class="header-logo">📋 Change Management Tracker</div>
   <nav class="tabs">
@@ -297,7 +267,7 @@
 
 <main class="main">
 
-  <!-- ════ DASHBOARD ════ -->
+  <!-- DASHBOARD -->
   <div class="tab-content active" id="tab-dashboard">
     <div class="stat-cards" id="statCards"></div>
     <div class="dash-grid" id="dashGrid"></div>
@@ -307,27 +277,15 @@
     </div>
   </div>
 
-  <!-- ════ TRACKER ════ -->
+  <!-- TRACKER -->
   <div class="tab-content" id="tab-tracker">
     <div class="toolbar">
       <input class="search-box" id="searchBox" type="text" placeholder="Search ID, summary, PM, model…" oninput="renderTable()">
-
-      <div class="week-ctrl">
-        <label>CW</label>
-        <button class="wk-btn" onclick="shiftWeeks(-4)" title="Back 4 weeks">‹</button>
-        <input class="week-num" id="wkFrom" type="number" min="1" max="53" onchange="applyWeekRange()" title="From week">
-        <span style="font-size:11px;color:var(--gray-500)">–</span>
-        <input class="week-num" id="wkTo" type="number" min="1" max="53" onchange="applyWeekRange()" title="To week">
-        <button class="wk-btn" onclick="shiftWeeks(4)" title="Forward 4 weeks">›</button>
-      </div>
-
       <button class="btn-sm" onclick="clearColFilters()">Clear filters</button>
-
       <div class="tbar-right">
         <span class="badge-count" id="tblCount">0 shown</span>
       </div>
     </div>
-
     <div class="tbl-wrap">
       <table id="mainTable">
         <thead>
@@ -344,11 +302,10 @@
     </div>
   </div>
 
-  <!-- ════ IMPORT ════ -->
+  <!-- IMPORT -->
   <div class="tab-content" id="tab-import">
     <div class="import-wrap">
 
-      <!-- Banner shown after bookmarklet navigation -->
       <div class="auto-import-banner" id="autoImportBanner" style="display:none">
         <span style="font-size:22px">🔗</span>
         <p id="autoImportMsg"></p>
@@ -356,38 +313,36 @@
         <button class="btn btn-secondary" onclick="dismissAutoImport()">Dismiss</button>
       </div>
 
-      <!-- Method 1: Bookmarklet -->
       <div class="card">
         <h2>🔖 One-click from Bugtracker</h2>
         <p>Creates a browser bookmark that, when clicked on the bugtracker page, sends the table data straight here.</p>
         <div class="bookmarklet-box">
           <h4>Setup — add the bookmark (once)</h4>
           <ol class="bookmarklet-steps">
-            <li>Click <strong>Copy Bookmarklet URL</strong> below — the yellow box shows a preview of what's copied</li>
+            <li>Click <strong>Copy Bookmarklet URL</strong> below</li>
             <li>Open your browser's bookmark manager:<br>
                 <strong>Chrome / Edge:</strong> Ctrl+Shift+O → right-click a folder → "Add new bookmark"<br>
                 <strong>Firefox:</strong> Ctrl+Shift+B → right-click → "New Bookmark"</li>
             <li>Set the name to <em>Import to Tracker</em>, paste the URL in the address field, save</li>
           </ol>
           <div class="bm-url-row">
-            <input id="bmUrlBox" class="bm-url-box" readonly value="Click 'Copy' to generate…" title="The full bookmarklet URL — click Copy to copy it">
+            <input id="bmUrlBox" class="bm-url-box" readonly value="Click 'Copy' to generate…">
             <button class="bm-copy-btn" id="bmCopyBtn" onclick="copyBookmarkletUrl()">📋 Copy Bookmarklet URL</button>
           </div>
           <h4 style="margin-top:16px">Every time you want to refresh data</h4>
           <ol class="bookmarklet-steps">
             <li>Open <code>http://srvr-bugtracker/view_all_bug_page.php</code></li>
-            <li>Click the <strong>Import to Tracker</strong> bookmark you just created</li>
-            <li>This tracker opens — a blue banner appears, click <strong>Import Now</strong></li>
-            <li>If the banner says "use clipboard": click <strong>Read from Clipboard</strong> in the Paste card below</li>
+            <li>Click the <strong>Import to Tracker</strong> bookmark</li>
+            <li>A confirmation box tells you the data was copied — click OK to open the tracker</li>
+            <li>Go to <strong>Import Data</strong> tab → click <strong>📋 Read from Clipboard</strong> → click <strong>Import</strong></li>
           </ol>
-          <p class="bm-note">The bookmarklet also copies the table data to your clipboard as a backup, so step 4 always works even if the automatic URL transfer doesn't.</p>
+          <p class="bm-note">The bookmarklet also captures ticket links so IDs in the Tracker become clickable links back to the bugtracker.</p>
         </div>
       </div>
 
-      <!-- Method 2: File upload -->
       <div class="card">
         <h2>📁 Upload a File</h2>
-        <p>If your bugtracker lets you export, upload the file here. Accepts <strong>.csv</strong>, <strong>.tsv</strong>, or <strong>.txt</strong> (tab-separated) exports.</p>
+        <p>Accepts <strong>.csv</strong>, <strong>.tsv</strong>, or <strong>.txt</strong> (tab-separated) exports.</p>
         <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()">
           <div style="font-size:28px">📂</div>
           <strong>Click to choose a file</strong>
@@ -397,14 +352,13 @@
         <div class="import-msg" id="fileMsg"></div>
       </div>
 
-      <!-- Method 3: Paste / Clipboard -->
       <div class="card">
         <h2>📋 Paste or Read from Clipboard</h2>
-        <p>Either paste manually (Ctrl+V) after copying from the bugtracker or a spreadsheet, or click the button to read the clipboard automatically.</p>
+        <p>Paste manually (Ctrl+V) or click the button to read the clipboard automatically.</p>
         <div class="btn-row" style="margin-bottom:10px;margin-top:0">
-          <button class="btn btn-secondary" onclick="readFromClipboard()" title="Reads whatever is currently in your clipboard">📋 Read from Clipboard</button>
+          <button class="btn btn-secondary" onclick="readFromClipboard()">📋 Read from Clipboard</button>
         </div>
-        <textarea class="paste-area" id="pasteArea" placeholder="Paste tab-separated rows here (Ctrl+V), or click Read from Clipboard above…"></textarea>
+        <textarea class="paste-area" id="pasteArea" placeholder="Paste tab-separated rows here…"></textarea>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="importData()">Import Pasted Data</button>
           <button class="btn btn-secondary" onclick="loadDemo()">Load Demo Data</button>
@@ -413,10 +367,9 @@
         <div class="import-msg" id="importMsg"></div>
       </div>
 
-      <!-- Column reference -->
       <div class="card">
         <h2>Expected Columns</h2>
-        <p>Headers are auto-detected by name so column order doesn't matter. Blue = editable tracker columns added by this tool.</p>
+        <p>Headers are auto-detected. Blue = editable columns added by this tool.</p>
         <div class="col-hint">
           <h4>Source Columns (from your bugtracker)</h4>
           <div class="chips">
@@ -428,13 +381,12 @@
           </div>
         </div>
         <div class="col-hint" style="margin-top:10px">
-          <h4>Tracker Columns (editable, not from source)</h4>
+          <h4>Tracker Columns (editable)</h4>
           <div class="chips">
             <span class="chip upd">Tracker Status</span>
             <span class="chip upd">Internal Notes</span>
-            <span class="chip cw">CW20</span>
-            <span class="chip cw">CW21</span>
-            <span class="chip cw">CW22 …</span>
+            <span class="chip cw">Tasks This Week</span>
+            <span class="chip cw">Tasks Next Week</span>
           </div>
         </div>
       </div>
@@ -449,19 +401,17 @@
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
-let tickets  = [];
-let updates  = {};   // { [id]: { status, notes, weeks: { '2026-W22': 'text' } } }
-let sortKey  = 'p';
-let sortDir  = 'asc';
-let colFilters = {};  // { fieldKey: filterValue }
-
-let weekYear, weekFrom, weekTo;
+let tickets    = [];
+let updates    = {};   // { [id]: { status, notes, taskThisWeek, taskNextWeek, taskWeekKey } }
+let sortKey    = 'p';
+let sortDir    = 'asc';
+let colFilters = {};
 
 // ═══════════════════════════════════════════════════════
 //  CALENDAR WEEK UTILITIES
 // ═══════════════════════════════════════════════════════
 function isoWeekInfo(date) {
-  const d  = new Date(date);
+  const d    = new Date(date);
   const jan4 = new Date(d.getFullYear(), 0, 4);
   const dow  = jan4.getDay() || 7;
   const w1mon = new Date(jan4);
@@ -475,56 +425,24 @@ function isoWeekInfo(date) {
 }
 
 function isoWeekCount(year) {
-  const dec28 = new Date(year, 11, 28);
-  return isoWeekInfo(dec28).week;
-}
-
-function weekMonday(year, week) {
-  const jan4 = new Date(year, 0, 4);
-  const dow  = jan4.getDay() || 7;
-  const mon  = new Date(jan4);
-  mon.setDate(jan4.getDate() - dow + 1 + (week - 1) * 7);
-  return mon;
-}
-
-function fmtDate(d) {
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return isoWeekInfo(new Date(year, 11, 28)).week;
 }
 
 function weekKey(year, week) { return `${year}-W${String(week).padStart(2,'0')}`; }
 
-function initWeekRange() {
-  const now = new Date();
-  const { year, week } = isoWeekInfo(now);
-  weekYear = year;
-  weekFrom = Math.max(1, week - 2);
-  weekTo   = Math.min(isoWeekCount(year), weekFrom + 9);
-  document.getElementById('wkFrom').value = weekFrom;
-  document.getElementById('wkTo').value   = weekTo;
+const _now        = isoWeekInfo(new Date());
+const CUR_WEEK    = _now.week;
+const CUR_WK_KEY  = weekKey(_now.year, _now.week);
+
+function parseCW(val) {
+  if (!val) return null;
+  const m = String(val).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
 }
 
-function applyWeekRange() {
-  weekFrom = parseInt(document.getElementById('wkFrom').value) || weekFrom;
-  weekTo   = parseInt(document.getElementById('wkTo').value)   || weekTo;
-  if (weekFrom > weekTo) weekTo = weekFrom;
-  document.getElementById('wkFrom').value = weekFrom;
-  document.getElementById('wkTo').value   = weekTo;
-  renderTable();
-}
-
-function shiftWeeks(delta) {
-  const max = isoWeekCount(weekYear);
-  weekFrom = Math.max(1, Math.min(max, weekFrom + delta));
-  weekTo   = Math.max(1, Math.min(max, weekTo + delta));
-  document.getElementById('wkFrom').value = weekFrom;
-  document.getElementById('wkTo').value   = weekTo;
-  renderTable();
-}
-
-function visibleWeeks() {
-  const weeks = [];
-  for (let w = weekFrom; w <= weekTo; w++) weeks.push(w);
-  return weeks;
+function cwIsOverdue(val) {
+  const n = parseCW(val);
+  return n !== null && n < CUR_WEEK;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -547,6 +465,41 @@ function loadStorage() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  WEEKLY TASK ROLLOVER
+// ─ Runs once at startup; if the stored week is in the past,
+//   nextWeek becomes thisWeek and nextWeek is cleared.
+// ═══════════════════════════════════════════════════════
+function rolloverTasks() {
+  let changed = false;
+  Object.keys(updates).forEach(id => {
+    const u = updates[id];
+    if (!u.taskWeekKey) {
+      u.taskWeekKey = CUR_WK_KEY;
+      changed = true;
+    } else if (u.taskWeekKey !== CUR_WK_KEY) {
+      u.taskThisWeek = u.taskNextWeek || '';
+      u.taskNextWeek = '';
+      u.taskWeekKey  = CUR_WK_KEY;
+      changed = true;
+    }
+  });
+  if (changed) save();
+}
+
+// Ensure a ticket's task record is current (called during render)
+function ensureTaskRollover(id) {
+  if (!updates[id]) updates[id] = {};
+  const u = updates[id];
+  if (!u.taskWeekKey) {
+    u.taskWeekKey = CUR_WK_KEY;
+  } else if (u.taskWeekKey !== CUR_WK_KEY) {
+    u.taskThisWeek = u.taskNextWeek || '';
+    u.taskNextWeek = '';
+    u.taskWeekKey  = CUR_WK_KEY;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 //  PARSING
 // ═══════════════════════════════════════════════════════
 const SRC_KEYS = ['ticketStatus','id','p','model','dateSubmitted','updated','sop','productManager','summary','phase','finishPhase','progressUpdate','responsiblePerson'];
@@ -564,6 +517,7 @@ const HDR_MAP  = {
   'finish phase':'finishPhase','finish phase (cw)':'finishPhase','finishphase':'finishPhase',
   'progress update/next step':'progressUpdate','progress update / next step':'progressUpdate','progress':'progressUpdate','next step':'progressUpdate',
   'responsible person':'responsiblePerson','responsible person (cr)':'responsiblePerson','responsible':'responsiblePerson',
+  '__url__':'url',
 };
 
 function parsePri(v) {
@@ -659,30 +613,35 @@ function sortBy(key) {
 
 function sortVal(v, key) {
   if (key === 'p') { const n = parseInt(v,10); return isNaN(n) ? 99 : n; }
-  if (['dateSubmitted','updated','finishPhase','phase'].includes(key)) { const d = new Date(v); return isNaN(d) ? v.toLowerCase() : d.getTime(); }
+  if (['dateSubmitted','updated'].includes(key)) { const d = new Date(v); return isNaN(d) ? v.toLowerCase() : d.getTime(); }
+  if (['sop','finishPhase'].includes(key)) { const n = parseCW(v); return n === null ? 9999 : n; }
   return (v||'').toLowerCase();
 }
 
 function getUpd(id) { return updates[id] || {}; }
 
 function filteredTickets() {
-  const q      = (document.getElementById('searchBox')||{}).value || '';
-  const search = q.toLowerCase();
+  const search = ((document.getElementById('searchBox')||{}).value || '').toLowerCase();
 
   return tickets.filter(t => {
-    // Global search
     if (search) {
       const blob = [t.ticketStatus,t.id,t.summary,t.productManager,t.responsiblePerson,t.model,t.sop].join(' ').toLowerCase();
       if (!blob.includes(search)) return false;
     }
-    // Per-column filters
     for (const [key, val] of Object.entries(colFilters)) {
       if (!val) continue;
       const v = val.toLowerCase();
       if (key === 'updStatus') {
         if (!((getUpd(t.id).status||'').toLowerCase().includes(v))) return false;
-      } else if (key === 'p' || key === 'phase' || key === 'ticketStatus') {
-        if ((t[key]||'').toLowerCase() !== val.toLowerCase()) return false;
+      } else if (key === 'ticketStatus') {
+        const tv = (t.ticketStatus||'').toLowerCase();
+        if (v === 'assigned' && !tv.includes('assigned')) return false;
+        else if (v === 'closed' && tv !== 'closed') return false;
+        else if (v !== 'assigned' && v !== 'closed' && !tv.includes(v)) return false;
+      } else if (['p','phase','model','productManager'].includes(key)) {
+        if ((t[key]||'').toLowerCase() !== v) return false;
+      } else if (key === 'dateSubmitted' || key === 'updated') {
+        if (!(t[key]||'').includes(val)) return false;
       } else {
         if (!((t[key]||'').toLowerCase().includes(v))) return false;
       }
@@ -715,10 +674,10 @@ function pBadge(p) {
   return `<span class="p-badge ${cls}">${p||'–'}</span>`;
 }
 
-const PHASE_NAMES_SHORT = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
+const PHASE_NAMES = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
 function phaseBadge(ph) {
   const cls  = ['1','2','3','4','5'].includes(ph) ? `ph-${ph}` : 'ph-x';
-  const name = PHASE_NAMES_SHORT[ph] ? `${ph}. ${PHASE_NAMES_SHORT[ph]}` : (ph||'–');
+  const name = PHASE_NAMES[ph] ? `${ph}. ${PHASE_NAMES[ph]}` : (ph||'–');
   return `<span class="phase-badge ${cls}">${name}</span>`;
 }
 
@@ -726,60 +685,72 @@ function prClass(p) { return ['1','2','3','4','5'].includes(p) ? `pr-${p}` : '';
 
 const ST_CLS = { 'Open':'st-open','In Progress':'st-progress','Blocked':'st-blocked','Resolved':'st-resolved','Closed':'st-closed' };
 
-// ═══════════════════════════════════════════════════════
-//  TABLE RENDER
-// ═══════════════════════════════════════════════════════
-const STATIC_COLS = [
-  { key:'ticketStatus',    label:'Status',              sortable:true },
-  { key:'id',              label:'ID',                  sortable:true },
-  { key:'p',               label:'P',                   sortable:true },
-  { key:'model',           label:'Model (CR)',           sortable:true },
-  { key:'dateSubmitted',   label:'Date Submitted',       sortable:true },
-  { key:'updated',         label:'Updated',             sortable:true },
-  { key:'sop',             label:'SOP (CW)',             sortable:true },
-  { key:'productManager',  label:'Product Manager',      sortable:true },
-  { key:'summary',         label:'Summary',              sortable:true },
-  { key:'phase',           label:'Phase',                sortable:true },
-  { key:'finishPhase',     label:'Finish Phase (CW)',    sortable:true },
-  { key:'progressUpdate',  label:'Progress / Next Step', sortable:true },
-  { key:'responsiblePerson',label:'Responsible (CR)',    sortable:true },
-  { key:'updStatus',       label:'Status',               sortable:true, cls:'upd-th' },
-  { key:'notes',           label:'Internal Notes',       sortable:false, cls:'upd-th' },
-];
-
-const P_FILTER_OPTS   = ['','1','2','3','4','5'];
-const PH_FILTER_OPTS  = ['','1','2','3','4','5'];
-const ST_FILTER_OPTS  = ['','Open','In Progress','Blocked','Resolved','Closed'];
-
 function tsBadge(v) {
-  const lc = (v||'').toLowerCase();
-  const cls = lc === 'assigned' ? 'ts-assigned' : lc === 'closed' ? 'ts-closed' : v ? 'ts-other' : 'ts-other';
-  return v ? `<span class="ts-badge ${cls}">${esc(v)}</span>` : `<span class="ts-badge ts-other">–</span>`;
+  const lc  = (v||'').toLowerCase();
+  const cls = lc.includes('assigned') ? 'ts-assigned' : lc === 'closed' ? 'ts-closed' : v ? 'ts-other' : 'ts-other';
+  return v ? `<span class="ts-badge ${cls}" title="${esc(v)}">${esc(v)}</span>`
+           : `<span class="ts-badge ts-other">–</span>`;
 }
 
 function isClosed(t) { return (t.ticketStatus||'').toLowerCase() === 'closed'; }
 
+// ═══════════════════════════════════════════════════════
+//  TABLE COLUMNS
+// ═══════════════════════════════════════════════════════
+const STATIC_COLS = [
+  { key:'ticketStatus',     label:'Status',               sortable:true  },
+  { key:'id',               label:'ID',                   sortable:true  },
+  { key:'p',                label:'P',                    sortable:true  },
+  { key:'model',            label:'Model (CR)',            sortable:true  },
+  { key:'dateSubmitted',    label:'Date Submitted',        sortable:true  },
+  { key:'updated',          label:'Updated',              sortable:true  },
+  { key:'sop',              label:'SOP (CW)',              sortable:true  },
+  { key:'productManager',   label:'Product Manager',       sortable:true  },
+  { key:'summary',          label:'Summary',               sortable:true  },
+  { key:'phase',            label:'Phase',                 sortable:true  },
+  { key:'finishPhase',      label:'Finish Phase (CW)',     sortable:true  },
+  { key:'progressUpdate',   label:'Progress / Next Step',  sortable:true  },
+  { key:'responsiblePerson',label:'Responsible (CR)',      sortable:true  },
+  { key:'updStatus',        label:'Status',                sortable:true,  cls:'upd-th' },
+  { key:'notes',            label:'Internal Notes',        sortable:false, cls:'upd-th' },
+  { key:'taskThisWeek',     label:`Tasks This Week (CW${CUR_WEEK})`, sortable:false, cls:'task-cur' },
+  { key:'taskNextWeek',     label:'Tasks Next Week',       sortable:false, cls:'task-nxt' },
+];
+
 function buildFilterInput(key) {
+  const cur = colFilters[key] || '';
+
   if (key === 'ticketStatus') {
-    const opts = ['','Assigned','Closed'].map(v => `<option value="${v}" ${(colFilters[key]||'')=== v?'selected':''}>${v||'All'}</option>`).join('');
-    return `<select class="col-filter" onchange="setColFilter('${key}',this.value)">${opts}</select>`;
+    return mkSelect(key, ['','Assigned','Closed'], cur, v => v||'All');
   }
   if (key === 'p') {
-    const opts = P_FILTER_OPTS.map(v => `<option value="${v}" ${(colFilters[key]||'')=== v?'selected':''}>${v||'All'}</option>`).join('');
-    return `<select class="col-filter" onchange="setColFilter('${key}',this.value)">${opts}</select>`;
+    return mkSelect(key, ['','1','2','3','4','5'], cur, v => v||'All');
   }
   if (key === 'phase') {
-    const phLabels = {'':'All','1':'1-Inv','2':'2-Des','3':'3-Tst','4':'4-Imp','5':'5-Fin'};
-    const opts = PH_FILTER_OPTS.map(v => `<option value="${v}" ${(colFilters[key]||'')=== v?'selected':''}>${phLabels[v]||v}</option>`).join('');
-    return `<select class="col-filter" onchange="setColFilter('${key}',this.value)">${opts}</select>`;
+    const lbl = {'':'All','1':'1-Inv','2':'2-Des','3':'3-Tst','4':'4-Imp','5':'5-Fin'};
+    return mkSelect(key, ['','1','2','3','4','5'], cur, v => lbl[v]||v);
+  }
+  if (key === 'model') {
+    const opts = [...new Set(tickets.map(t => t.model).filter(Boolean))].sort();
+    return mkSelect(key, ['', ...opts], cur, v => v||'All');
+  }
+  if (key === 'productManager') {
+    const opts = [...new Set(tickets.map(t => t.productManager).filter(Boolean))].sort();
+    return mkSelect(key, ['', ...opts], cur, v => v||'All');
   }
   if (key === 'updStatus') {
-    const opts = ST_FILTER_OPTS.map(v => `<option value="${v}" ${(colFilters[key]||'')=== v?'selected':''}>${v||'All'}</option>`).join('');
-    return `<select class="col-filter" onchange="setColFilter('${key}',this.value)">${opts}</select>`;
+    return mkSelect(key, ['','Open','In Progress','Blocked','Resolved','Closed'], cur, v => v||'All');
   }
-  if (key === 'notes') return '<span></span>';
-  const val = esc(colFilters[key]||'');
-  return `<input class="col-filter" type="text" value="${val}" placeholder="Filter…" oninput="setColFilter('${key}',this.value)">`;
+  if (key === 'dateSubmitted' || key === 'updated') {
+    return `<input class="col-filter" type="date" value="${esc(cur)}" onchange="setColFilter('${key}',this.value)">`;
+  }
+  if (['notes','taskThisWeek','taskNextWeek'].includes(key)) return '';
+  return `<input class="col-filter" type="text" value="${esc(cur)}" placeholder="Filter…" oninput="setColFilter('${key}',this.value)">`;
+}
+
+function mkSelect(key, options, cur, labelFn) {
+  const opts = options.map(v => `<option value="${esc(v)}" ${cur===v?'selected':''}>${esc(labelFn(v))}</option>`).join('');
+  return `<select class="col-filter" onchange="setColFilter('${key}',this.value)">${opts}</select>`;
 }
 
 function setColFilter(key, val) {
@@ -787,28 +758,25 @@ function setColFilter(key, val) {
   renderTable();
 }
 
+// ═══════════════════════════════════════════════════════
+//  TABLE RENDER
+// ═══════════════════════════════════════════════════════
 function renderTable() {
   if (!document.getElementById('tblBody')) return;
-  const weeks = visibleWeeks();
   const rows  = filteredTickets();
   const empty = document.getElementById('tblEmpty');
 
-  // ── Sort header ──
-  const sortRow = document.getElementById('sortRow');
-  sortRow.innerHTML = STATIC_COLS.map(c => {
+  // Sort header
+  document.getElementById('sortRow').innerHTML = STATIC_COLS.map(c => {
     const sc = c.sortable ? (sortKey===c.key ? (sortDir==='asc'?'sort-asc':'sort-desc') : '') : '';
-    const onclick = c.sortable ? `onclick="sortBy('${c.key}')"` : '';
-    return `<th class="${c.cls||''} ${sc}" ${onclick}>${c.label}</th>`;
-  }).join('') + weeks.map(w => {
-    const mon = weekMonday(weekYear, w);
-    return `<th class="cw-th"><div class="cw-th-inner">CW${w}</div><div class="cw-th-date">${fmtDate(mon)}</div></th>`;
+    const oc = c.sortable ? `onclick="sortBy('${c.key}')"` : '';
+    return `<th class="${c.cls||''} ${sc}" ${oc}>${c.label}</th>`;
   }).join('');
 
-  // ── Filter row ──
-  const filterRow = document.getElementById('filterRow');
-  filterRow.innerHTML = STATIC_COLS.map(c =>
+  // Filter row
+  document.getElementById('filterRow').innerHTML = STATIC_COLS.map(c =>
     `<th>${buildFilterInput(c.key)}</th>`
-  ).join('') + weeks.map(() => '<th></th>').join('');
+  ).join('');
 
   document.getElementById('tblCount').textContent = `${rows.length} shown`;
 
@@ -827,36 +795,44 @@ function renderTable() {
   empty.style.display = 'none';
 
   document.getElementById('tblBody').innerHTML = rows.map(t => {
-    const upd   = getUpd(t.id);
-    const stCls = ST_CLS[upd.status||''] || '';
+    ensureTaskRollover(t.id);
+    const upd    = updates[t.id];
+    const stCls  = ST_CLS[upd.status||''] || '';
     const stOpts = ['','Open','In Progress','Blocked','Resolved','Closed'].map(v =>
       `<option value="${v}" ${v===(upd.status||'')?'selected':''}>${v||'— set status —'}</option>`).join('');
 
-    const cwCells = weeks.map(w => {
-      const key  = weekKey(weekYear, w);
-      const val  = esc(((upd.weeks||{})[key])||'');
-      const cls  = val ? ' filled' : '';
-      return `<td><textarea class="cw-ta${cls}" rows="2" data-id="${esc(t.id)}" data-wk="${key}" onblur="setCW(this)">${val}</textarea></td>`;
-    }).join('');
+    const thisVal = esc(upd.taskThisWeek || '');
+    const nextVal = esc(upd.taskNextWeek || '');
+
+    const sopOD = !isClosed(t) && cwIsOverdue(t.sop);
+    const fpOD  = !isClosed(t) && cwIsOverdue(t.finishPhase);
+
+    const idCell = t.url
+      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="cell-id">${esc(t.id)}</a>`
+      : `<span class="cell-id">${esc(t.id)}</span>`;
+
+    const sopCell      = `<td${sopOD?' class="cw-od"':''}><span class="ct" title="${sopOD?'⚠ Overdue — ':''} CW ${esc(t.sop)}">${sopOD?'⚠ ':''}${esc(t.sop)||'–'}</span></td>`;
+    const finishCell   = `<td${fpOD?' class="cw-od"':''}><span class="ct" title="${fpOD?'⚠ Overdue — ':''} CW ${esc(t.finishPhase)}">${fpOD?'⚠ ':''}${esc(t.finishPhase)||'–'}</span></td>`;
 
     const closedCls = isClosed(t) ? ' row-closed' : '';
     return `<tr class="${prClass(t.p)}${closedCls}">
       <td>${tsBadge(t.ticketStatus)}</td>
-      <td class="cell-id">${esc(t.id)}</td>
+      <td>${idCell}</td>
       <td>${pBadge(t.p)}</td>
       <td><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
       <td><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
       <td><span class="ct">${esc(t.updated)||'–'}</span></td>
-      <td><span class="ct" title="${esc(t.sop)}">${esc(t.sop)||'–'}</span></td>
+      ${sopCell}
       <td><span class="ct" title="${esc(t.productManager)}">${esc(t.productManager)||'–'}</span></td>
-      <td><span class="ct wrap" title="${esc(t.summary)}">${esc(t.summary)||'–'}</span></td>
+      <td><span class="ct wide" title="${esc(t.summary)}">${esc(t.summary)||'–'}</span></td>
       <td>${phaseBadge(t.phase)}</td>
-      <td><span class="ct">${esc(t.finishPhase)||'–'}</span></td>
-      <td><span class="ct wrap" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate)||'–'}</span></td>
+      ${finishCell}
+      <td><span class="ct wide" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate)||'–'}</span></td>
       <td><span class="ct" title="${esc(t.responsiblePerson)}">${esc(t.responsiblePerson)||'–'}</span></td>
       <td><select class="st-sel ${stCls}" data-id="${esc(t.id)}" onchange="setSt(this)">${stOpts}</select></td>
       <td><textarea class="note-ta" rows="2" data-id="${esc(t.id)}" onblur="setNote(this)">${esc(upd.notes||'')}</textarea></td>
-      ${cwCells}
+      <td><textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea></td>
+      <td><textarea class="task-ta nxt${nextVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskNextWeek" onblur="setTask(this)">${nextVal}</textarea></td>
     </tr>`;
   }).join('');
 }
@@ -879,19 +855,20 @@ function setNote(el) {
   save();
 }
 
-function setCW(el) {
-  const id  = el.dataset.id;
-  const key = el.dataset.wk;
+function setTask(el) {
+  const id    = el.dataset.id;
+  const field = el.dataset.field;
   if (!updates[id]) updates[id] = {};
-  if (!updates[id].weeks) updates[id].weeks = {};
-  updates[id].weeks[key] = el.value;
-  el.classList.toggle('filled', !!el.value);
+  updates[id][field] = el.value;
+  el.classList.toggle('has-val', !!el.value);
   save();
 }
 
 // ═══════════════════════════════════════════════════════
-//  DASHBOARD RENDER
+//  DASHBOARD
 // ═══════════════════════════════════════════════════════
+const MODEL_COLORS = ['#2563eb','#7c3aed','#d97706','#059669','#dc2626','#0891b2','#9333ea','#db2777','#0f766e','#a16207'];
+
 function drawDonut(data, size) {
   const total = data.reduce((s,d) => s+d.v, 0);
   if (!total) return `<svg width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${size*.38}" fill="#f1f5f9"/></svg>`;
@@ -917,10 +894,10 @@ function drawDonut(data, size) {
 }
 
 function renderDashboard() {
-  const total   = tickets.length;
-  const dashEmpty = document.getElementById('dashEmpty');
-  const dashGrid  = document.getElementById('dashGrid');
-  const statCards = document.getElementById('statCards');
+  const total      = tickets.length;
+  const dashEmpty  = document.getElementById('dashEmpty');
+  const dashGrid   = document.getElementById('dashGrid');
+  const statCards  = document.getElementById('statCards');
 
   if (!total) {
     statCards.innerHTML = '';
@@ -930,49 +907,50 @@ function renderDashboard() {
   }
   dashEmpty.style.display = 'none';
 
-  // Closed tickets are excluded from all statistics
-  const closedTickets = tickets.filter(t => isClosed(t));
-  const active        = tickets.filter(t => !isClosed(t));
-  const activeTotal   = active.length;
-  const closedCount   = closedTickets.length;
+  const closed      = tickets.filter(t => isClosed(t));
+  const active      = tickets.filter(t => !isClosed(t));
+  const closedCount = closed.length;
+  const activeTotal = active.length;
 
-  const p1      = active.filter(t=>t.p==='1').length;
-  const blocked  = active.filter(t=>(getUpd(t.id).status||'')==='Blocked').length;
-  const open     = active.filter(t=>{ const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
-  const resolved = active.filter(t=>(getUpd(t.id).status||'')==='Resolved').length;
+  const p1       = active.filter(t => t.p==='1').length;
+  const blocked  = active.filter(t => (getUpd(t.id).status||'')==='Blocked').length;
+  const open     = active.filter(t => { const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
+  const resolved = active.filter(t => (getUpd(t.id).status||'')==='Resolved').length;
+  const overdue  = active.filter(t => cwIsOverdue(t.sop) || cwIsOverdue(t.finishPhase)).length;
 
   statCards.innerHTML = [
-    { val: activeTotal, label: 'Active Tickets', color: 'var(--primary)' },
-    { val: closedCount, label: 'Closed (excl.)',  color: 'var(--gray-500)' },
-    { val: p1,          label: 'P1 Critical',     color: '#dc2626' },
-    { val: open,        label: 'Open / Unset',    color: '#d97706' },
-    { val: blocked,     label: 'Blocked',          color: '#dc2626' },
-    { val: resolved,    label: 'Resolved',         color: '#059669' },
-  ].map(s => `<div class="stat-card"><div class="stat-val" style="color:${s.color}">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
+    { val: activeTotal, label: 'Active Tickets',  color: 'var(--primary)' },
+    { val: closedCount, label: 'Closed (excl.)',   color: 'var(--gray-500)' },
+    { val: p1,          label: 'P1 Critical',      color: '#dc2626' },
+    { val: open,        label: 'Open / Unset',     color: '#d97706' },
+    { val: blocked,     label: 'Blocked',           color: '#dc2626' },
+    { val: resolved,    label: 'Resolved',          color: '#059669' },
+    { val: overdue,     label: 'Overdue CW',        color: '#be123c', alert: overdue > 0 },
+  ].map(s => `<div class="stat-card${s.alert?' alert':''}">
+    <div class="stat-val" style="color:${s.color}">${s.val}</div>
+    <div class="stat-label">${s.label}</div>
+  </div>`).join('');
 
   const closedNote = closedCount > 0
-    ? `<div class="closed-note">📌 ${closedCount} closed ticket${closedCount>1?'s':''} excluded from all charts and statistics below</div>`
+    ? `<div class="closed-note">📌 ${closedCount} closed ticket${closedCount>1?'s':''} excluded from all charts</div>`
     : '';
 
-  // ── Phase data (active only) ──
+  // Phase chart
   const phOrder  = ['1','2','3','4','5'];
   const phLabels = { '1':'1. Investigation','2':'2. Design','3':'3. Testing','4':'4. Implementation','5':'5. Finalization' };
   const phColors = { '1':'#7c3aed','2':'#2563eb','3':'#d97706','4':'#059669','5':'#9ca3af' };
   const phFill   = { '1':'c-ph1','2':'c-ph2','3':'c-ph3','4':'c-ph4','5':'c-ph5' };
   const phCounts = {};
   active.forEach(t => { phCounts[t.phase] = (phCounts[t.phase]||0)+1; });
-  const maxPh = Math.max(...phOrder.map(p=>phCounts[p]||0), 1);
+  const maxPh = Math.max(...phOrder.map(p => phCounts[p]||0), 1);
 
-  // Stacked bar
   const stackedSegs = phOrder.map(p => {
     const cnt = phCounts[p]||0;
     if (!cnt) return '';
     const pct = (cnt/activeTotal*100).toFixed(1);
-    const label = parseFloat(pct)>8 ? `${cnt}` : '';
-    return `<div class="stacked-seg" style="width:${pct}%;background:${phColors[p]}" title="${phLabels[p]}: ${cnt} (${pct}%)">${label}</div>`;
+    return `<div class="stacked-seg" style="width:${pct}%;background:${phColors[p]}" title="${phLabels[p]}: ${cnt} (${pct}%)">${parseFloat(pct)>8?cnt:''}</div>`;
   }).join('');
 
-  // Phase bar rows
   const phaseBars = phOrder.map(p => {
     const cnt = phCounts[p]||0;
     const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
@@ -983,12 +961,11 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  // ── Priority data (active only) ──
+  // Priority donut
   const priColors = { '1':'#ef4444','2':'#f97316','3':'#eab308','4':'#22c55e','5':'#9ca3af' };
   const priLabels = { '1':'P1 – Critical','2':'P2 – High','3':'P3 – Medium','4':'P4 – Low','5':'P5 – Minimal' };
   const priCounts = {};
   active.forEach(t => { priCounts[t.p] = (priCounts[t.p]||0)+1; });
-
   const donutData = ['1','2','3','4','5'].map(p => ({ v: priCounts[p]||0, color: priColors[p] }));
   const donutSVG  = drawDonut(donutData, 130);
   const legendRows = ['1','2','3','4','5'].map(p => {
@@ -997,12 +974,15 @@ function renderDashboard() {
     return `<div class="leg-row"><span class="leg-dot" style="background:${priColors[p]}"></span><span class="leg-name">${priLabels[p]}</span><span class="leg-val">${cnt}</span><span class="leg-pct">${pct}%</span></div>`;
   }).join('');
 
-  // ── Top tickets (active only, sorted by priority) ──
-  const top10 = [...active].sort((a,b)=>(parseInt(a.p,10)||99)-(parseInt(b.p,10)||99)).slice(0,10);
+  // Top 10
+  const top10 = [...active].sort((a,b) => (parseInt(a.p,10)||99)-(parseInt(b.p,10)||99)).slice(0,10);
   const topHTML = top10.map(t => {
     const st = getUpd(t.id).status || '';
+    const idTag = t.url
+      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="top-id">${esc(t.id)}</a>`
+      : `<span class="top-id">${esc(t.id)}</span>`;
     return `<li class="top-item">
-      <span class="top-id">${esc(t.id)}</span>
+      ${idTag}
       <div class="top-body">
         <div class="top-summary">${esc(t.summary)||'(no summary)'}</div>
         <div class="top-meta">${phaseBadge(t.phase)}${st?' &nbsp;<strong>'+esc(st)+'</strong>':''}${t.productManager?' · '+esc(t.productManager):''}</div>
@@ -1011,12 +991,52 @@ function renderDashboard() {
     </li>`;
   }).join('');
 
-  // ── PM workload (active only) ──
+  // PM workload
   const pmMap = {};
   active.forEach(t => { const pm=(t.productManager||'(unknown)').trim(); pmMap[pm]=(pmMap[pm]||0)+1; });
   const pmRows = Object.entries(pmMap).sort((a,b)=>b[1]-a[1]).map(([pm,cnt]) =>
     `<li class="pm-item"><span class="pm-name">${esc(pm)}</span><span class="pm-pill">${cnt}</span></li>`
   ).join('');
+
+  // Model breakdown
+  const modelMap = {};
+  active.forEach(t => { const m=(t.model||'(unknown)').trim(); modelMap[m]=(modelMap[m]||0)+1; });
+  const modelEntries = Object.entries(modelMap).sort((a,b) => b[1]-a[1]);
+  const maxModel = Math.max(...modelEntries.map(e=>e[1]), 1);
+  const modelBars = modelEntries.map(([m, cnt], i) => {
+    const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
+    const w   = Math.round(cnt/maxModel*100);
+    const color = MODEL_COLORS[i % MODEL_COLORS.length];
+    return `<div class="hbar-row">
+      <div class="hbar-head"><span class="hbar-lbl" title="${esc(m)}">${esc(m)}</span><span class="hbar-meta">${cnt} (${pct}%)</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Overdue list (SOP and Finish Phase)
+  const overdueItems = active
+    .filter(t => cwIsOverdue(t.sop) || cwIsOverdue(t.finishPhase))
+    .sort((a,b) => {
+      const cwA = Math.min(parseCW(a.sop)||999, parseCW(a.finishPhase)||999);
+      const cwB = Math.min(parseCW(b.sop)||999, parseCW(b.finishPhase)||999);
+      return cwA - cwB;
+    });
+
+  const overdueHTML = overdueItems.length === 0
+    ? '<p style="font-size:13px;color:var(--gray-500);padding:8px 0">No overdue CW deadlines ✓</p>'
+    : `<ul class="overdue-list">${overdueItems.map(t => {
+        const parts = [];
+        if (cwIsOverdue(t.sop))        parts.push(`SOP CW${esc(t.sop)}`);
+        if (cwIsOverdue(t.finishPhase)) parts.push(`Finish CW${esc(t.finishPhase)}`);
+        const idTag = t.url
+          ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="overdue-id">${esc(t.id)}</a>`
+          : `<span class="overdue-id">${esc(t.id)}</span>`;
+        return `<li class="overdue-item">
+          ${idTag}
+          <span class="overdue-text">${esc(t.summary||'(no summary)').slice(0,60)}</span>
+          <span class="overdue-cw">⚠ ${parts.join(', ')}</span>
+        </li>`;
+      }).join('')}</ul>`;
 
   dashGrid.innerHTML = `
     <div class="dash-card" style="grid-column:1/-1">
@@ -1043,8 +1063,18 @@ function renderDashboard() {
     </div>
 
     <div class="dash-card">
+      <h3>Tickets by Model</h3>
+      ${modelBars||'<p style="color:var(--gray-500);font-size:13px">No model data</p>'}
+    </div>
+
+    <div class="dash-card">
       <h3>Tickets by Product Manager</h3>
       <ul class="pm-list">${pmRows}</ul>
+    </div>
+
+    <div class="dash-card" style="${overdueItems.length?'border-color:#fca5a5;background:#fffbfb':''}">
+      <h3 style="${overdueItems.length?'color:#be123c':''}">⚠ Overdue Deadlines (CW &lt; ${CUR_WEEK})</h3>
+      ${overdueHTML}
     </div>
   `;
 }
@@ -1054,32 +1084,32 @@ function renderDashboard() {
 // ═══════════════════════════════════════════════════════
 function loadDemo() {
   document.getElementById('pasteArea').value = `Status\tID\tP\tModel (CR)\tDate Submitted\tUpdated\tSOP (CW)\tProduct Manager\tSummary\tPhase\tFinish Phase (CW)\tProgress Update/Next Step\tResponsible Person (CR)
-Assigned\tBT-001\t1\tModel A\t2026-01-10\t2026-03-15\t12\tAlice van der Berg\tCritical braking system fault on wet roads\t1. Investigation\t18\tRoot cause analysis ongoing, waiting for sensor logs\tJan de Vries
-Assigned\tBT-002\t2\tModel B\t2026-01-18\t2026-03-10\t7\tBob Janssen\tDashboard display flicker at low temperatures\t2. Design\t20\tDesign spec drafted, review scheduled next week\tSara Linden
-Assigned\tBT-003\t1\tModel A\t2026-02-02\t2026-03-20\t12\tAlice van der Berg\tEngine warning light false positive (error code E4)\t3. Testing\t19\tFirmware patch under test, 2 cycles remaining\tJan de Vries
-Closed\tBT-004\t3\tModel C\t2026-02-14\t2026-03-05\t9\tCarla Mulder\tSeat memory preset not saving after restart\t4. Implementation\t24\tImplementation done, awaiting final sign-off\tTom Bakker
-Assigned\tBT-005\t2\tModel B\t2026-02-20\t2026-03-22\t7\tBob Janssen\tHands-free call audio cuts out above 80 km/h\t1. Investigation\t22\tReproduced in test lab, audio module under review\tSara Linden
-Closed\tBT-006\t4\tModel D\t2026-02-28\t2026-03-01\t14\tCarla Mulder\tAmbient lighting colour slightly off from spec\t5. Finalization\t16\tDocs and sign-off pending marketing approval\tTom Bakker
-Assigned\tBT-007\t1\tModel A\t2026-03-01\t2026-03-18\t12\tAlice van der Berg\tAutomatic emergency braking activates incorrectly\t2. Design\t23\tSafety team reviewing sensor fusion algorithm\tJan de Vries
-Assigned\tBT-008\t3\tModel C\t2026-03-05\t2026-03-19\t9\tBob Janssen\tNavigation reroutes to toll roads despite preference off\t3. Testing\t25\tPatch tested on 3 vehicles, 1 regression found\tSara Linden
-Assigned\tBT-009\t2\tModel B\t2026-03-08\t2026-03-21\t7\tCarla Mulder\tWiper speed drops inconsistently in heavy rain\t1. Investigation\t26\tProcuring replacement wiper motor samples\tTom Bakker
-Closed\tBT-010\t5\tModel D\t2026-03-10\t2026-03-11\t14\tAlice van der Berg\tFont size on climate panel slightly too small\t5. Finalization\t17\tChange approved, updating UI style guide\tJan de Vries`;
-  showMsg('ok', 'Demo data loaded — click "Import Data" to continue.');
+Assigned\tBT-001\t1\tK0\t2026-01-10\t2026-03-15\t12\tAlice van der Berg\tCritical braking system fault on wet roads\t1. Investigation\t18\tRoot cause analysis ongoing, waiting for sensor logs\tJan de Vries
+Assigned\tBT-002\t2\tK9\t2026-01-18\t2026-03-10\t7\tBob Janssen\tDashboard display flicker at low temperatures\t2. Design\t20\tDesign spec drafted, review scheduled next week\tSara Linden
+Assigned\tBT-003\t1\tK0\t2026-02-02\t2026-03-20\t12\tAlice van der Berg\tEngine warning light false positive (error code E4)\t3. Testing\t19\tFirmware patch under test, 2 cycles remaining\tJan de Vries
+Closed\tBT-004\t3\tX250\t2026-02-14\t2026-03-05\t9\tCarla Mulder\tSeat memory preset not saving after restart\t4. Implementation\t24\tImplementation done, awaiting final sign-off\tTom Bakker
+Assigned\tBT-005\t2\tK9\t2026-02-20\t2026-03-22\t7\tBob Janssen\tHands-free call audio cuts out above 80 km/h\t1. Investigation\t22\tReproduced in test lab, audio module under review\tSara Linden
+Closed\tBT-006\t4\tX250\t2026-02-28\t2026-03-01\t14\tCarla Mulder\tAmbient lighting colour slightly off from spec\t5. Finalization\t16\tDocs and sign-off pending marketing approval\tTom Bakker
+Assigned\tBT-007\t1\tK0\t2026-03-01\t2026-03-18\t12\tAlice van der Berg\tAutomatic emergency braking activates incorrectly\t2. Design\t23\tSafety team reviewing sensor fusion algorithm\tJan de Vries
+Assigned\tBT-008\t3\tX250\t2026-03-05\t2026-03-19\t9\tBob Janssen\tNavigation reroutes to toll roads despite preference off\t3. Testing\t25\tPatch tested on 3 vehicles, 1 regression found\tSara Linden
+Assigned\tBT-009\t2\tK9\t2026-03-08\t2026-03-21\t7\tCarla Mulder\tWiper speed drops inconsistently in heavy rain\t1. Investigation\t26\tProcuring replacement wiper motor samples\tTom Bakker
+Closed\tBT-010\t5\tX250\t2026-03-10\t2026-03-11\t14\tAlice van der Berg\tFont size on climate panel slightly too small\t5. Finalization\t17\tChange approved, updating UI style guide\tJan de Vries`;
+  showMsg('ok', 'Demo data loaded — click "Import Pasted Data" to continue.');
 }
 
 // ═══════════════════════════════════════════════════════
 //  TAB NAVIGATION
 // ═══════════════════════════════════════════════════════
 document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
-    if (tab.dataset.tab === 'tracker')   renderTable();
-    if (tab.dataset.tab === 'dashboard') renderDashboard();
-  });
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
+  if (name === 'tracker')   renderTable();
+  if (name === 'dashboard') renderDashboard();
+}
 
 // ═══════════════════════════════════════════════════════
 //  TOAST
@@ -1094,23 +1124,20 @@ function toast(msg) {
 }
 
 function updateHdrCount() {
-  const closed = tickets.filter(t => isClosed(t)).length;
-  const active = tickets.length - closed;
+  const closedN = tickets.filter(t => isClosed(t)).length;
+  const activeN = tickets.length - closedN;
   document.getElementById('hdrCount').textContent =
-    closed > 0 ? `${active} active · ${closed} closed` : `${tickets.length} ticket${tickets.length!==1?'s':''}`;
+    closedN > 0 ? `${activeN} active · ${closedN} closed` : `${tickets.length} ticket${tickets.length!==1?'s':''}`;
 }
 
 // ═══════════════════════════════════════════════════════
 //  BOOKMARKLET
+//  Scrapes the bugtracker table including the href from the
+//  first <a> in each row so IDs become clickable links.
 // ═══════════════════════════════════════════════════════
 function buildBookmarklet() {
   const trackerUrl = (location.origin + location.pathname).replace(/\/$/, '') + '/';
 
-  // Step 1 – copy TSV to clipboard (execCommand works on any page, HTTP or HTTPS)
-  // Step 2 – confirm() dialog tells the user BEFORE navigating exactly what to do
-  //           on the tracker, so the instructions survive any login redirect
-  // Step 3 – navigate with #import=<b64> for auto-import if the hash survives;
-  //           if a login redirect strips the hash, the clipboard is the fallback
   const code = `(function(){
 try{
   var tables=document.querySelectorAll('table');
@@ -1118,20 +1145,24 @@ try{
   var best=null,bestRows=0;
   tables.forEach(function(t){if(t.rows.length>bestRows){bestRows=t.rows.length;best=t;}});
   if(bestRows<2){alert('The table appears to be empty.');return;}
-  var tsv=Array.from(best.rows).map(function(r){
-    return Array.from(r.cells).map(function(c){
+  var rows=Array.from(best.rows);
+  var tsv=rows.map(function(r,ri){
+    var cells=Array.from(r.cells).map(function(c){
       return c.innerText.replace(/\\t/g,' ').replace(/\\r?\\n/g,' ').trim();
-    }).join('\\t');
+    });
+    if(ri===0){cells.push('__url__');}
+    else{var a=r.querySelector('a[href]');cells.push(a?a.href:'');}
+    return cells.join('\\t');
   }).join('\\n');
   var ta=document.createElement('textarea');
   ta.value=tsv;ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
   document.body.appendChild(ta);ta.focus();ta.select();
   try{document.execCommand('copy');}catch(x){}
   document.body.removeChild(ta);
-  var msg='✓ '+bestRows+' rows copied to your clipboard.\\n\\n'
+  var msg='\\u2713 '+bestRows+' rows copied to your clipboard.\\n\\n'
     +'Click OK to open the Change Management Tracker.\\n\\n'
-    +'When it loads → go to the Import Data tab\\n'
-    +'→ click  📋 Read from Clipboard  → click Import.';
+    +'When it loads \\u2192 go to the Import Data tab\\n'
+    +'\\u2192 click  \\uD83D\\uDCCB Read from Clipboard  \\u2192 click Import.';
   if(!confirm(msg))return;
   try{
     var b64=btoa(unescape(encodeURIComponent(tsv)));
@@ -1144,7 +1175,6 @@ try{
 }
 
 function initBookmarklet() {
-  // Pre-fill the URL preview box so users can see something is there
   const box = document.getElementById('bmUrlBox');
   if (box) box.value = 'Click "Copy Bookmarklet URL" to generate and copy';
 }
@@ -1153,10 +1183,7 @@ async function copyBookmarkletUrl() {
   const url = buildBookmarklet();
   const box = document.getElementById('bmUrlBox');
   const btn = document.getElementById('bmCopyBtn');
-
-  // Show a short preview in the text box
   if (box) box.value = url.slice(0, 80) + '…';
-
   try {
     await navigator.clipboard.writeText(url);
     if (btn) { btn.textContent = '✓ Copied!'; btn.classList.add('copied'); }
@@ -1164,20 +1191,19 @@ async function copyBookmarkletUrl() {
       if (btn) { btn.textContent = '📋 Copy Bookmarklet URL'; btn.classList.remove('copied'); }
     }, 2500);
   } catch(e) {
-    // Clipboard API blocked — select the text box so user can Ctrl+C manually
     if (box) { box.value = url; box.select(); }
     if (btn) btn.textContent = 'Select all & Ctrl+C';
   }
 }
 
 // ═══════════════════════════════════════════════════════
-//  URL-PARAMETER AUTO-IMPORT (?import=<base64>)
+//  URL-HASH AUTO-IMPORT
 // ═══════════════════════════════════════════════════════
 let _pendingAutoImport = null;
 
 function checkUrlImport() {
   const hash = location.hash;
-  const hasImport   = hash.startsWith('#import=');
+  const hasImport    = hash.startsWith('#import=');
   const hasClipboard = hash === '#clipboard';
   if (!hasImport && !hasClipboard) return;
 
@@ -1189,10 +1215,9 @@ function checkUrlImport() {
     return;
   }
 
-  // Try the #import=<base64> path first
   const raw = hash.slice('#import='.length);
   try {
-    const tsv = decodeURIComponent(escape(atob(raw)));
+    const tsv    = decodeURIComponent(escape(atob(raw)));
     const parsed = parseTSV(tsv);
     if (!parsed.length) throw new Error('0 rows parsed');
     _pendingAutoImport = parsed;
@@ -1200,11 +1225,6 @@ function checkUrlImport() {
   } catch(e) {
     showBanner('Bookmarklet arrived but automatic transfer failed. Click <strong>📋 Read from Clipboard</strong> below — the data was also copied there.', false);
   }
-}
-
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
 }
 
 function showBanner(html, showImportBtn) {
@@ -1239,14 +1259,13 @@ async function readFromClipboard() {
     showMsg('ok', `✓ Pasted ${text.split('\n').length} lines from clipboard — click Import Pasted Data to continue.`);
     document.getElementById('pasteArea').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch(e) {
-    // Permission denied or API not available — tell user to paste manually
     showMsg('err', 'Could not read clipboard automatically (browser permission required). Press Ctrl+V in the paste box below instead.');
     document.getElementById('pasteArea').focus();
   }
 }
 
 // ═══════════════════════════════════════════════════════
-//  FILE UPLOAD (CSV / TSV)
+//  FILE UPLOAD
 // ═══════════════════════════════════════════════════════
 function handleFileUpload(file) {
   if (!file) return;
@@ -1254,12 +1273,10 @@ function handleFileUpload(file) {
   reader.onload = function(e) {
     try {
       let text = e.target.result;
-      // Detect CSV vs TSV by checking first line
-      const firstLine = text.split(/\r?\n/)[0] || '';
+      const firstLine  = text.split(/\r?\n/)[0] || '';
       const tabCount   = (firstLine.match(/\t/g) || []).length;
-      const commaCount = (firstLine.match(/,/g) || []).length;
+      const commaCount = (firstLine.match(/,/g)  || []).length;
       if (commaCount > tabCount) text = csvToTsv(text);
-
       const parsed = parseTSV(text);
       if (!parsed.length) throw new Error('No rows found');
       tickets = parsed;
@@ -1273,7 +1290,6 @@ function handleFileUpload(file) {
     }
   };
   reader.readAsText(file);
-  // Reset so same file can be re-uploaded
   document.getElementById('fileInput').value = '';
 }
 
@@ -1284,7 +1300,6 @@ function showFileMsg(type, msg) {
   el.textContent = msg;
 }
 
-// Naive CSV → TSV: handles double-quoted fields with embedded commas/newlines
 function csvToTsv(csv) {
   const rows = [];
   let row = [], field = '', inQ = false;
@@ -1307,7 +1322,6 @@ function csvToTsv(csv) {
   return rows.map(r => r.join('\t')).join('\n');
 }
 
-// Drag-and-drop on the file drop zone
 document.addEventListener('DOMContentLoaded', () => {
   const drop = document.getElementById('fileDrop');
   if (!drop) return;
@@ -1325,7 +1339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 //  INIT
 // ═══════════════════════════════════════════════════════
 loadStorage();
-initWeekRange();
+rolloverTasks();
 updateHdrCount();
 renderDashboard();
 if (tickets.length) renderTable();
