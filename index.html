@@ -638,6 +638,7 @@ function filteredTickets() {
   const search = ((document.getElementById('searchBox')||{}).value || '').toLowerCase();
 
   return tickets.filter(t => {
+    if (isClosed(t)) return false;   // always hide closed tickets in tracker
     if (search) {
       const blob = [t.ticketStatus,t.id,t.summary,t.productManager,t.responsiblePerson,t.model,t.sop].join(' ').toLowerCase();
       if (!blob.includes(search)) return false;
@@ -718,7 +719,6 @@ function isClosed(t) { return (t.ticketStatus||'').toLowerCase() === 'closed'; }
 //  TABLE COLUMNS
 // ═══════════════════════════════════════════════════════
 const STATIC_COLS = [
-  { key:'ticketStatus',     label:'Status',               sortable:true  },
   { key:'id',               label:'ID',                   sortable:true  },
   { key:'model',            label:'Model (CR)',            sortable:true  },
   { key:'dateSubmitted',    label:'Date Submitted',        sortable:true  },
@@ -840,9 +840,7 @@ function renderTable() {
     const priOpts  = [['','— priority —'],['1','P1 Critical'],['2','P2 High'],['3','P3 Medium'],['4','P4 Low'],['5','P5 Minimal']]
       .map(([v,l]) => `<option value="${v}" ${ep===v?'selected':''}>${l}</option>`).join('');
 
-    const closedCls = isClosed(t) ? ' row-closed' : '';
-    return `<tr class="${prClass(ep)}${closedCls}">
-      <td>${tsBadge(t.ticketStatus)}</td>
+    return `<tr class="${prClass(ep)}">
       <td>${idCell}</td>
       <td><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
       <td><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
