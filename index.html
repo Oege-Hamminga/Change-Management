@@ -145,6 +145,7 @@
     .sort-row th.sort-desc::after { content: ' ↓'; color: var(--primary); }
     .sort-row th.upd-th  { color: #FF8080; }
     .sort-row th.upd-th:hover { color: #FFAAAA; }
+    .sort-row th.task-prv { color: #9CA3AF; min-width: 160px; }
     .sort-row th.task-cur { color: #60A5FA; min-width: 170px; }
     .sort-row th.task-cur:hover { color: #93C5FD; }
     .sort-row th.task-nxt { color: #4ADE80; min-width: 170px; }
@@ -230,6 +231,18 @@
     .task-ta.nxt:hover { background: #dcfce7; border-color: #86efac; }
     .task-ta.nxt:focus { background: white; border-color: #22c55e; box-shadow: 0 0 0 2px #bbf7d0; }
     .task-ta.nxt.has-val { background: #dcfce7; }
+    .task-ta.prv { background: rgba(0,0,0,0.02); cursor: default; color: var(--gray-500); }
+    .task-ta.prv:hover { background: rgba(0,0,0,0.03); border-color: var(--gray-200); }
+    .task-ta.prv.has-val { background: rgba(0,0,0,0.04); }
+    .high-list { list-style:none; margin:0; padding:0; }
+    .high-item { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--gray-100); }
+    .high-item:last-child { border-bottom:none; }
+    .high-id { font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap; text-decoration:none; padding-top:2px; }
+    .high-id:hover { text-decoration:underline; }
+    .high-body { flex:1; min-width:0; }
+    .high-summary { font-size:12px; font-weight:600; color:var(--gray-700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .high-task { font-size:11px; color:var(--gray-500); margin-top:3px; }
+    .high-badge { display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:var(--radius); background:#fee2e2; color:#b91c1c; letter-spacing:.03em; vertical-align:middle; margin-left:6px; }
 
     /* Notes textarea */
     .note-ta { width: 100%; min-width: 130px; border: 1px solid transparent; border-radius: var(--radius); padding: 3px 5px; font-size: 11px; font-family: inherit; background: transparent; resize: none; outline: none; color: var(--gray-700); min-height: 30px; transition: border-color var(--transition), background var(--transition); }
@@ -500,6 +513,9 @@ const CUR_WK_KEY  = weekKey(_now.year, _now.week);
 const _nxt        = CUR_WEEK < isoWeekCount(_now.year) ? { year: _now.year, week: CUR_WEEK+1 } : { year: _now.year+1, week: 1 };
 const NEXT_WEEK   = _nxt.week;
 const NEXT_WK_KEY = weekKey(_nxt.year, _nxt.week);
+const _prv        = CUR_WEEK > 1 ? { year: _now.year, week: CUR_WEEK-1 } : { year: _now.year-1, week: isoWeekCount(_now.year-1) };
+const PREV_WEEK   = _prv.week;
+const PREV_WK_KEY = weekKey(_prv.year, _prv.week);
 
 function parseCW(val) {
   if (!val) return null;
@@ -647,18 +663,34 @@ function parseTSV(text) {
 // ═══════════════════════════════════════════════════════
 //  IMPORT / CLEAR
 // ═══════════════════════════════════════════════════════
+function mergeTickets(parsed) {
+  const existingIds = new Set(tickets.map(t => t.id));
+  let newCount = 0, updCount = 0;
+  parsed.forEach(t => {
+    if (existingIds.has(t.id)) {
+      const idx = tickets.findIndex(x => x.id === t.id);
+      if (idx >= 0) tickets[idx] = t;
+      updCount++;
+    } else {
+      tickets.push(t);
+      newCount++;
+    }
+  });
+  return { newCount, updCount };
+}
+
 function importData() {
   const text = document.getElementById('pasteArea').value;
   if (!text.trim()) { showMsg('err','Nothing pasted.'); return; }
   const parsed = parseTSV(text);
   if (!parsed.length) { showMsg('err','Could not parse rows — make sure you copy from a spreadsheet (tab-separated).'); return; }
-  tickets = parsed;
+  const { newCount, updCount } = mergeTickets(parsed);
   save();
-  showMsg('ok', `✓ Imported ${parsed.length} ticket${parsed.length>1?'s':''}. Switch to Dashboard or Tracker.`);
+  showMsg('ok', `✓ ${newCount} new, ${updCount} updated. Switch to Dashboard or Tracker.`);
   document.getElementById('pasteArea').value = '';
   updateHdrCount();
   renderDashboard();
-  toast(`Imported ${parsed.length} tickets`);
+  toast(`${newCount} new, ${updCount} updated`);
 }
 
 function clearAll() {
@@ -793,9 +825,10 @@ const STATIC_COLS = [
   { key:'sop',           label:'SOP (CW)',                       sortable:true  },
   { key:'phase',         label:'Phase',                          sortable:true  },
   { key:'finishPhase',   label:'Finish Phase (CW)',               sortable:true  },
-  { key:'priority',      label:'Priority',                        sortable:true,  cls:'upd-th' },
-  { key:'taskThisWeek',  label:`Tasks CW${CUR_WEEK} (This Week)`, sortable:false, cls:'task-cur' },
-  { key:'taskNextWeek',  label:`Tasks CW${NEXT_WEEK} (Next Week)`,sortable:false, cls:'task-nxt' },
+  { key:'priority',      label:'Priority',                         sortable:true,  cls:'upd-th' },
+  { key:'taskLastWeek',  label:`Tasks CW${PREV_WEEK} (Last Week)`, sortable:false, cls:'task-prv' },
+  { key:'taskThisWeek',  label:`Tasks CW${CUR_WEEK} (This Week)`,  sortable:false, cls:'task-cur' },
+  { key:'taskNextWeek',  label:`Tasks CW${NEXT_WEEK} (Next Week)`, sortable:false, cls:'task-nxt' },
 ];
 
 function buildFilterInput(key) {
@@ -822,7 +855,7 @@ function buildFilterInput(key) {
   if (key === 'dateSubmitted') {
     return `<input class="col-filter" type="date" value="${esc(cur)}" onchange="setColFilter('${key}',this.value)">`;
   }
-  if (['taskThisWeek','taskNextWeek'].includes(key)) return '';
+  if (['taskLastWeek','taskThisWeek','taskNextWeek'].includes(key)) return '';
   return `<input class="col-filter" type="text" value="${esc(cur)}" placeholder="Filter…" oninput="setColFilter('${key}',this.value)">`;
 }
 
@@ -876,6 +909,7 @@ function renderTable() {
     ensureTaskRollover(t.id);
     const upd    = updates[t.id];
 
+    const prevVal = esc((upd.taskHistory && upd.taskHistory[PREV_WK_KEY]) || '');
     const thisVal = esc(upd.taskThisWeek || '');
     const nextVal = esc(upd.taskNextWeek || '');
 
@@ -917,6 +951,7 @@ function renderTable() {
       <td><select class="phase-sel ${phaseCls}" data-id="${esc(t.id)}" onchange="setPhase(this)">${phOpts}</select></td>
       ${finishCell}
       <td><select class="pri-sel ${priCls}" data-id="${esc(t.id)}" onchange="setPriority(this)">${priOpts}</select></td>
+      <td><textarea class="task-ta prv${prevVal?' has-val':''}" rows="2" readonly title="Last week CW${PREV_WEEK}">${prevVal}</textarea></td>
       <td><textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea></td>
       <td><textarea class="task-ta nxt${nextVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskNextWeek" onblur="setTask(this)">${nextVal}</textarea></td>
     </tr>`;
@@ -1090,20 +1125,14 @@ function renderDashboard() {
   const activeTotal = active.length;
 
   const p1       = active.filter(t => effPri(t)==='HIGH').length;
-  const blocked  = active.filter(t => (getUpd(t.id).status||'')==='Blocked').length;
-  const open     = active.filter(t => { const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
-  const resolved = active.filter(t => (getUpd(t.id).status||'')==='Resolved').length;
   const effCw    = t => { const u=updates[t.id]||{}; return { sop: u.sopCW!==undefined?u.sopCW:t.sop, fp: u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase }; };
-  const overdue  = active.filter(t => { const c=effCw(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); }).length;
+  const fpOverdue = active.filter(t => cwIsOverdue(effCw(t).fp)).length;
 
   statCards.innerHTML = [
-    { val: activeTotal, label: 'Active Tickets',  color: 'var(--primary)' },
-    { val: closedCount, label: 'Closed (excl.)',   color: 'var(--gray-500)' },
-    { val: p1,          label: 'High Priority',     color: '#dc2626' },
-    { val: open,        label: 'Open / Unset',     color: '#d97706' },
-    { val: blocked,     label: 'Blocked',           color: '#dc2626' },
-    { val: resolved,    label: 'Resolved',          color: '#059669' },
-    { val: overdue,     label: 'Overdue CW',        color: '#be123c', alert: overdue > 0 },
+    { val: activeTotal, label: 'OPEN',                        color: 'var(--primary)' },
+    { val: closedCount, label: 'CLOSED',                      color: 'var(--gray-500)' },
+    { val: p1,          label: 'HIGH PRIORITY',               color: '#dc2626' },
+    { val: fpOverdue,   label: 'FINISH PHASE CW OVERDUE',     color: '#be123c', alert: fpOverdue > 0 },
   ].map(s => `<div class="stat-card${s.alert?' alert':''}">
     <div class="stat-val" style="color:${s.color}">${s.val}</div>
     <div class="stat-label">${s.label}</div>
@@ -1139,43 +1168,22 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  // Priority donut
-  const priColors = { 'HIGH':'#ef4444','MEDIUM':'#eab308','LOW':'#22c55e' };
-  const priLabels = { 'HIGH':'High','MEDIUM':'Medium','LOW':'Low' };
-  const priOrder  = ['HIGH','MEDIUM','LOW'];
-  const priCounts = {};
-  active.forEach(t => { const p = effPri(t); if (p) priCounts[p] = (priCounts[p]||0)+1; });
-  const donutData  = priOrder.map(p => ({ v: priCounts[p]||0, color: priColors[p] }));
-  const donutSVG   = drawDonut(donutData, 130);
-  const legendRows = priOrder.map(p => {
-    const cnt = priCounts[p]||0;
-    const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
-    return `<div class="leg-row"><span class="leg-dot" style="background:${priColors[p]}"></span><span class="leg-name">${priLabels[p]}</span><span class="leg-val">${cnt}</span><span class="leg-pct">${pct}%</span></div>`;
-  }).join('');
-
-  // Top 10
-  const top10 = [...active].sort((a,b) => (parseInt(a.p,10)||99)-(parseInt(b.p,10)||99)).slice(0,10);
-  const topHTML = top10.map(t => {
-    const st = getUpd(t.id).status || '';
-    const idTag = t.url
-      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="top-id">${esc(t.id)}</a>`
-      : `<span class="top-id">${esc(t.id)}</span>`;
-    return `<li class="top-item">
+  // High priority tickets with current-week tasks
+  const highTickets = active.filter(t => effPri(t) === 'HIGH').sort((a,b) => (a.id||'').localeCompare(b.id||''));
+  const highHTML = highTickets.map(t => {
+    const upd     = updates[t.id] || {};
+    const curTask = upd.taskThisWeek || '';
+    const idTag   = t.url
+      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="high-id">${esc(t.id)}</a>`
+      : `<span class="high-id">${esc(t.id)}</span>`;
+    return `<li class="high-item">
       ${idTag}
-      <div class="top-body">
-        <div class="top-summary">${esc(t.summary)||'(no summary)'}</div>
-        <div class="top-meta">${phaseBadge(t.phase)}${st?' &nbsp;<strong>'+esc(st)+'</strong>':''}${t.productManager?' · '+esc(t.productManager):''}</div>
+      <div class="high-body">
+        <div class="high-summary">${esc(t.summary)||'(no summary)'}</div>
+        <div class="high-task">CW${CUR_WEEK}: ${curTask ? esc(curTask) : '<em>No task this week</em>'}</div>
       </div>
-      ${pBadge(t.p)}
     </li>`;
   }).join('');
-
-  // PM workload
-  const pmMap = {};
-  active.forEach(t => { const pm=(t.productManager||'(unknown)').trim(); pmMap[pm]=(pmMap[pm]||0)+1; });
-  const pmRows = Object.entries(pmMap).sort((a,b)=>b[1]-a[1]).map(([pm,cnt]) =>
-    `<li class="pm-item"><span class="pm-name">${esc(pm)}</span><span class="pm-pill">${cnt}</span></li>`
-  ).join('');
 
   // Model breakdown — split comma/slash-separated values so "K0, K9" counts for both
   const modelMap = {};
@@ -1233,26 +1241,13 @@ function renderDashboard() {
     </div>
 
     <div class="dash-card">
-      <h3>Priority Distribution</h3>
-      <div class="donut-section">
-        ${donutSVG}
-        <div class="donut-legend">${legendRows}</div>
-      </div>
-    </div>
-
-    <div class="dash-card">
-      <h3>Top Priority Tickets</h3>
-      <ul class="top-list">${topHTML||'<li style="padding:16px 0;color:var(--gray-500);font-size:13px">No active tickets</li>'}</ul>
+      <h3>High Priority Tickets <span class="high-badge">HIGH</span></h3>
+      <ul class="high-list">${highHTML||'<li style="padding:16px 0;color:var(--gray-500);font-size:13px">No high priority tickets</li>'}</ul>
     </div>
 
     <div class="dash-card">
       <h3>Tickets by Model</h3>
       ${modelBars||'<p style="color:var(--gray-500);font-size:13px">No model data</p>'}
-    </div>
-
-    <div class="dash-card">
-      <h3>Tickets by Product Manager</h3>
-      <ul class="pm-list">${pmRows}</ul>
     </div>
 
     <div class="dash-card" style="${overdueItems.length?'border-color:#fca5a5;background:#fffbfb':''}">
@@ -1420,13 +1415,13 @@ function showBanner(html, showImportBtn) {
 
 function confirmAutoImport() {
   if (!_pendingAutoImport) return;
-  tickets = _pendingAutoImport;
+  const { newCount, updCount } = mergeTickets(_pendingAutoImport);
   _pendingAutoImport = null;
   save();
   updateHdrCount();
   renderDashboard();
   document.getElementById('autoImportBanner').style.display = 'none';
-  toast(`Imported ${tickets.length} tickets`);
+  toast(`${newCount} new, ${updCount} updated`);
 }
 
 function dismissAutoImport() {
@@ -1462,12 +1457,12 @@ function handleFileUpload(file) {
       if (commaCount > tabCount) text = csvToTsv(text);
       const parsed = parseTSV(text);
       if (!parsed.length) throw new Error('No rows found');
-      tickets = parsed;
+      const { newCount, updCount } = mergeTickets(parsed);
       save();
       updateHdrCount();
       renderDashboard();
-      showFileMsg('ok', `✓ Imported ${parsed.length} ticket${parsed.length>1?'s':''} from ${file.name}.`);
-      toast(`Imported ${parsed.length} tickets`);
+      showFileMsg('ok', `✓ ${newCount} new, ${updCount} updated from ${file.name}.`);
+      toast(`${newCount} new, ${updCount} updated`);
     } catch(err) {
       showFileMsg('err', `Could not parse file: ${err.message}`);
     }
