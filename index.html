@@ -30,11 +30,12 @@
     body { font-family: 'Segoe UI', 'Inter', Arial, sans-serif; background: var(--gray-50); color: var(--gray-900); min-height: 100vh; font-size: 14px; -webkit-font-smoothing: antialiased; }
 
     /* ── Header ── */
-    .header { background: white; border-bottom: 2px solid var(--primary); padding: 0 28px; display: flex; align-items: center; gap: 24px; position: sticky; top: 0; z-index: 300; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-    .header-logo { font-size: 12px; font-weight: 700; color: var(--dark); padding: 18px 0; white-space: nowrap; letter-spacing: 0.08em; text-transform: uppercase; }
+    .header { background: white; border-bottom: 2px solid var(--primary); padding: 0 28px; display: flex; align-items: center; gap: 24px; position: sticky; top: 0; z-index: 300; box-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 0 rgba(204,0,0,0.06); height: 56px; }
+    .header-logo { font-size: 11px; font-weight: 900; color: var(--dark); white-space: nowrap; letter-spacing: 0.14em; text-transform: uppercase; }
     .header-logo span { color: var(--primary); }
-    .tabs { display: flex; }
-    .tab { padding: 20px 18px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 11px; font-weight: 700; color: var(--gray-500); transition: color var(--transition), border-color var(--transition); white-space: nowrap; user-select: none; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: -2px; }
+    .header-divider { width: 1px; height: 20px; background: var(--gray-200); }
+    .tabs { display: flex; height: 100%; }
+    .tab { padding: 0 18px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 10px; font-weight: 800; color: var(--gray-500); transition: color var(--transition), border-color var(--transition); white-space: nowrap; user-select: none; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: -2px; display: flex; align-items: center; }
     .tab:hover { color: var(--gray-900); }
     .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
     .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
@@ -62,52 +63,49 @@
     .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
 
     /* ── Dashboard ── */
-    .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 12px; margin-bottom: 20px; }
-    .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); border-left: 3px solid var(--gray-300); padding: 18px 20px; box-shadow: var(--shadow-sm); }
-    .stat-card.alert { border-left-color: var(--primary); background: rgba(204,0,0,0.02); border-color: var(--primary-border); }
-    .stat-val { font-size: 32px; font-weight: 800; line-height: 1; }
-    .stat-label { font-size: 10px; color: var(--gray-500); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
+    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 22px 20px 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gray-300); }
+    .stat-card.alert::before { background: var(--primary); }
+    .stat-card.alert { background: rgba(204,0,0,0.02); border-color: var(--primary-border); }
+    .stat-val { font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+    .stat-label { font-size: 9px; color: var(--gray-500); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
 
     .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px,1fr)); gap: 16px; }
-    .dash-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 22px; box-shadow: var(--shadow-sm); }
-    .dash-card h3 { font-size: 10px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: .09em; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200); }
+    .dash-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 22px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
+    .dash-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--primary); }
+    .dash-card h3 { font-size: 9px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-100); }
+    .dash-card-dark { background: var(--dark); border-color: var(--dark-2); }
+    .dash-card-dark h3 { color: rgba(255,255,255,0.35); border-bottom-color: rgba(255,255,255,0.08); }
+    .dash-card-dark::before { background: var(--primary); }
 
     .stacked-wrap { margin-bottom: 20px; }
     .stacked-label { font-size: 10px; color: var(--gray-500); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-    .stacked-bar { height: 22px; border-radius: var(--radius); overflow: hidden; display: flex; }
+    .stacked-bar { height: 26px; border-radius: var(--radius); overflow: hidden; display: flex; }
     .stacked-seg { height: 100%; transition: width .5s ease; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; overflow: hidden; white-space: nowrap; }
-
-    .donut-section { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-    .donut-legend { flex: 1; min-width: 120px; }
-    .leg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 12px; }
-    .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .leg-name { flex: 1; color: var(--gray-700); font-weight: 500; }
-    .leg-val { font-weight: 700; color: var(--gray-900); }
-    .leg-pct { color: var(--gray-500); font-size: 11px; width: 32px; text-align: right; }
 
     .hbar-row { margin-bottom: 13px; }
     .hbar-head { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
     .hbar-lbl { font-weight: 600; color: var(--gray-700); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .hbar-meta { color: var(--gray-500); flex-shrink: 0; margin-left: 8px; font-size: 11px; }
-    .bar-track { height: 7px; background: var(--gray-100); border-radius: var(--radius); overflow: hidden; }
+    .bar-track { height: 8px; background: var(--gray-100); border-radius: var(--radius); overflow: hidden; }
     .bar-fill { height: 100%; border-radius: var(--radius); transition: width .5s ease; }
     .c-ph1 { background: #7c3aed; } .c-ph2 { background: #2563eb; } .c-ph3 { background: #d97706; }
     .c-ph4 { background: #059669; } .c-ph5 { background: #9ca3af; }
 
-    .top-list { list-style: none; }
-    .top-item { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--gray-100); align-items: flex-start; }
-    .top-item:last-child { border-bottom: none; }
-    .top-id { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; padding-top: 2px; text-decoration: none; font-family: 'Courier New', monospace; }
-    .top-id:hover { text-decoration: underline; }
-    .top-body { flex: 1; }
-    .top-summary { font-size: 13px; color: var(--gray-700); }
-    .top-meta { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
-
-    .pm-list { list-style: none; }
-    .pm-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
-    .pm-item:last-child { border-bottom: none; }
-    .pm-name { font-weight: 500; color: var(--gray-700); }
-    .pm-pill { background: var(--dark); color: white; padding: 2px 8px; border-radius: var(--radius); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; }
+    .week-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+    .week-item { background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; }
+    .week-item:hover { border-color: var(--gray-300); }
+    .week-id-col { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex-shrink: 0; }
+    .week-id { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; text-decoration: none; font-family: 'Courier New', monospace; }
+    .week-id:hover { text-decoration: underline; }
+    .week-body { flex: 1; min-width: 0; }
+    .week-summary { font-size: 11px; font-weight: 600; color: var(--gray-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+    .week-task { font-size: 12px; color: var(--gray-900); line-height: 1.5; white-space: pre-wrap; }
+    .week-empty { font-size: 12px; color: var(--gray-500); font-style: italic; padding: 8px 0; }
+    .cw-label { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; padding: 2px 5px; border-radius: var(--radius); }
+    .cw-cur-label { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+    .cw-nxt-label { background: rgba(22,163,74,0.1); color: #15803d; }
 
     .dash-empty { text-align: center; padding: 48px; color: var(--gray-500); }
     .dash-empty .ei { font-size: 40px; margin-bottom: 12px; }
@@ -325,7 +323,8 @@
 <body>
 
 <header class="header">
-  <div class="header-logo">Change Management <span>Tracker</span></div>
+  <div class="header-logo">Snoeks <span>// Change Tracker</span></div>
+  <div class="header-divider"></div>
   <nav class="tabs">
     <div class="tab active" data-tab="dashboard">Dashboard</div>
     <div class="tab" data-tab="tracker">Tracker</div>
@@ -1168,11 +1167,40 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  // High priority tickets with current-week tasks
+  // Helper to build a week-task list item
+  function weekItem(t, taskText) {
+    const idTag = t.url
+      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="week-id">${esc(t.id)}</a>`
+      : `<span class="week-id">${esc(t.id)}</span>`;
+    const ep = effPri(t);
+    const priDot = ep === 'HIGH'
+      ? `<span style="width:6px;height:6px;border-radius:50%;background:#dc2626;display:inline-block;flex-shrink:0;margin-top:4px"></span>`
+      : '';
+    return `<li class="week-item">
+      <div class="week-id-col">${idTag}${priDot}</div>
+      <div class="week-body">
+        <div class="week-summary">${esc(t.summary||'(no summary)').slice(0,55)}</div>
+        <div class="week-task">${esc(taskText)}</div>
+      </div>
+    </li>`;
+  }
+
+  // Tasks this week
+  const thisWeekItems = active.filter(t => (updates[t.id]||{}).taskThisWeek);
+  const thisWeekHTML  = thisWeekItems.length
+    ? `<ul class="week-list">${thisWeekItems.map(t => weekItem(t, updates[t.id].taskThisWeek)).join('')}</ul>`
+    : `<p class="week-empty">No tasks recorded for CW${CUR_WEEK} yet.</p>`;
+
+  // Tasks next week
+  const nextWeekItems = active.filter(t => (updates[t.id]||{}).taskNextWeek);
+  const nextWeekHTML  = nextWeekItems.length
+    ? `<ul class="week-list">${nextWeekItems.map(t => weekItem(t, updates[t.id].taskNextWeek)).join('')}</ul>`
+    : `<p class="week-empty">No tasks planned for CW${NEXT_WEEK} yet.</p>`;
+
+  // High priority tickets
   const highTickets = active.filter(t => effPri(t) === 'HIGH').sort((a,b) => (a.id||'').localeCompare(b.id||''));
   const highHTML = highTickets.map(t => {
     const upd     = updates[t.id] || {};
-    const curTask = upd.taskThisWeek || '';
     const idTag   = t.url
       ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="high-id">${esc(t.id)}</a>`
       : `<span class="high-id">${esc(t.id)}</span>`;
@@ -1180,12 +1208,13 @@ function renderDashboard() {
       ${idTag}
       <div class="high-body">
         <div class="high-summary">${esc(t.summary)||'(no summary)'}</div>
-        <div class="high-task">CW${CUR_WEEK}: ${curTask ? esc(curTask) : '<em>No task this week</em>'}</div>
+        <div class="high-task">${upd.taskThisWeek ? esc(upd.taskThisWeek) : '<em>No task this week</em>'}</div>
       </div>
+      ${phaseBadge(effPhase(t))}
     </li>`;
   }).join('');
 
-  // Model breakdown — split comma/slash-separated values so "K0, K9" counts for both
+  // Model breakdown — split comma/slash-separated values
   const modelMap = {};
   active.forEach(t => {
     const raw = (t.model||'').trim();
@@ -1231,17 +1260,26 @@ function renderDashboard() {
 
   dashGrid.innerHTML = `
     <div class="dash-card" style="grid-column:1/-1">
-      <h3>Phase Overview</h3>
-      ${closedNote}
+      <h3>Phase Overview ${closedCount > 0 ? `<span style="font-weight:500;opacity:.6">— ${closedNote.replace(/<[^>]+>/g,'')}</span>` : ''}</h3>
       <div class="stacked-wrap">
-        <div class="stacked-label">${activeTotal} active tickets across phases</div>
+        <div class="stacked-label">${activeTotal} active ticket${activeTotal!==1?'s':''} across phases</div>
         <div class="stacked-bar">${stackedSegs||'<div style="width:100%;background:var(--gray-200);height:100%"></div>'}</div>
       </div>
       ${phaseBars}
     </div>
 
+    <div class="dash-card" style="grid-column:1/-1">
+      <h3>Tasks This Week &nbsp;<span class="cw-label cw-cur-label">CW${CUR_WEEK}</span></h3>
+      ${thisWeekHTML}
+    </div>
+
     <div class="dash-card">
-      <h3>High Priority Tickets <span class="high-badge">HIGH</span></h3>
+      <h3>Tasks Next Week &nbsp;<span class="cw-label cw-nxt-label">CW${NEXT_WEEK}</span></h3>
+      ${nextWeekHTML}
+    </div>
+
+    <div class="dash-card">
+      <h3>High Priority <span class="high-badge">HIGH</span></h3>
       <ul class="high-list">${highHTML||'<li style="padding:16px 0;color:var(--gray-500);font-size:13px">No high priority tickets</li>'}</ul>
     </div>
 
@@ -1250,8 +1288,8 @@ function renderDashboard() {
       ${modelBars||'<p style="color:var(--gray-500);font-size:13px">No model data</p>'}
     </div>
 
-    <div class="dash-card" style="${overdueItems.length?'border-color:#fca5a5;background:#fffbfb':''}">
-      <h3 style="${overdueItems.length?'color:#be123c':''}">⚠ Overdue Deadlines (CW &lt; ${CUR_WEEK})</h3>
+    <div class="dash-card" style="${overdueItems.length?'border-color:rgba(204,0,0,0.25);background:#fffbfb':''}">
+      <h3>Overdue Deadlines &nbsp;<span style="color:${overdueItems.length?'#be123c':'var(--gray-300)'}">CW &lt; ${CUR_WEEK}</span></h3>
       ${overdueHTML}
     </div>
   `;
