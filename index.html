@@ -197,6 +197,11 @@
     .eff-ph-fill { height: 100%; background: var(--primary); transition: width .5s ease; border-radius: var(--radius); display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; }
     .eff-ph-cnt { font-size: 10px; font-weight: 700; color: white; white-space: nowrap; }
     .eff-ph-meta { font-size: 11px; color: var(--gray-500); width: 38px; flex-shrink: 0; text-align: right; }
+    .eff-toggle-row { display: flex; gap: 6px; margin-bottom: 14px; }
+    .eff-btn { padding: 5px 16px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; cursor: pointer; background: white; color: var(--gray-600); font-family: inherit; transition: all var(--transition); }
+    .eff-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .eff-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .eff-chart-wrap { overflow-x: auto; }
     .week-item { background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; }
     .week-item:hover { border-color: var(--gray-300); }
     .week-id-col { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex-shrink: 0; }
@@ -459,6 +464,15 @@
   <!-- EFFICIENCY -->
   <div class="tab-content" id="tab-efficiency">
     <div class="eff-stat-row" id="effStatRow"></div>
+    <div class="eff-section" style="margin-bottom:14px">
+      <h3>Efficiency Over Time</h3>
+      <div class="eff-toggle-row">
+        <button class="eff-btn active" data-view="year"  onclick="setEffView('year',this)">Per Year</button>
+        <button class="eff-btn"        data-view="month" onclick="setEffView('month',this)">Per Month</button>
+      </div>
+      <div class="eff-chart-wrap"><div id="effTimeChart"></div></div>
+      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap" id="effChartLegend"></div>
+    </div>
     <div class="eff-grid">
       <div class="eff-section" id="effPhaseChart"><h3>Overdue Events by Phase</h3><div id="effPhaseBars"></div></div>
       <div class="eff-section" style="grid-column:1/-1"><h3>Per-Ticket Overdue History &nbsp;<span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)">Click a phase badge to +1, right-click to −1</span></h3><div id="effTicketTable"></div></div>
@@ -1585,6 +1599,178 @@ function renderEfficiency() {
       </tr></thead>
       <tbody>${tblRows||'<tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:20px">No tickets yet</td></tr>'}</tbody>
     </table>`;
+
+  renderEfficiencyChart();
+}
+
+// ─────────────────────────────────────────────────────
+//  EFFICIENCY CHART (per-year / per-month toggle)
+// ─────────────────────────────────────────────────────
+let _effView = 'year';
+
+function setEffView(mode, btn) {
+  _effView = mode;
+  document.querySelectorAll('.eff-btn').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
+  renderEfficiencyChart();
+}
+
+function renderEfficiencyChart() {
+  const el = document.getElementById('effTimeChart');
+  if (!el) return;
+
+  // ── Group tickets by period ──────────────────────────
+  const periodMap = {};
+  tickets.forEach(t => {
+    const d = (t.dateSubmitted || '').trim();
+    if (!d || !/^\d{4}/.test(d)) return;
+    const key = _effView === 'year' ? d.slice(0,4) : d.slice(0,7);
+    if (!periodMap[key]) periodMap[key] = { submitted:0, closed:0, onTime:0, odTotal:0 };
+    const m = periodMap[key];
+    m.submitted++;
+    if (isClosed(t)) m.closed++;
+    const u   = updates[t.id] || {};
+    const sop = u.sopCW !== undefined ? u.sopCW : t.sop;
+    const fp  = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    if (!cwIsOverdue(sop) && !cwIsOverdue(fp)) m.onTime++;
+    Object.values(u.overduePhase || {}).forEach(n => { m.odTotal += n||0; });
+  });
+
+  const periods = Object.keys(periodMap).sort();
+  if (!periods.length) {
+    el.innerHTML = '<p style="color:var(--gray-400);font-size:13px;padding:20px 0;text-align:center">No tickets with dates to plot yet.</p>';
+    document.getElementById('effChartLegend').innerHTML = '';
+    return;
+  }
+
+  // ── Dimensions ───────────────────────────────────────
+  const W = 860, H = 300;
+  const padL = 44, padR = 56, padT = 20, padB = 54;
+  const cW = W - padL - padR;    // chart content width
+  const cH = H - padT - padB;    // chart content height
+  const n  = periods.length;
+  const barW  = Math.max(8, Math.min(52, Math.floor(cW / n) - 8));
+  const step  = cW / n;
+  const maxSub = Math.max(...periods.map(p => periodMap[p].submitted), 1);
+
+  // ── Month label helper ────────────────────────────────
+  const MON = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtPeriod(k) {
+    if (_effView === 'year') return k;
+    const [yr, mo] = k.split('-');
+    return `${MON[+mo]||mo} '${yr.slice(2)}`;
+  }
+
+  let svg = '';
+
+  // ── Y gridlines + left labels (counts) ───────────────
+  const yTicks = Math.min(maxSub, 5);
+  for (let i = 0; i <= yTicks; i++) {
+    const val = Math.round(maxSub * i / yTicks);
+    const y   = padT + cH - cH * i / yTicks;
+    svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#F0F0F0" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#9CA3AF">${val}</text>`;
+  }
+
+  // ── Right axis labels (%) ────────────────────────────
+  for (let p = 0; p <= 100; p += 25) {
+    const y = padT + cH - cH * p / 100;
+    svg += `<text x="${W-padR+6}" y="${(y+3.5).toFixed(1)}" text-anchor="start" font-size="10" fill="#CC0000" opacity=".55">${p}%</text>`;
+  }
+
+  // ── Bars ─────────────────────────────────────────────
+  const linePts   = [];
+  const linePtsOD = [];
+
+  periods.forEach((p, i) => {
+    const m      = periodMap[p];
+    const xC     = padL + step * i + step / 2;
+    const xL     = xC - barW / 2;
+
+    // submitted (light gray)
+    const subH = cH * m.submitted / maxSub;
+    const subY = padT + cH - subH;
+    svg += `<rect x="${xL.toFixed(1)}" y="${subY.toFixed(1)}" width="${barW}" height="${subH.toFixed(1)}" fill="#E5E7EB" rx="1">
+      <title>${fmtPeriod(p)}: ${m.submitted} submitted</title></rect>`;
+
+    // closed (green fill from bottom up)
+    if (m.closed > 0) {
+      const clH = cH * m.closed / maxSub;
+      const clY = padT + cH - clH;
+      svg += `<rect x="${xL.toFixed(1)}" y="${clY.toFixed(1)}" width="${barW}" height="${clH.toFixed(1)}" fill="#059669" rx="1" opacity=".8">
+        <title>${fmtPeriod(p)}: ${m.closed} closed</title></rect>`;
+    }
+
+    // label above bar
+    if (m.submitted > 0) {
+      svg += `<text x="${xC.toFixed(1)}" y="${(subY-4).toFixed(1)}" text-anchor="middle" font-size="10" fill="#6B7280">${m.submitted}</text>`;
+    }
+
+    // x-axis label
+    const labelY = padT + cH + 16;
+    const rotate = n > 8 ? `transform="rotate(-40 ${xC.toFixed(1)} ${labelY})"` : '';
+    svg += `<text x="${xC.toFixed(1)}" y="${labelY}" text-anchor="${n>8?'end':'middle'}" font-size="10" fill="#6B7280" ${rotate}>${fmtPeriod(p)}</text>`;
+
+    // on-time % → right-axis line
+    if (m.submitted > 0) {
+      const pct = m.onTime / m.submitted * 100;
+      const ly  = padT + cH - cH * pct / 100;
+      linePts.push([xC, ly, pct, p]);
+    }
+
+    // avg OD incidents → secondary line (dashed, scaled to max)
+    if (m.submitted > 0) {
+      const avg = m.odTotal / m.submitted;
+      const maxAvg = Math.max(...periods.map(k => periodMap[k].odTotal / periodMap[k].submitted), 0.1);
+      const ly2 = padT + cH - cH * avg / maxAvg;
+      linePtsOD.push([xC, ly2, avg, p]);
+    }
+  });
+
+  // ── On-time % line (solid red) ───────────────────────
+  if (linePts.length > 0) {
+    if (linePts.length > 1) {
+      svg += `<polyline points="${linePts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}"
+        fill="none" stroke="#CC0000" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+    linePts.forEach(([x,y,pct,period]) => {
+      svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="#CC0000" stroke="white" stroke-width="2">
+        <title>${fmtPeriod(period)}: ${Math.round(pct)}% on-time</title></circle>`;
+      // value label above dot if space
+      svg += `<text x="${x.toFixed(1)}" y="${(y-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#CC0000" font-weight="700">${Math.round(pct)}%</text>`;
+    });
+  }
+
+  // ── OD avg line (dashed gray) ─────────────────────────
+  if (linePtsOD.length > 1) {
+    svg += `<polyline points="${linePtsOD.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}"
+      fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>`;
+    linePtsOD.forEach(([x,y,avg,period]) => {
+      svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#888" stroke="white" stroke-width="1.5">
+        <title>${fmtPeriod(period)}: avg ${avg.toFixed(1)} OD incidents/ticket</title></circle>`;
+    });
+  }
+
+  // ── Axes ────────────────────────────────────────────
+  svg += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+cH}" stroke="#D1D5DB" stroke-width="1"/>`;
+  svg += `<line x1="${padL}" y1="${padT+cH}" x2="${W-padR}" y2="${padT+cH}" stroke="#D1D5DB" stroke-width="1"/>`;
+  svg += `<line x1="${W-padR}" y1="${padT}" x2="${W-padR}" y2="${padT+cH}" stroke="rgba(204,0,0,.2)" stroke-width="1" stroke-dasharray="2 2"/>`;
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block;min-width:${Math.max(360, n*60)}px">${svg}</svg>`;
+
+  // ── Legend ──────────────────────────────────────────
+  document.getElementById('effChartLegend').innerHTML = `
+    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-600)">
+      <svg width="12" height="12"><rect width="12" height="12" fill="#E5E7EB" rx="1"/></svg> Submitted
+    </span>
+    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-600)">
+      <svg width="12" height="12"><rect width="12" height="12" fill="#059669" rx="1" opacity=".8"/></svg> Closed
+    </span>
+    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#CC0000">
+      <svg width="20" height="12"><line x1="0" y1="6" x2="20" y2="6" stroke="#CC0000" stroke-width="2.5"/><circle cx="10" cy="6" r="3.5" fill="#CC0000" stroke="white" stroke-width="1.5"/></svg> On-time % (right axis)
+    </span>
+    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-500)">
+      <svg width="20" height="12"><line x1="0" y1="6" x2="20" y2="6" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3"/><circle cx="10" cy="6" r="2.5" fill="#888" stroke="white" stroke-width="1.5"/></svg> Avg OD incidents/ticket (relative scale)
+    </span>`;
 }
 
 // ═══════════════════════════════════════════════════════
