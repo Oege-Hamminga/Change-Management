@@ -90,10 +90,113 @@
     .hbar-meta { color: var(--gray-500); flex-shrink: 0; margin-left: 8px; font-size: 11px; }
     .bar-track { height: 8px; background: var(--gray-100); border-radius: var(--radius); overflow: hidden; }
     .bar-fill { height: 100%; border-radius: var(--radius); transition: width .5s ease; }
-    .c-ph1 { background: #7c3aed; } .c-ph2 { background: #2563eb; } .c-ph3 { background: #d97706; }
-    .c-ph4 { background: #059669; } .c-ph5 { background: #9ca3af; }
+    .c-ph1 { background: #CC0000; } .c-ph2 { background: #880000; } .c-ph3 { background: #4B4B4B; }
+    .c-ph4 { background: #888888; } .c-ph5 { background: #BBBBBB; }
 
-    .week-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+    /* ── Dashboard dark/light sections ── */
+    .dash-section-dark  { background: #1C1C1C; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; box-shadow: 0 4px 28px rgba(0,0,0,0.22); }
+    .dash-section-light { background: #EDEDED; border-radius: var(--radius); padding: 18px 20px; }
+    .dash-grid-top { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-top: 14px; }
+    @media (max-width: 900px) { .dash-grid-top { grid-template-columns: 1fr; } }
+
+    /* Dark stat cards */
+    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .stat-card { background: #252525; border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 18px 18px 14px; position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #444; }
+    .stat-card.alert::before { background: var(--primary); }
+    .stat-val { font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -1px; color: white; }
+    .stat-label { font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.13em; font-weight: 700; }
+
+    /* Dark dash cards (top section) */
+    .dash-card-dk { background: #252525; border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 18px; position: relative; overflow: hidden; }
+    .dash-card-dk::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--primary); }
+    .dash-card-dk h3 { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: .13em; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+
+    /* Light dash cards (bottom section) */
+    .dash-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
+    .dash-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--primary); }
+    .dash-card h3 { font-size: 9px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-100); }
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); gap: 14px; }
+
+    /* Phase compact (stacked bar only, no hbars) */
+    .phase-mini-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 14px; }
+    .phase-mini-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.65); }
+    .phase-mini-dot { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
+    .phase-mini-cnt { font-weight: 700; color: white; margin-left: auto; font-size: 12px; }
+
+    /* High priority extensive (dark card) */
+    .hi-list { list-style: none; overflow-y: auto; max-height: 320px; }
+    .hi-ext { padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .hi-ext:last-child { border-bottom: none; padding-bottom: 0; }
+    .hi-head { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; min-width: 0; }
+    .hi-id { font-size: 11px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+    .hi-id:hover { text-decoration: underline; }
+    .hi-summary { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hi-meta { display: flex; gap: 10px; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 4px; flex-wrap: wrap; }
+    .hi-meta strong { color: rgba(255,255,255,0.65); }
+    .hi-progress { font-size: 11px; color: rgba(255,255,255,0.4); font-style: italic; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hi-task { font-size: 11px; background: rgba(37,99,235,0.14); color: rgba(147,197,253,0.9); border-radius: var(--radius); padding: 4px 8px; margin-top: 4px; line-height: 1.4; }
+    .hi-notask { font-size: 11px; color: rgba(255,255,255,0.2); font-style: italic; }
+
+    /* CW overdue editable (light card) */
+    .od-row { display: flex; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--gray-200); flex-wrap: wrap; }
+    .od-row:last-child { border-bottom: none; }
+    .od-left { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; }
+    .od-id { font-size: 11px; font-weight: 700; color: var(--primary); text-decoration: none; font-family: 'Courier New', monospace; white-space: nowrap; flex-shrink: 0; }
+    .od-id:hover { text-decoration: underline; }
+    .od-summary { font-size: 12px; color: var(--gray-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+    .od-cws { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+    .od-cw-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .od-cw-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--gray-500); }
+    .od-cw-inp { width: 46px; padding: 3px 4px; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 11px; font-family: inherit; text-align: center; outline: none; color: var(--gray-700); background: white; transition: border-color var(--transition); }
+    .od-cw-inp.od-active { border-color: var(--primary); color: var(--primary); font-weight: 700; background: rgba(204,0,0,0.05); }
+    .od-cw-inp:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+
+    /* Change Request select */
+    .cr-sel { padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 10px; font-family: inherit; background: white; cursor: pointer; outline: none; min-width: 68px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .cr-sel:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+    .cr-pm     { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+    .cr-sent   { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+    .cr-signed { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }
+
+    /* Narrow first-5 columns */
+    .sort-row th.col-n { min-width: 50px; max-width: 80px; }
+    td.col-n { max-width: 80px; } td.col-n .ct { max-width: 72px; } td.col-n .ts-badge { max-width: 70px; }
+
+    /* ── Efficiency tab ── */
+    .eff-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; margin-bottom: 16px; }
+    .eff-stat-card { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
+    .eff-stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--gray-300); }
+    .eff-stat-card.red::before { background: var(--primary); }
+    .eff-stat-card.grn::before { background: #059669; }
+    .eff-stat-card.blu::before { background: #2563eb; }
+    .eff-stat-val { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; color: var(--gray-900); }
+    .eff-stat-label { font-size: 9px; color: var(--gray-500); text-transform: uppercase; letter-spacing: .11em; font-weight: 700; margin-top: 6px; }
+    .eff-stat-sub { font-size: 10px; color: var(--gray-500); margin-top: 3px; }
+    .eff-section { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); margin-bottom: 14px; position: relative; overflow: hidden; }
+    .eff-section::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--primary); }
+    .eff-section h3 { font-size: 9px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing:.12em; margin-bottom: 14px; padding-bottom:10px; border-bottom:1px solid var(--gray-100); }
+    .eff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 860px) { .eff-grid { grid-template-columns: 1fr; } }
+    .odph-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .odph-tbl th { background: var(--dark); color: rgba(255,255,255,0.5); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 7px 8px; text-align: left; }
+    .odph-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+    .odph-tbl tr:last-child td { border-bottom: none; }
+    .odph-tbl tr:hover td { background: var(--gray-50); }
+    .odph-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 6px; border-radius: var(--radius); font-size: 10px; font-weight: 700; cursor: pointer; user-select: none; border: 1px solid transparent; transition: all var(--transition); }
+    .odph-badge.z { color: var(--gray-300); border-color: var(--gray-200); background: var(--gray-50); }
+    .odph-badge.z:hover { border-color: var(--gray-300); color: var(--gray-500); }
+    .odph-badge.p { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+    .odph-badge.p:hover { background: #fee2e2; }
+    .odph-total { font-weight: 700; font-size: 12px; color: var(--gray-700); }
+    .odph-total.hot { color: #dc2626; }
+    .eff-phase-bars { margin-top: 4px; }
+    .eff-ph-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .eff-ph-lbl { font-size: 11px; font-weight: 600; color: var(--gray-700); width: 100px; flex-shrink: 0; }
+    .eff-ph-bar { flex: 1; height: 18px; background: var(--gray-100); border-radius: var(--radius); overflow: hidden; }
+    .eff-ph-fill { height: 100%; background: var(--primary); transition: width .5s ease; border-radius: var(--radius); display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; }
+    .eff-ph-cnt { font-size: 10px; font-weight: 700; color: white; white-space: nowrap; }
+    .eff-ph-meta { font-size: 11px; color: var(--gray-500); width: 38px; flex-shrink: 0; text-align: right; }
     .week-item { background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; }
     .week-item:hover { border-color: var(--gray-300); }
     .week-id-col { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex-shrink: 0; }
@@ -328,6 +431,7 @@
   <nav class="tabs">
     <div class="tab active" data-tab="dashboard">Dashboard</div>
     <div class="tab" data-tab="tracker">Tracker</div>
+    <div class="tab" data-tab="efficiency">Efficiency</div>
     <div class="tab" data-tab="import">Import Data</div>
   </nav>
   <div class="hdr-right">
@@ -339,11 +443,25 @@
 
   <!-- DASHBOARD -->
   <div class="tab-content active" id="tab-dashboard">
-    <div class="stat-cards" id="statCards"></div>
-    <div class="dash-grid" id="dashGrid"></div>
-    <div class="dash-empty" id="dashEmpty" style="display:none">
+    <div class="dash-section-dark" id="dashSectionTop" style="display:none">
+      <div class="stat-cards" id="statCards"></div>
+      <div class="dash-grid-top" id="dashGridTop"></div>
+    </div>
+    <div class="dash-section-light" id="dashSectionBottom" style="display:none">
+      <div class="dash-grid" id="dashGrid"></div>
+    </div>
+    <div class="dash-empty" id="dashEmpty">
       <div class="ei">📊</div>
       <p>No tickets yet — go to <strong>Import Data</strong> to get started.</p>
+    </div>
+  </div>
+
+  <!-- EFFICIENCY -->
+  <div class="tab-content" id="tab-efficiency">
+    <div class="eff-stat-row" id="effStatRow"></div>
+    <div class="eff-grid">
+      <div class="eff-section" id="effPhaseChart"><h3>Overdue Events by Phase</h3><div id="effPhaseBars"></div></div>
+      <div class="eff-section" style="grid-column:1/-1"><h3>Per-Ticket Overdue History &nbsp;<span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)">Click a phase badge to +1, right-click to −1</span></h3><div id="effTicketTable"></div></div>
     </div>
   </div>
 
@@ -814,20 +932,20 @@ function isClosed(t) { return (t.ticketStatus||'').toLowerCase().startsWith('clo
 //  TABLE COLUMNS
 // ═══════════════════════════════════════════════════════
 const STATIC_COLS = [
-  { key:'ticketStatus',  label:'Status',                         sortable:true  },
-  { key:'id',            label:'ID',                             sortable:true  },
-  { key:'model',         label:'Model (CR)',                      sortable:true  },
-  { key:'dateSubmitted', label:'Date Submitted',                  sortable:true  },
-  { key:'productManager',label:'Product Manager',                 sortable:true  },
-  { key:'summary',       label:'Summary',                        sortable:true  },
-  { key:'progressUpdate',label:'Progress / Next Step',            sortable:true  },
-  { key:'sop',           label:'SOP (CW)',                       sortable:true  },
-  { key:'phase',         label:'Phase',                          sortable:true  },
-  { key:'finishPhase',   label:'Finish Phase (CW)',               sortable:true  },
-  { key:'priority',      label:'Priority',                         sortable:true,  cls:'upd-th' },
-  { key:'taskLastWeek',  label:`Tasks CW${PREV_WEEK} (Last Week)`, sortable:false, cls:'task-prv' },
-  { key:'taskThisWeek',  label:`Tasks CW${CUR_WEEK} (This Week)`,  sortable:false, cls:'task-cur' },
-  { key:'taskNextWeek',  label:`Tasks CW${NEXT_WEEK} (Next Week)`, sortable:false, cls:'task-nxt' },
+  { key:'ticketStatus',  label:'Status',            sortable:true,  cls:'col-n' },
+  { key:'id',            label:'ID',                sortable:true,  cls:'col-n' },
+  { key:'model',         label:'Model',             sortable:true,  cls:'col-n' },
+  { key:'dateSubmitted', label:'Date',              sortable:true,  cls:'col-n' },
+  { key:'productManager',label:'PM',                sortable:true,  cls:'col-n' },
+  { key:'summary',       label:'Summary',           sortable:true  },
+  { key:'progressUpdate',label:'Progress / Next Step', sortable:true },
+  { key:'sop',           label:'SOP (CW)',          sortable:true  },
+  { key:'phase',         label:'Phase',             sortable:true  },
+  { key:'finishPhase',   label:'Finish Phase (CW)', sortable:true  },
+  { key:'priority',      label:'Priority',          sortable:true,  cls:'upd-th' },
+  { key:'changeRequest', label:'CR Status',         sortable:true,  cls:'upd-th' },
+  { key:'taskLastWeek',  label:`CW${PREV_WEEK} (Last)`,     sortable:false, cls:'task-prv' },
+  { key:'taskThisWeek',  label:`CW${CUR_WEEK} (This Week)`, sortable:false, cls:'task-cur' },
 ];
 
 function buildFilterInput(key) {
@@ -854,7 +972,10 @@ function buildFilterInput(key) {
   if (key === 'dateSubmitted') {
     return `<input class="col-filter" type="date" value="${esc(cur)}" onchange="setColFilter('${key}',this.value)">`;
   }
-  if (['taskLastWeek','taskThisWeek','taskNextWeek'].includes(key)) return '';
+  if (key === 'changeRequest') {
+    return mkSelect(key, ['','PM','Sent','Signed'], cur, v => v||'All');
+  }
+  if (['taskLastWeek','taskThisWeek'].includes(key)) return '';
   return `<input class="col-filter" type="text" value="${esc(cur)}" placeholder="Filter…" oninput="setColFilter('${key}',this.value)">`;
 }
 
@@ -938,21 +1059,26 @@ function renderTable() {
     const closedCls  = isClosed(t) ? ' row-closed' : '';
     const selCls     = isSelected ? ' row-selected' : '';
 
+    const crVal  = upd.changeRequest || '';
+    const crCls  = crVal ? `cr-${crVal.toLowerCase()}` : '';
+    const crOpts = [['','— CR —'],['PM','PM'],['Sent','Sent'],['Signed','Signed']]
+      .map(([v,l]) => `<option value="${v}" ${crVal===v?'selected':''}>${l}</option>`).join('');
+
     const mainRow = `<tr class="row-selectable ${prClass(ep)}${closedCls}${selCls}" onclick="toggleDetail(event,'${esc(t.id)}')">
-      <td>${tsBadge(t.ticketStatus)}</td>
-      <td>${idCell}</td>
-      <td><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
-      <td><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
-      <td><span class="ct" title="${esc(t.productManager)}">${esc(t.productManager)||'–'}</span></td>
+      <td class="col-n">${tsBadge(t.ticketStatus)}</td>
+      <td class="col-n">${idCell}</td>
+      <td class="col-n"><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
+      <td class="col-n"><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
+      <td class="col-n"><span class="ct" title="${esc(t.productManager)}">${esc(t.productManager)||'–'}</span></td>
       <td><span class="ct wide" title="${esc(t.summary)}">${esc(t.summary)||'–'}</span></td>
       <td><span class="ct wide" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate)||'–'}</span></td>
       ${sopCell}
       <td><select class="phase-sel ${phaseCls}" data-id="${esc(t.id)}" onchange="setPhase(this)">${phOpts}</select></td>
       ${finishCell}
       <td><select class="pri-sel ${priCls}" data-id="${esc(t.id)}" onchange="setPriority(this)">${priOpts}</select></td>
+      <td><select class="cr-sel ${crCls}" data-id="${esc(t.id)}" onchange="setCR(this)">${crOpts}</select></td>
       <td><textarea class="task-ta prv${prevVal?' has-val':''}" rows="2" readonly title="Last week CW${PREV_WEEK}">${prevVal}</textarea></td>
       <td><textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea></td>
-      <td><textarea class="task-ta nxt${nextVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskNextWeek" onblur="setTask(this)">${nextVal}</textarea></td>
     </tr>`;
 
     return isSelected ? mainRow + renderDetailRow(t) : mainRow;
@@ -1006,6 +1132,43 @@ function setPhase(el) {
   if (!updates[id]) updates[id] = {};
   updates[id].phase = el.value;
   el.className = `phase-sel ph-${el.value||'x'}`;
+  save();
+  renderDashboard();
+}
+
+function setCR(el) {
+  const id = el.dataset.id;
+  if (!updates[id]) updates[id] = {};
+  updates[id].changeRequest = el.value;
+  el.className = `cr-sel${el.value ? ' cr-'+el.value.toLowerCase() : ''}`;
+  save();
+}
+
+function bumpOverduePh(id, ph, e) {
+  e.stopPropagation();
+  if (e.type === 'contextmenu') e.preventDefault();
+  if (!updates[id]) updates[id] = {};
+  if (!updates[id].overduePhase) updates[id].overduePhase = {};
+  const cur = updates[id].overduePhase[ph] || 0;
+  updates[id].overduePhase[ph] = e.type === 'contextmenu' ? Math.max(0, cur-1) : cur+1;
+  save();
+  // Live-update the badge without full re-render
+  const newVal = updates[id].overduePhase[ph];
+  const badge = e.currentTarget;
+  badge.className = `odph-badge ${newVal > 0 ? 'p' : 'z'}`;
+  badge.textContent = newVal;
+  badge.title = `Phase ${ph}: ${newVal} overdue (right-click to decrease)`;
+  renderEfficiency();
+}
+
+function setDashCwField(el) {
+  const id    = el.dataset.id;
+  const field = el.dataset.field;
+  if (!updates[id]) updates[id] = {};
+  updates[id][field] = el.value.trim();
+  const ticket = tickets.find(t => t.id === id);
+  const isOD   = ticket && !isClosed(ticket) && cwIsOverdue(el.value.trim());
+  el.className = `od-cw-inp${isOD ? ' od-active' : ''}`;
   save();
   renderDashboard();
 }
@@ -1105,191 +1268,186 @@ function drawDonut(data, size) {
 }
 
 function renderDashboard() {
-  const total      = tickets.length;
-  const dashEmpty  = document.getElementById('dashEmpty');
-  const dashGrid   = document.getElementById('dashGrid');
-  const statCards  = document.getElementById('statCards');
+  const total       = tickets.length;
+  const dashEmpty   = document.getElementById('dashEmpty');
+  const dashGrid    = document.getElementById('dashGrid');
+  const dashGridTop = document.getElementById('dashGridTop');
+  const statCards   = document.getElementById('statCards');
+  const secTop      = document.getElementById('dashSectionTop');
+  const secBot      = document.getElementById('dashSectionBottom');
 
   if (!total) {
     statCards.innerHTML = '';
+    dashGridTop.innerHTML = '';
     dashGrid.innerHTML  = '';
+    secTop.style.display = secBot.style.display = 'none';
     dashEmpty.style.display = 'block';
     return;
   }
   dashEmpty.style.display = 'none';
+  secTop.style.display = secBot.style.display = '';
 
   const closed      = tickets.filter(t => isClosed(t));
   const active      = tickets.filter(t => !isClosed(t));
   const closedCount = closed.length;
   const activeTotal = active.length;
 
-  const p1       = active.filter(t => effPri(t)==='HIGH').length;
-  const effCw    = t => { const u=updates[t.id]||{}; return { sop: u.sopCW!==undefined?u.sopCW:t.sop, fp: u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase }; };
-  const fpOverdue = active.filter(t => cwIsOverdue(effCw(t).fp)).length;
+  const getEC   = t => { const u=updates[t.id]||{}; return { sop: u.sopCW!==undefined?u.sopCW:t.sop, fp: u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase }; };
+  const p1Count = active.filter(t => effPri(t)==='HIGH').length;
+  const fpOD    = active.filter(t => cwIsOverdue(getEC(t).fp)).length;
 
+  // ── STAT CARDS (dark) ────────────────────────────────
   statCards.innerHTML = [
-    { val: activeTotal, label: 'OPEN',                        color: 'var(--primary)' },
-    { val: closedCount, label: 'CLOSED',                      color: 'var(--gray-500)' },
-    { val: p1,          label: 'HIGH PRIORITY',               color: '#dc2626' },
-    { val: fpOverdue,   label: 'FINISH PHASE CW OVERDUE',     color: '#be123c', alert: fpOverdue > 0 },
+    { val: activeTotal, label: 'OPEN',                    color: 'white' },
+    { val: closedCount, label: 'CLOSED',                  color: 'rgba(255,255,255,0.38)' },
+    { val: p1Count,     label: 'HIGH PRIORITY',           color: '#f87171' },
+    { val: fpOD,        label: 'FINISH PHASE CW OVERDUE', color: fpOD>0?'#f87171':'rgba(255,255,255,0.38)', alert: fpOD>0 },
   ].map(s => `<div class="stat-card${s.alert?' alert':''}">
     <div class="stat-val" style="color:${s.color}">${s.val}</div>
     <div class="stat-label">${s.label}</div>
   </div>`).join('');
 
-  const closedNote = closedCount > 0
-    ? `<div class="closed-note">📌 ${closedCount} closed ticket${closedCount>1?'s':''} excluded from all charts</div>`
-    : '';
-
-  // Phase chart
+  // ── PHASE DATA ────────────────────────────────────────
   const phOrder  = ['1','2','3','4','5'];
-  const phLabels = { '1':'1. Investigation','2':'2. Design','3':'3. Testing','4':'4. Implementation','5':'5. Finalization' };
-  const phColors = { '1':'#7c3aed','2':'#2563eb','3':'#d97706','4':'#059669','5':'#9ca3af' };
-  const phFill   = { '1':'c-ph1','2':'c-ph2','3':'c-ph3','4':'c-ph4','5':'c-ph5' };
+  const phShort  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
+  const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
   const phCounts = {};
-  active.forEach(t => { const ph = effPhase(t); phCounts[ph] = (phCounts[ph]||0)+1; });
-  const maxPh = Math.max(...phOrder.map(p => phCounts[p]||0), 1);
+  active.forEach(t => { const ph = effPhase(t)||''; phCounts[ph] = (phCounts[ph]||0)+1; });
 
   const stackedSegs = phOrder.map(p => {
     const cnt = phCounts[p]||0;
     if (!cnt) return '';
     const pct = (cnt/activeTotal*100).toFixed(1);
-    return `<div class="stacked-seg" style="width:${pct}%;background:${phColors[p]}" title="${phLabels[p]}: ${cnt} (${pct}%)">${parseFloat(pct)>8?cnt:''}</div>`;
+    return `<div class="stacked-seg" style="width:${pct}%;background:${phColors[p]}" title="${phShort[p]}: ${cnt}">${parseFloat(pct)>10?cnt:''}</div>`;
   }).join('');
 
-  const phaseBars = phOrder.map(p => {
+  const phaseLegend = phOrder.map(p => {
     const cnt = phCounts[p]||0;
-    const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
-    const w   = Math.round(cnt/maxPh*100);
-    return `<div class="hbar-row">
-      <div class="hbar-head"><span class="hbar-lbl">${phLabels[p]}</span><span class="hbar-meta">${cnt} (${pct}%)</span></div>
-      <div class="bar-track"><div class="bar-fill ${phFill[p]}" style="width:${w}%"></div></div>
+    return `<div class="phase-mini-row">
+      <span class="phase-mini-dot" style="background:${phColors[p]}"></span>
+      <span>${phShort[p]}</span>
+      <span class="phase-mini-cnt">${cnt}</span>
     </div>`;
   }).join('');
 
-  // Helper to build a week-task list item
+  // ── HIGH PRIORITY EXTENDED ────────────────────────────
+  const highTickets = active.filter(t => effPri(t) === 'HIGH').sort((a,b) => (a.id||'').localeCompare(b.id||''));
+  const highExtHTML = highTickets.length === 0
+    ? `<p style="color:rgba(255,255,255,0.25);font-size:13px;padding:12px 0">No HIGH priority tickets</p>`
+    : highTickets.map(t => {
+        const upd  = updates[t.id] || {};
+        const c    = getEC(t);
+        const idTag = t.url
+          ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="hi-id">${esc(t.id)}</a>`
+          : `<span class="hi-id">${esc(t.id)}</span>`;
+        const ep = effPhase(t);
+        return `<li class="hi-ext">
+          <div class="hi-head">
+            ${idTag}
+            <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
+            ${phaseBadge(ep)}
+          </div>
+          <div class="hi-meta">
+            <span>SOP <strong>CW${esc(c.sop||'—')}</strong></span>
+            <span>Finish <strong>CW${esc(c.fp||'—')}</strong></span>
+            ${t.productManager ? `<span>PM: <strong>${esc(t.productManager)}</strong></span>` : ''}
+          </div>
+          ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,90)}</div>` : ''}
+          ${upd.taskThisWeek
+            ? `<div class="hi-task">CW${CUR_WEEK}: ${esc(upd.taskThisWeek)}</div>`
+            : `<div class="hi-notask">No task entered for CW${CUR_WEEK}</div>`}
+        </li>`;
+      }).join('');
+
+  dashGridTop.innerHTML = `
+    <div class="dash-card-dk">
+      <h3>Phase Distribution &nbsp;<span style="opacity:.5;font-weight:500">${activeTotal} active</span></h3>
+      <div class="stacked-bar" style="height:20px;">${stackedSegs||'<div style="width:100%;background:rgba(255,255,255,0.08);height:100%"></div>'}</div>
+      <div class="phase-mini-legend" style="margin-top:12px">${phaseLegend}</div>
+    </div>
+    <div class="dash-card-dk">
+      <h3>High Priority <span class="high-badge">HIGH</span></h3>
+      <ul class="hi-list">${highExtHTML}</ul>
+    </div>`;
+
+  // ── TASKS THIS WEEK ───────────────────────────────────
   function weekItem(t, taskText) {
+    const ep = effPri(t);
     const idTag = t.url
       ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="week-id">${esc(t.id)}</a>`
       : `<span class="week-id">${esc(t.id)}</span>`;
-    const ep = effPri(t);
-    const priDot = ep === 'HIGH'
-      ? `<span style="width:6px;height:6px;border-radius:50%;background:#dc2626;display:inline-block;flex-shrink:0;margin-top:4px"></span>`
-      : '';
+    const dot = ep === 'HIGH' ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-left:4px;vertical-align:middle"></span>` : '';
     return `<li class="week-item">
-      <div class="week-id-col">${idTag}${priDot}</div>
+      <div class="week-id-col">${idTag}${dot}</div>
       <div class="week-body">
-        <div class="week-summary">${esc(t.summary||'(no summary)').slice(0,55)}</div>
+        <div class="week-summary">${esc((t.summary||'').slice(0,50))}</div>
         <div class="week-task">${esc(taskText)}</div>
       </div>
     </li>`;
   }
 
-  // Tasks this week
   const thisWeekItems = active.filter(t => (updates[t.id]||{}).taskThisWeek);
-  const thisWeekHTML  = thisWeekItems.length
-    ? `<ul class="week-list">${thisWeekItems.map(t => weekItem(t, updates[t.id].taskThisWeek)).join('')}</ul>`
-    : `<p class="week-empty">No tasks recorded for CW${CUR_WEEK} yet.</p>`;
-
-  // Tasks next week
-  const nextWeekItems = active.filter(t => (updates[t.id]||{}).taskNextWeek);
-  const nextWeekHTML  = nextWeekItems.length
-    ? `<ul class="week-list">${nextWeekItems.map(t => weekItem(t, updates[t.id].taskNextWeek)).join('')}</ul>`
-    : `<p class="week-empty">No tasks planned for CW${NEXT_WEEK} yet.</p>`;
-
-  // High priority tickets
-  const highTickets = active.filter(t => effPri(t) === 'HIGH').sort((a,b) => (a.id||'').localeCompare(b.id||''));
-  const highHTML = highTickets.map(t => {
-    const upd     = updates[t.id] || {};
-    const idTag   = t.url
-      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="high-id">${esc(t.id)}</a>`
-      : `<span class="high-id">${esc(t.id)}</span>`;
-    return `<li class="high-item">
-      ${idTag}
-      <div class="high-body">
-        <div class="high-summary">${esc(t.summary)||'(no summary)'}</div>
-        <div class="high-task">${upd.taskThisWeek ? esc(upd.taskThisWeek) : '<em>No task this week</em>'}</div>
-      </div>
-      ${phaseBadge(effPhase(t))}
-    </li>`;
-  }).join('');
-
-  // Model breakdown — split comma/slash-separated values
-  const modelMap = {};
-  active.forEach(t => {
-    const raw = (t.model||'').trim();
-    const parts = raw ? raw.split(/[,\/;]+/).map(s => s.trim()).filter(Boolean) : ['(unknown)'];
-    parts.forEach(m => { modelMap[m] = (modelMap[m]||0) + 1; });
+  const lastWeekItems = active.filter(t => {
+    const hist = (updates[t.id]||{}).taskHistory||{};
+    return hist[PREV_WK_KEY];
   });
-  const modelEntries = Object.entries(modelMap).sort((a,b) => b[1]-a[1]);
-  const maxModel = Math.max(...modelEntries.map(e=>e[1]), 1);
-  const modelBars = modelEntries.map(([m, cnt], i) => {
-    const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
-    const w   = Math.round(cnt/maxModel*100);
-    const color = MODEL_COLORS[i % MODEL_COLORS.length];
-    return `<div class="hbar-row">
-      <div class="hbar-head"><span class="hbar-lbl" title="${esc(m)}">${esc(m)}</span><span class="hbar-meta">${cnt} (${pct}%)</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color}"></div></div>
-    </div>`;
-  }).join('');
 
-  // Overdue list (SOP and Finish Phase)
+  const thisWeekHTML = thisWeekItems.length
+    ? `<ul class="week-list">${thisWeekItems.map(t => weekItem(t, updates[t.id].taskThisWeek)).join('')}</ul>`
+    : `<p class="week-empty">No tasks entered for CW${CUR_WEEK} yet.</p>`;
+
+  const lastWeekHTML = lastWeekItems.length
+    ? `<ul class="week-list">${lastWeekItems.map(t => weekItem(t, updates[t.id].taskHistory[PREV_WK_KEY])).join('')}</ul>`
+    : `<p class="week-empty">No tasks recorded for CW${PREV_WEEK}.</p>`;
+
+  // ── CW OVERDUE (editable) ─────────────────────────────
   const overdueItems = active
-    .filter(t => { const c=effCw(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); })
+    .filter(t => { const c=getEC(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); })
     .sort((a,b) => {
-      const ca=effCw(a), cb=effCw(b);
-      return Math.min(parseCW(ca.sop)||999, parseCW(ca.fp)||999) - Math.min(parseCW(cb.sop)||999, parseCW(cb.fp)||999);
+      const ca=getEC(a), cb=getEC(b);
+      return Math.min(parseCW(ca.sop)||999,parseCW(ca.fp)||999) - Math.min(parseCW(cb.sop)||999,parseCW(cb.fp)||999);
     });
 
   const overdueHTML = overdueItems.length === 0
     ? '<p style="font-size:13px;color:var(--gray-500);padding:8px 0">No overdue CW deadlines ✓</p>'
-    : `<ul class="overdue-list">${overdueItems.map(t => {
-        const parts = [];
-        const c = effCw(t);
-        if (cwIsOverdue(c.sop)) parts.push(`SOP CW${esc(c.sop)}`);
-        if (cwIsOverdue(c.fp))  parts.push(`Finish CW${esc(c.fp)}`);
+    : overdueItems.map(t => {
+        const c = getEC(t);
+        const sopOD = cwIsOverdue(c.sop), fpOD = cwIsOverdue(c.fp);
         const idTag = t.url
-          ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="overdue-id">${esc(t.id)}</a>`
-          : `<span class="overdue-id">${esc(t.id)}</span>`;
-        return `<li class="overdue-item">
-          ${idTag}
-          <span class="overdue-text">${esc(t.summary||'(no summary)').slice(0,60)}</span>
-          <span class="overdue-cw">⚠ ${parts.join(', ')}</span>
-        </li>`;
-      }).join('')}</ul>`;
+          ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="od-id">${esc(t.id)}</a>`
+          : `<span class="od-id">${esc(t.id)}</span>`;
+        return `<div class="od-row">
+          <div class="od-left">
+            ${idTag}
+            ${phaseBadge(effPhase(t))}
+            <span class="od-summary" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,50))}</span>
+          </div>
+          <div class="od-cws">
+            <div class="od-cw-group">
+              <span class="od-cw-lbl">SOP CW</span>
+              <input class="od-cw-inp${sopOD?' od-active':''}" type="text" value="${esc(c.sop||'')}"
+                data-id="${esc(t.id)}" data-field="sopCW" onblur="setDashCwField(this)" placeholder="CW">
+            </div>
+            <div class="od-cw-group">
+              <span class="od-cw-lbl">Finish CW</span>
+              <input class="od-cw-inp${fpOD?' od-active':''}" type="text" value="${esc(c.fp||'')}"
+                data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setDashCwField(this)" placeholder="CW">
+            </div>
+          </div>
+        </div>`;
+      }).join('');
 
   dashGrid.innerHTML = `
-    <div class="dash-card" style="grid-column:1/-1">
-      <h3>Phase Overview ${closedCount > 0 ? `<span style="font-weight:500;opacity:.6">— ${closedNote.replace(/<[^>]+>/g,'')}</span>` : ''}</h3>
-      <div class="stacked-wrap">
-        <div class="stacked-label">${activeTotal} active ticket${activeTotal!==1?'s':''} across phases</div>
-        <div class="stacked-bar">${stackedSegs||'<div style="width:100%;background:var(--gray-200);height:100%"></div>'}</div>
-      </div>
-      ${phaseBars}
-    </div>
-
     <div class="dash-card" style="grid-column:1/-1">
       <h3>Tasks This Week &nbsp;<span class="cw-label cw-cur-label">CW${CUR_WEEK}</span></h3>
       ${thisWeekHTML}
     </div>
-
     <div class="dash-card">
-      <h3>Tasks Next Week &nbsp;<span class="cw-label cw-nxt-label">CW${NEXT_WEEK}</span></h3>
-      ${nextWeekHTML}
+      <h3>Tasks Last Week &nbsp;<span class="cw-label" style="background:rgba(0,0,0,0.06);color:var(--gray-500)">CW${PREV_WEEK}</span></h3>
+      ${lastWeekHTML}
     </div>
-
-    <div class="dash-card">
-      <h3>High Priority <span class="high-badge">HIGH</span></h3>
-      <ul class="high-list">${highHTML||'<li style="padding:16px 0;color:var(--gray-500);font-size:13px">No high priority tickets</li>'}</ul>
-    </div>
-
-    <div class="dash-card">
-      <h3>Tickets by Model</h3>
-      ${modelBars||'<p style="color:var(--gray-500);font-size:13px">No model data</p>'}
-    </div>
-
-    <div class="dash-card" style="${overdueItems.length?'border-color:rgba(204,0,0,0.25);background:#fffbfb':''}">
-      <h3>Overdue Deadlines &nbsp;<span style="color:${overdueItems.length?'#be123c':'var(--gray-300)'}">CW &lt; ${CUR_WEEK}</span></h3>
+    <div class="dash-card" style="${overdueItems.length?'border-top-color:var(--primary)':''}">
+      <h3>CW Overdue &nbsp;<span style="color:${overdueItems.length?'#be123c':'var(--gray-300)'}">CW &lt; ${CUR_WEEK}</span></h3>
       ${overdueHTML}
     </div>
   `;
@@ -1323,8 +1481,110 @@ document.querySelectorAll('.tab').forEach(tab => {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
-  if (name === 'tracker')   renderTable();
-  if (name === 'dashboard') renderDashboard();
+  if (name === 'tracker')    renderTable();
+  if (name === 'dashboard')  renderDashboard();
+  if (name === 'efficiency') renderEfficiency();
+}
+
+// ═══════════════════════════════════════════════════════
+//  EFFICIENCY TAB
+// ═══════════════════════════════════════════════════════
+function renderEfficiency() {
+  if (!document.getElementById('effStatRow')) return;
+
+  const active      = tickets.filter(t => !isClosed(t));
+  const total       = tickets.length;
+  const closed      = tickets.filter(t => isClosed(t)).length;
+  const activeTotal = active.length;
+
+  const getEC   = t => { const u=updates[t.id]||{}; return { sop: u.sopCW!==undefined?u.sopCW:t.sop, fp: u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase }; };
+  const onTime  = active.filter(t => { const c=getEC(t); return !cwIsOverdue(c.sop) && !cwIsOverdue(c.fp); }).length;
+  const onTimePct = activeTotal ? Math.round(onTime/activeTotal*100) : 100;
+  const closedPct = total ? Math.round(closed/total*100) : 0;
+
+  // Total overdue incidents from overduePhase
+  let totalODEvents = 0;
+  tickets.forEach(t => {
+    const op = (updates[t.id]||{}).overduePhase || {};
+    Object.values(op).forEach(n => { totalODEvents += n||0; });
+  });
+  const avgOD = total ? (totalODEvents/total).toFixed(1) : '0.0';
+
+  // CR pipeline
+  const crCounts = { PM:0, Sent:0, Signed:0 };
+  active.forEach(t => { const cr = (updates[t.id]||{}).changeRequest||''; if (crCounts[cr]!==undefined) crCounts[cr]++; });
+
+  document.getElementById('effStatRow').innerHTML = [
+    { val:`${closedPct}%`, label:'Closure Rate',      sub:`${closed} of ${total} tickets closed`, cls:'grn' },
+    { val:`${onTimePct}%`, label:'On-Time Rate',       sub:`${onTime} of ${activeTotal} active on schedule`, cls: onTimePct<70?'red':'grn' },
+    { val:avgOD,           label:'Avg OD Incidents',   sub:`${totalODEvents} total across all tickets`, cls: totalODEvents>0?'red':'' },
+    { val:`${crCounts.PM}/${crCounts.Sent}/${crCounts.Signed}`, label:'CR Pipeline PM/Sent/Signed', sub:'Change requests by stage', cls:'blu' },
+  ].map(s => `<div class="eff-stat-card ${s.cls||''}">
+    <div class="eff-stat-val">${s.val}</div>
+    <div class="eff-stat-label">${s.label}</div>
+    <div class="eff-stat-sub">${s.sub}</div>
+  </div>`).join('');
+
+  // Phase overdue aggregate bars
+  const phOrder  = ['1','2','3','4','5'];
+  const phLabels = { '1':'1 — Investigation','2':'2 — Design','3':'3 — Testing','4':'4 — Implementation','5':'5 — Finalization' };
+  const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+  const phODTotals = { '1':0,'2':0,'3':0,'4':0,'5':0 };
+  tickets.forEach(t => {
+    const op = (updates[t.id]||{}).overduePhase || {};
+    phOrder.forEach(p => { phODTotals[p] += op[p]||0; });
+  });
+  const maxOD = Math.max(...Object.values(phODTotals), 1);
+
+  document.getElementById('effPhaseBars').innerHTML = phOrder.map(p => {
+    const cnt = phODTotals[p];
+    const w   = Math.round(cnt/maxOD*100);
+    return `<div class="eff-ph-row">
+      <span class="eff-ph-lbl">${phLabels[p]}</span>
+      <div class="eff-ph-bar">
+        <div class="eff-ph-fill" style="width:${w}%;background:${phColors[p]}">${cnt>0?`<span class="eff-ph-cnt">${cnt}</span>`:'&nbsp;'}</div>
+      </div>
+      <span class="eff-ph-meta" style="color:${cnt>0?phColors[p]:'var(--gray-300)'}">${cnt}</span>
+    </div>`;
+  }).join('');
+
+  // Per-ticket overdue table
+  const allTickets = [...tickets].sort((a,b) => (a.id||'').localeCompare(b.id||''));
+  const tblRows = allTickets.map(t => {
+    const op    = (updates[t.id]||{}).overduePhase || {};
+    const total = phOrder.reduce((s,p) => s + (op[p]||0), 0);
+    const idTag = t.url
+      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:700;text-decoration:none;font-family:'Courier New',monospace;font-size:11px">${esc(t.id)}</a>`
+      : `<span style="font-weight:700;font-family:'Courier New',monospace;font-size:11px;color:var(--primary)">${esc(t.id)}</span>`;
+    const phaseCells = phOrder.map(p => {
+      const cnt = op[p]||0;
+      return `<td style="text-align:center">
+        <span class="odph-badge ${cnt>0?'p':'z'}"
+          onclick="bumpOverduePh('${esc(t.id)}','${p}',event)"
+          oncontextmenu="bumpOverduePh('${esc(t.id)}','${p}',event)"
+          title="Phase ${p}: ${cnt} (right-click to decrease)">${cnt}</span>
+      </td>`;
+    }).join('');
+    const closed = isClosed(t) ? ' style="opacity:.45"' : '';
+    return `<tr${closed}>
+      <td>${idTag}</td>
+      <td style="font-size:11px;color:var(--gray-600);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,60))}</td>
+      <td style="text-align:center">${phaseBadge(effPhase(t))}</td>
+      ${phaseCells}
+      <td style="text-align:center"><span class="odph-total ${total>0?'hot':''}">${total}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('effTicketTable').innerHTML = `
+    <table class="odph-tbl">
+      <thead><tr>
+        <th>ID</th><th>Summary</th><th>Phase</th>
+        <th style="text-align:center">P1</th><th style="text-align:center">P2</th>
+        <th style="text-align:center">P3</th><th style="text-align:center">P4</th>
+        <th style="text-align:center">P5</th><th style="text-align:center">Total</th>
+      </tr></thead>
+      <tbody>${tblRows||'<tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:20px">No tickets yet</td></tr>'}</tbody>
+    </table>`;
 }
 
 // ═══════════════════════════════════════════════════════
