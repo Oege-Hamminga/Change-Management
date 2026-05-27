@@ -1106,34 +1106,38 @@ function updateHdrCount() {
 function buildBookmarklet() {
   const trackerUrl = (location.origin + location.pathname).replace(/\/$/, '') + '/';
 
-  // Two parallel strategies so at least one always works:
-  //  1. Copy TSV to clipboard with execCommand (old API, works in bookmarklets everywhere)
-  //  2. Navigate same tab to tracker with data in URL hash (primary auto-import path)
-  // If the hash import fails for any reason the clipboard button on the tracker is the fallback.
+  // Step 1 – copy TSV to clipboard (execCommand works on any page, HTTP or HTTPS)
+  // Step 2 – confirm() dialog tells the user BEFORE navigating exactly what to do
+  //           on the tracker, so the instructions survive any login redirect
+  // Step 3 – navigate with #import=<b64> for auto-import if the hash survives;
+  //           if a login redirect strips the hash, the clipboard is the fallback
   const code = `(function(){
 try{
   var tables=document.querySelectorAll('table');
-  if(!tables.length){alert('Change Management Tracker: no <table> found on this page.');return;}
+  if(!tables.length){alert('No table found on this page.');return;}
   var best=null,bestRows=0;
   tables.forEach(function(t){if(t.rows.length>bestRows){bestRows=t.rows.length;best=t;}});
-  if(bestRows<2){alert('Change Management Tracker: table is empty.');return;}
+  if(bestRows<2){alert('The table appears to be empty.');return;}
   var tsv=Array.from(best.rows).map(function(r){
     return Array.from(r.cells).map(function(c){
-      return c.innerText.replace(/\t/g,' ').replace(/\r?\n/g,' ').trim();
-    }).join('\t');
-  }).join('\n');
+      return c.innerText.replace(/\\t/g,' ').replace(/\\r?\\n/g,' ').trim();
+    }).join('\\t');
+  }).join('\\n');
   var ta=document.createElement('textarea');
   ta.value=tsv;ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
   document.body.appendChild(ta);ta.focus();ta.select();
   try{document.execCommand('copy');}catch(x){}
   document.body.removeChild(ta);
+  var msg='✓ '+bestRows+' rows copied to your clipboard.\\n\\n'
+    +'Click OK to open the Change Management Tracker.\\n\\n'
+    +'When it loads → go to the Import Data tab\\n'
+    +'→ click  📋 Read from Clipboard  → click Import.';
+  if(!confirm(msg))return;
   try{
     var b64=btoa(unescape(encodeURIComponent(tsv)));
     location.href='${trackerUrl}#import='+b64;
-  }catch(e2){
-    location.href='${trackerUrl}#clipboard';
-  }
-}catch(e){alert('Change Management Tracker error: '+e.message);}
+  }catch(e2){location.href='${trackerUrl}';}
+}catch(e){alert('Bookmarklet error: '+e.message);}
 })();`;
 
   return 'javascript:' + encodeURIComponent(code);
@@ -1173,44 +1177,34 @@ let _pendingAutoImport = null;
 
 function checkUrlImport() {
   const hash = location.hash;
-  if (!hash.startsWith('#import=') && hash !== '#clipboard') return;
+  const hasImport   = hash.startsWith('#import=');
+  const hasClipboard = hash === '#clipboard';
+  if (!hasImport && !hasClipboard) return;
 
-  // Strip the hash immediately so a refresh doesn't re-trigger
   history.replaceState(null, '', location.pathname);
+  switchTab('import');
 
-  // Always switch to Import tab
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector('[data-tab="import"]').classList.add('active');
-  document.getElementById('tab-import').classList.add('active');
-
-  // #clipboard fallback: bookmarklet copied data but couldn't encode in URL
-  if (hash === '#clipboard') {
-    showBanner(
-      `Bookmarklet ran — data is in your clipboard. Click <strong>Read from Clipboard</strong> below, then click Import.`,
-      false
-    );
+  if (hasClipboard) {
+    showBanner('Bookmarklet ran — your table data is in the clipboard. Click <strong>📋 Read from Clipboard</strong> below, then click <strong>Import Pasted Data</strong>.', false);
     return;
   }
 
-  // #import=<base64> primary path
+  // Try the #import=<base64> path first
   const raw = hash.slice('#import='.length);
   try {
     const tsv = decodeURIComponent(escape(atob(raw)));
     const parsed = parseTSV(tsv);
-    if (!parsed.length) throw new Error('no rows found after parsing');
+    if (!parsed.length) throw new Error('0 rows parsed');
     _pendingAutoImport = parsed;
-    showBanner(
-      `Bookmarklet data received — <strong>${parsed.length} rows</strong> ready. Click Import Now, or use <strong>Read from Clipboard</strong> if the count looks wrong.`,
-      true
-    );
+    showBanner(`<strong>${parsed.length} rows</strong> received automatically — click <strong>Import Now</strong> to load them.`, true);
   } catch(e) {
-    // Hash decoding failed — fall back to clipboard path
-    showBanner(
-      `Bookmarklet ran but data could not be decoded automatically (<em>${e.message}</em>). Click <strong>Read from Clipboard</strong> below to load it manually.`,
-      false
-    );
+    showBanner('Bookmarklet arrived but automatic transfer failed. Click <strong>📋 Read from Clipboard</strong> below — the data was also copied there.', false);
   }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
 }
 
 function showBanner(html, showImportBtn) {
