@@ -145,11 +145,9 @@
     tbody tr:last-child { border-bottom: none; }
     td { padding: 7px 9px; vertical-align: top; }
 
-    tr.pr-1 { border-left: 3px solid #ef4444; }
-    tr.pr-2 { border-left: 3px solid #f97316; }
-    tr.pr-3 { border-left: 3px solid #eab308; }
-    tr.pr-4 { border-left: 3px solid #22c55e; }
-    tr.pr-5 { border-left: 3px solid var(--gray-300); }
+    tr.pr-high   { border-left: 3px solid #ef4444; }
+    tr.pr-medium { border-left: 3px solid #eab308; }
+    tr.pr-low    { border-left: 3px solid #22c55e; }
 
     .cell-id { font-weight: 700; color: var(--primary); white-space: nowrap; font-size: 11px; text-decoration: none; }
     a.cell-id:hover { text-decoration: underline; }
@@ -189,11 +187,35 @@
     /* Priority dropdown (editable) */
     .pri-sel { padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; background: white; cursor: pointer; outline: none; min-width: 88px; font-weight: 600; }
     .pri-sel:focus { box-shadow: 0 0 0 2px #bfdbfe; }
-    .pri-sel.pp-1 { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-    .pri-sel.pp-2 { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
-    .pri-sel.pp-3 { background: #fefce8; color: #ca8a04; border-color: #fde68a; }
-    .pri-sel.pp-4 { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
-    .pri-sel.pp-5 { background: var(--gray-100); color: var(--gray-500); border-color: var(--gray-300); }
+    .pri-sel.pp-high   { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    .pri-sel.pp-medium { background: #fefce8; color: #ca8a04; border-color: #fde68a; }
+    .pri-sel.pp-low    { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+
+    /* Phase editable select */
+    .phase-sel { padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; background: white; cursor: pointer; outline: none; min-width: 120px; }
+    .phase-sel:focus { border-color: var(--primary); box-shadow: 0 0 0 2px #bfdbfe; }
+    .phase-sel.ph-1 { background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
+    .phase-sel.ph-2 { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+    .phase-sel.ph-3 { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+    .phase-sel.ph-4 { background: #ecfdf5; color: #059669; border-color: #a7f3d0; }
+    .phase-sel.ph-5 { background: var(--gray-100); color: var(--gray-600); border-color: var(--gray-200); }
+
+    /* Expandable detail row */
+    tr.detail-row td { padding: 0 12px 12px; background: #f0f6ff; }
+    tr.detail-row:hover { background: #f0f6ff !important; }
+    tbody tr.row-selectable { cursor: pointer; }
+    tbody tr.row-selected { background: #eff6ff !important; }
+    tbody tr.row-selected:hover { background: #dbeafe !important; }
+    .detail-inner { padding: 12px 16px; background: white; border: 1px solid var(--gray-200); border-radius: 8px; }
+    .detail-header { font-size: 11px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+    .detail-weeks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .detail-week-card { border: 1px solid var(--gray-200); border-radius: 6px; padding: 10px 12px; }
+    .detail-week-label { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+    .detail-week-text { font-size: 12px; color: var(--gray-700); white-space: pre-wrap; line-height: 1.5; }
+    .detail-history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 8px; margin-top: 8px; }
+    .detail-hist-card { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px; padding: 8px 10px; }
+    .detail-hist-label { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-bottom: 3px; text-transform: uppercase; }
+    .detail-hist-text { font-size: 11px; color: var(--gray-700); white-space: pre-wrap; line-height: 1.5; }
 
     /* Task textareas */
     .task-ta { width: 100%; border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; font-size: 11px; font-family: inherit; background: transparent; resize: none; outline: none; color: var(--gray-700); min-height: 44px; line-height: 1.5; transition: border-color .15s, background .15s; }
@@ -422,6 +444,7 @@ let updates    = {};   // { [id]: { status, notes, taskThisWeek, taskNextWeek, t
 let sortKey    = 'priority';
 let sortDir    = 'asc';
 let colFilters = {};
+let selectedTicketId = null;
 
 // ═══════════════════════════════════════════════════════
 //  CALENDAR WEEK UTILITIES
@@ -454,6 +477,9 @@ function weekKey(year, week) { return `${year}-W${String(week).padStart(2,'0')}`
 const _now        = isoWeekInfo(new Date());
 const CUR_WEEK    = _now.week;
 const CUR_WK_KEY  = weekKey(_now.year, _now.week);
+const _nxt        = CUR_WEEK < isoWeekCount(_now.year) ? { year: _now.year, week: CUR_WEEK+1 } : { year: _now.year+1, week: 1 };
+const NEXT_WEEK   = _nxt.week;
+const NEXT_WK_KEY = weekKey(_nxt.year, _nxt.week);
 
 function parseCW(val) {
   if (!val) return null;
@@ -498,6 +524,8 @@ function rolloverTasks() {
       u.taskWeekKey = CUR_WK_KEY;
       changed = true;
     } else if (u.taskWeekKey !== CUR_WK_KEY) {
+      if (!u.taskHistory) u.taskHistory = {};
+      if (u.taskThisWeek) u.taskHistory[u.taskWeekKey] = u.taskThisWeek;
       u.taskThisWeek = u.taskNextWeek || '';
       u.taskNextWeek = '';
       u.taskWeekKey  = CUR_WK_KEY;
@@ -514,6 +542,8 @@ function ensureTaskRollover(id) {
   if (!u.taskWeekKey) {
     u.taskWeekKey = CUR_WK_KEY;
   } else if (u.taskWeekKey !== CUR_WK_KEY) {
+    if (!u.taskHistory) u.taskHistory = {};
+    if (u.taskThisWeek) u.taskHistory[u.taskWeekKey] = u.taskThisWeek;
     u.taskThisWeek = u.taskNextWeek || '';
     u.taskNextWeek = '';
     u.taskWeekKey  = CUR_WK_KEY;
@@ -543,15 +573,17 @@ const HDR_MAP  = {
 
 function parsePri(v) {
   if (!v) return '';
-  const s = String(v).trim();
-  if (/^\d+$/.test(s)) return s;
-  const m = s.match(/^[Pp](\d+)$/);
-  if (m) return m[1];
-  const lc = s.toLowerCase();
-  if (lc==='critical') return '1'; if (lc==='high') return '2';
-  if (lc==='medium')   return '3'; if (lc==='low')  return '4';
-  if (lc==='minimal'||lc==='trivial') return '5';
-  return s;
+  const s = String(v).trim().toLowerCase().replace(/\s+/g,'');
+  if (['high','critical','p1','1','p2','2'].includes(s)) return 'HIGH';
+  if (['medium','p3','3'].includes(s)) return 'MEDIUM';
+  if (['low','minimal','trivial','p4','4','p5','5'].includes(s)) return 'LOW';
+  return '';
+}
+
+function normalizePri(p) {
+  if (!p) return '';
+  if (p === 'HIGH' || p === 'MEDIUM' || p === 'LOW') return p;
+  return parsePri(p);
 }
 
 function parsePhase(v) {
@@ -632,9 +664,10 @@ function sortBy(key) {
   renderTable();
 }
 
+const _PRI_ORD = { HIGH: 1, MEDIUM: 2, LOW: 3 };
 function sortVal(v, key) {
-  if (key === 'priority') { const n = parseInt(v,10); return isNaN(n) ? 99 : n; }
-  if (['dateSubmitted','updated'].includes(key)) { const d = new Date(v); return isNaN(d) ? v.toLowerCase() : d.getTime(); }
+  if (key === 'priority') { return _PRI_ORD[v] !== undefined ? _PRI_ORD[v] : 99; }
+  if (key === 'dateSubmitted') { const d = new Date(v); return isNaN(d) ? v.toLowerCase() : d.getTime(); }
   if (['sop','finishPhase'].includes(key)) { const n = parseCW(v); return n === null ? 9999 : n; }
   return (v||'').toLowerCase();
 }
@@ -652,18 +685,18 @@ function filteredTickets() {
     for (const [key, val] of Object.entries(colFilters)) {
       if (!val) continue;
       const v = val.toLowerCase();
-      if (key === 'updStatus') {
-        if (!((getUpd(t.id).status||'').toLowerCase().includes(v))) return false;
-      } else if (key === 'ticketStatus') {
+      if (key === 'ticketStatus') {
         const tv = (t.ticketStatus||'').toLowerCase();
         if (v === 'assigned' && !tv.includes('assigned')) return false;
         else if (v === 'closed' && !tv.startsWith('closed')) return false;
         else if (v !== 'assigned' && v !== 'closed' && !tv.includes(v)) return false;
       } else if (key === 'priority') {
         if (effPri(t) !== val) return false;
-      } else if (['phase','model','productManager'].includes(key)) {
+      } else if (key === 'phase') {
+        if ((effPhase(t)||'').toLowerCase() !== v) return false;
+      } else if (['model','productManager'].includes(key)) {
         if ((t[key]||'').toLowerCase() !== v) return false;
-      } else if (key === 'dateSubmitted' || key === 'updated') {
+      } else if (key === 'dateSubmitted') {
         if (!(t[key]||'').includes(val)) return false;
       } else {
         if (!((t[key]||'').toLowerCase().includes(v))) return false;
@@ -672,13 +705,13 @@ function filteredTickets() {
     return true;
   }).sort((a,b) => {
     let va, vb;
-    if (sortKey === 'updStatus')  { va = getUpd(a.id).status||''; vb = getUpd(b.id).status||''; }
-    else if (sortKey === 'priority') { va = effPri(a); vb = effPri(b); }
+    if (sortKey === 'priority') { va = effPri(a); vb = effPri(b); }
+    else if (sortKey === 'phase') { va = effPhase(a)||''; vb = effPhase(b)||''; }
     else { va = a[sortKey]||''; vb = b[sortKey]||''; }
     const sa = sortVal(va, sortKey), sb = sortVal(vb, sortKey);
     if (sa < sb) return sortDir==='asc' ? -1 : 1;
     if (sa > sb) return sortDir==='asc' ?  1 : -1;
-    return (parseInt(effPri(a),10)||99) - (parseInt(effPri(b),10)||99);
+    return (_PRI_ORD[effPri(a)]||99) - (_PRI_ORD[effPri(b)]||99);
   });
 }
 
@@ -705,10 +738,15 @@ function phaseBadge(ph) {
   return `<span class="phase-badge ${cls}">${name}</span>`;
 }
 
-function prClass(p) { return ['1','2','3','4','5'].includes(p) ? `pr-${p}` : ''; }
+function prClass(p) {
+  if (p === 'HIGH')   return 'pr-high';
+  if (p === 'MEDIUM') return 'pr-medium';
+  if (p === 'LOW')    return 'pr-low';
+  return '';
+}
 
-// Effective priority: editable override takes precedence over imported value
-function effPri(t) { return (updates[t.id] && updates[t.id].priority) || t.p || ''; }
+function effPri(t) { return normalizePri((updates[t.id] && updates[t.id].priority) || t.p || ''); }
+function effPhase(t) { const u = updates[t.id]; return (u && u.phase !== undefined && u.phase !== null) ? u.phase : t.phase; }
 
 const ST_CLS = { 'Open':'st-open','In Progress':'st-progress','Blocked':'st-blocked','Resolved':'st-resolved','Closed':'st-closed' };
 
@@ -725,23 +763,19 @@ function isClosed(t) { return (t.ticketStatus||'').toLowerCase().startsWith('clo
 //  TABLE COLUMNS
 // ═══════════════════════════════════════════════════════
 const STATIC_COLS = [
-  { key:'ticketStatus',     label:'Status',               sortable:true  },
-  { key:'id',               label:'ID',                   sortable:true  },
-  { key:'model',            label:'Model (CR)',            sortable:true  },
-  { key:'dateSubmitted',    label:'Date Submitted',        sortable:true  },
-  { key:'updated',          label:'Updated',              sortable:true  },
-  { key:'sop',              label:'SOP (CW)',              sortable:true  },
-  { key:'productManager',   label:'Product Manager',       sortable:true  },
-  { key:'summary',          label:'Summary',               sortable:true  },
-  { key:'phase',            label:'Phase',                 sortable:true  },
-  { key:'finishPhase',      label:'Finish Phase (CW)',     sortable:true  },
-  { key:'progressUpdate',   label:'Progress / Next Step',  sortable:true  },
-  { key:'responsiblePerson',label:'Responsible (CR)',      sortable:true  },
-  { key:'updStatus',        label:'Status',                sortable:true,  cls:'upd-th' },
-  { key:'priority',         label:'Priority',              sortable:true,  cls:'upd-th' },
-  { key:'notes',            label:'Internal Notes',        sortable:false, cls:'upd-th' },
-  { key:'taskThisWeek',     label:`Tasks This Week (CW${CUR_WEEK})`, sortable:false, cls:'task-cur' },
-  { key:'taskNextWeek',     label:'Tasks Next Week',       sortable:false, cls:'task-nxt' },
+  { key:'ticketStatus',  label:'Status',                         sortable:true  },
+  { key:'id',            label:'ID',                             sortable:true  },
+  { key:'model',         label:'Model (CR)',                      sortable:true  },
+  { key:'dateSubmitted', label:'Date Submitted',                  sortable:true  },
+  { key:'productManager',label:'Product Manager',                 sortable:true  },
+  { key:'summary',       label:'Summary',                        sortable:true  },
+  { key:'progressUpdate',label:'Progress / Next Step',            sortable:true  },
+  { key:'sop',           label:'SOP (CW)',                       sortable:true  },
+  { key:'phase',         label:'Phase',                          sortable:true  },
+  { key:'finishPhase',   label:'Finish Phase (CW)',               sortable:true  },
+  { key:'priority',      label:'Priority',                        sortable:true,  cls:'upd-th' },
+  { key:'taskThisWeek',  label:`Tasks CW${CUR_WEEK} (This Week)`, sortable:false, cls:'task-cur' },
+  { key:'taskNextWeek',  label:`Tasks CW${NEXT_WEEK} (Next Week)`,sortable:false, cls:'task-nxt' },
 ];
 
 function buildFilterInput(key) {
@@ -751,8 +785,7 @@ function buildFilterInput(key) {
     return mkSelect(key, ['','Assigned','Closed'], cur, v => v||'All');
   }
   if (key === 'priority') {
-    const priLbl = {'':'All','1':'P1 Critical','2':'P2 High','3':'P3 Medium','4':'P4 Low','5':'P5 Minimal'};
-    return mkSelect(key, ['','1','2','3','4','5'], cur, v => priLbl[v]||v);
+    return mkSelect(key, ['','HIGH','MEDIUM','LOW'], cur, v => v||'All');
   }
   if (key === 'phase') {
     const lbl = {'':'All','1':'1-Inv','2':'2-Des','3':'3-Tst','4':'4-Imp','5':'5-Fin'};
@@ -766,13 +799,10 @@ function buildFilterInput(key) {
     const opts = [...new Set(tickets.map(t => t.productManager).filter(Boolean))].sort();
     return mkSelect(key, ['', ...opts], cur, v => v||'All');
   }
-  if (key === 'updStatus') {
-    return mkSelect(key, ['','Open','In Progress','Blocked','Resolved','Closed'], cur, v => v||'All');
-  }
-  if (key === 'dateSubmitted' || key === 'updated') {
+  if (key === 'dateSubmitted') {
     return `<input class="col-filter" type="date" value="${esc(cur)}" onchange="setColFilter('${key}',this.value)">`;
   }
-  if (['notes','taskThisWeek','taskNextWeek'].includes(key)) return '';
+  if (['taskThisWeek','taskNextWeek'].includes(key)) return '';
   return `<input class="col-filter" type="text" value="${esc(cur)}" placeholder="Filter…" oninput="setColFilter('${key}',this.value)">`;
 }
 
@@ -825,9 +855,6 @@ function renderTable() {
   document.getElementById('tblBody').innerHTML = rows.map(t => {
     ensureTaskRollover(t.id);
     const upd    = updates[t.id];
-    const stCls  = ST_CLS[upd.status||''] || '';
-    const stOpts = ['','Open','In Progress','Blocked','Resolved','Closed'].map(v =>
-      `<option value="${v}" ${v===(upd.status||'')?'selected':''}>${v||'— set status —'}</option>`).join('');
 
     const thisVal = esc(upd.taskThisWeek || '');
     const nextVal = esc(upd.taskNextWeek || '');
@@ -844,31 +871,37 @@ function renderTable() {
     const sopCell    = `<td${sopOD?' class="cw-od"':''}><input class="cw-input${sopOD?' od':''}" type="text" value="${esc(effSop||'')}" placeholder="CW" title="${sopOD?'⚠ Overdue':'SOP (calendar week)'}" data-id="${esc(t.id)}" data-field="sopCW" onblur="setCwField(this)"></td>`;
     const finishCell = `<td${fpOD?' class="cw-od"':''}><input class="cw-input${fpOD?' od':''}" type="text" value="${esc(effFP||'')}" placeholder="CW" title="${fpOD?'⚠ Overdue':'Finish Phase (calendar week)'}" data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setCwField(this)"></td>`;
 
-    const ep       = effPri(t);
-    const priCls   = ep ? `pp-${ep}` : '';
-    const priOpts  = [['','— priority —'],['1','P1 Critical'],['2','P2 High'],['3','P3 Medium'],['4','P4 Low'],['5','P5 Minimal']]
+    const ep      = effPri(t);
+    const priCls  = ep ? `pp-${ep.toLowerCase()}` : '';
+    const priOpts = [['','— priority —'],['HIGH','HIGH'],['MEDIUM','MEDIUM'],['LOW','LOW']]
       .map(([v,l]) => `<option value="${v}" ${ep===v?'selected':''}>${l}</option>`).join('');
 
-    const closedCls = isClosed(t) ? ' row-closed' : '';
-    return `<tr class="${prClass(ep)}${closedCls}">
+    const eph      = effPhase(t);
+    const phaseCls = eph ? `ph-${eph}` : 'ph-x';
+    const phOpts   = [['','— phase —'],['1','1. Investigation'],['2','2. Design'],['3','3. Testing'],['4','4. Implementation'],['5','5. Finalization']]
+      .map(([v,l]) => `<option value="${v}" ${eph===v?'selected':''}>${l}</option>`).join('');
+
+    const isSelected = selectedTicketId === t.id;
+    const closedCls  = isClosed(t) ? ' row-closed' : '';
+    const selCls     = isSelected ? ' row-selected' : '';
+
+    const mainRow = `<tr class="row-selectable ${prClass(ep)}${closedCls}${selCls}" onclick="toggleDetail(event,'${esc(t.id)}')">
       <td>${tsBadge(t.ticketStatus)}</td>
       <td>${idCell}</td>
       <td><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
       <td><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
-      <td><span class="ct">${esc(t.updated)||'–'}</span></td>
-      ${sopCell}
       <td><span class="ct" title="${esc(t.productManager)}">${esc(t.productManager)||'–'}</span></td>
       <td><span class="ct wide" title="${esc(t.summary)}">${esc(t.summary)||'–'}</span></td>
-      <td>${phaseBadge(t.phase)}</td>
-      ${finishCell}
       <td><span class="ct wide" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate)||'–'}</span></td>
-      <td><span class="ct" title="${esc(t.responsiblePerson)}">${esc(t.responsiblePerson)||'–'}</span></td>
-      <td><select class="st-sel ${stCls}" data-id="${esc(t.id)}" onchange="setSt(this)">${stOpts}</select></td>
+      ${sopCell}
+      <td><select class="phase-sel ${phaseCls}" data-id="${esc(t.id)}" onchange="setPhase(this)">${phOpts}</select></td>
+      ${finishCell}
       <td><select class="pri-sel ${priCls}" data-id="${esc(t.id)}" onchange="setPriority(this)">${priOpts}</select></td>
-      <td><textarea class="note-ta" rows="2" data-id="${esc(t.id)}" onblur="setNote(this)">${esc(upd.notes||'')}</textarea></td>
       <td><textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea></td>
       <td><textarea class="task-ta nxt${nextVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskNextWeek" onblur="setTask(this)">${nextVal}</textarea></td>
     </tr>`;
+
+    return isSelected ? mainRow + renderDetailRow(t) : mainRow;
   }).join('');
 }
 
@@ -887,7 +920,7 @@ function setPriority(el) {
   const id = el.dataset.id;
   if (!updates[id]) updates[id] = {};
   updates[id].priority = el.value;
-  el.className = `pri-sel${el.value ? ` pp-${el.value}` : ''}`;
+  el.className = `pri-sel${el.value ? ` pp-${el.value.toLowerCase()}` : ''}`;
   // Update the row's left-border colour live
   const row = el.closest('tr');
   if (row) {
@@ -912,6 +945,66 @@ function setTask(el) {
   updates[id][field] = el.value;
   el.classList.toggle('has-val', !!el.value);
   save();
+}
+
+function setPhase(el) {
+  const id = el.dataset.id;
+  if (!updates[id]) updates[id] = {};
+  updates[id].phase = el.value;
+  el.className = `phase-sel ph-${el.value||'x'}`;
+  save();
+  renderDashboard();
+}
+
+function toggleDetail(e, id) {
+  if (e.target.closest('input,select,textarea,button,a')) return;
+  selectedTicketId = (selectedTicketId === id) ? null : id;
+  renderTable();
+}
+
+function renderDetailRow(t) {
+  const upd  = updates[t.id] || {};
+  const hist = upd.taskHistory || {};
+  const curTask  = upd.taskThisWeek || '';
+  const nextTask = upd.taskNextWeek || '';
+
+  const histEntries = Object.entries(hist)
+    .filter(([,v]) => v)
+    .sort(([a],[b]) => b.localeCompare(a));
+
+  const curCard = `<div class="detail-week-card" style="border-color:#bfdbfe;background:#eff6ff">
+    <div class="detail-week-label" style="color:#1e40af">CW${CUR_WEEK} – This Week</div>
+    <div class="detail-week-text">${curTask ? esc(curTask) : '<em style="color:var(--gray-400)">No task this week</em>'}</div>
+  </div>`;
+
+  const nxtCard = `<div class="detail-week-card" style="border-color:#bbf7d0;background:#f0fdf4">
+    <div class="detail-week-label" style="color:#166534">CW${NEXT_WEEK} – Next Week</div>
+    <div class="detail-week-text">${nextTask ? esc(nextTask) : '<em style="color:var(--gray-400)">No task planned</em>'}</div>
+  </div>`;
+
+  let histHtml = '';
+  if (histEntries.length) {
+    const cards = histEntries.map(([key, task]) => {
+      const wNum = parseInt((key.split('-W')[1]||'0'), 10);
+      const yr   = key.split('-W')[0];
+      return `<div class="detail-hist-card">
+        <div class="detail-hist-label">CW${wNum} ${yr}</div>
+        <div class="detail-hist-text">${esc(task)}</div>
+      </div>`;
+    }).join('');
+    histHtml = `<div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px">Previous Weeks</div>
+      <div class="detail-history-grid">${cards}</div>`;
+  } else {
+    histHtml = `<div style="font-size:12px;color:var(--gray-400);font-style:italic;margin-top:8px">No previous week history recorded yet.</div>`;
+  }
+
+  const inner = `<div class="detail-inner">
+    <div class="detail-header">📋 ${esc(t.id)} — ${esc((t.summary||'').slice(0,80))}</div>
+    <div class="detail-weeks-grid">${curCard}${nxtCard}</div>
+    ${histHtml}
+  </div>`;
+
+  return `<tr class="detail-row"><td colspan="${STATIC_COLS.length}" style="padding:0 12px 10px">${inner}</td></tr>`;
 }
 
 function setCwField(el) {
@@ -976,7 +1069,7 @@ function renderDashboard() {
   const closedCount = closed.length;
   const activeTotal = active.length;
 
-  const p1       = active.filter(t => effPri(t)==='1').length;
+  const p1       = active.filter(t => effPri(t)==='HIGH').length;
   const blocked  = active.filter(t => (getUpd(t.id).status||'')==='Blocked').length;
   const open     = active.filter(t => { const s=getUpd(t.id).status||''; return s===''||s==='Open'; }).length;
   const resolved = active.filter(t => (getUpd(t.id).status||'')==='Resolved').length;
@@ -986,7 +1079,7 @@ function renderDashboard() {
   statCards.innerHTML = [
     { val: activeTotal, label: 'Active Tickets',  color: 'var(--primary)' },
     { val: closedCount, label: 'Closed (excl.)',   color: 'var(--gray-500)' },
-    { val: p1,          label: 'P1 Critical',      color: '#dc2626' },
+    { val: p1,          label: 'High Priority',     color: '#dc2626' },
     { val: open,        label: 'Open / Unset',     color: '#d97706' },
     { val: blocked,     label: 'Blocked',           color: '#dc2626' },
     { val: resolved,    label: 'Resolved',          color: '#059669' },
@@ -1006,7 +1099,7 @@ function renderDashboard() {
   const phColors = { '1':'#7c3aed','2':'#2563eb','3':'#d97706','4':'#059669','5':'#9ca3af' };
   const phFill   = { '1':'c-ph1','2':'c-ph2','3':'c-ph3','4':'c-ph4','5':'c-ph5' };
   const phCounts = {};
-  active.forEach(t => { phCounts[t.phase] = (phCounts[t.phase]||0)+1; });
+  active.forEach(t => { const ph = effPhase(t); phCounts[ph] = (phCounts[ph]||0)+1; });
   const maxPh = Math.max(...phOrder.map(p => phCounts[p]||0), 1);
 
   const stackedSegs = phOrder.map(p => {
@@ -1027,13 +1120,14 @@ function renderDashboard() {
   }).join('');
 
   // Priority donut
-  const priColors = { '1':'#ef4444','2':'#f97316','3':'#eab308','4':'#22c55e','5':'#9ca3af' };
-  const priLabels = { '1':'P1 – Critical','2':'P2 – High','3':'P3 – Medium','4':'P4 – Low','5':'P5 – Minimal' };
+  const priColors = { 'HIGH':'#ef4444','MEDIUM':'#eab308','LOW':'#22c55e' };
+  const priLabels = { 'HIGH':'High','MEDIUM':'Medium','LOW':'Low' };
+  const priOrder  = ['HIGH','MEDIUM','LOW'];
   const priCounts = {};
-  active.forEach(t => { const p = effPri(t); priCounts[p] = (priCounts[p]||0)+1; });
-  const donutData = ['1','2','3','4','5'].map(p => ({ v: priCounts[p]||0, color: priColors[p] }));
-  const donutSVG  = drawDonut(donutData, 130);
-  const legendRows = ['1','2','3','4','5'].map(p => {
+  active.forEach(t => { const p = effPri(t); if (p) priCounts[p] = (priCounts[p]||0)+1; });
+  const donutData  = priOrder.map(p => ({ v: priCounts[p]||0, color: priColors[p] }));
+  const donutSVG   = drawDonut(donutData, 130);
+  const legendRows = priOrder.map(p => {
     const cnt = priCounts[p]||0;
     const pct = activeTotal ? Math.round(cnt/activeTotal*100) : 0;
     return `<div class="leg-row"><span class="leg-dot" style="background:${priColors[p]}"></span><span class="leg-name">${priLabels[p]}</span><span class="leg-val">${cnt}</span><span class="leg-pct">${pct}%</span></div>`;
