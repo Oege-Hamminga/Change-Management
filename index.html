@@ -346,28 +346,32 @@
   <div class="tab-content" id="tab-import">
     <div class="import-wrap">
 
-      <!-- Auto-import banner shown when ?import= param is detected -->
+      <!-- Banner shown after bookmarklet navigation -->
       <div class="auto-import-banner" id="autoImportBanner" style="display:none">
         <span style="font-size:22px">🔗</span>
-        <p id="autoImportMsg">Data received from bookmarklet — <strong>0 rows</strong> ready to import.</p>
-        <button class="btn btn-primary" onclick="confirmAutoImport()">Import Now</button>
+        <p id="autoImportMsg"></p>
+        <button id="bannerImportBtn" class="btn btn-primary" onclick="confirmAutoImport()">Import Now</button>
         <button class="btn btn-secondary" onclick="dismissAutoImport()">Dismiss</button>
       </div>
 
       <!-- Method 1: Bookmarklet -->
       <div class="card">
         <h2>🔖 One-click from Bugtracker</h2>
-        <p>Drag the button below to your browser's bookmarks bar. Then open <strong>srvr-bugtracker/view_all_bug_page.php</strong>, click the bookmark — the data loads here automatically.</p>
+        <p>Drag the button below to your browser's bookmarks bar once. After that, two clicks is all it takes to refresh the tracker.</p>
         <div class="bookmarklet-box">
-          <h4>Step-by-step</h4>
+          <h4>Setup (once)</h4>
           <ol class="bookmarklet-steps">
             <li>Drag the yellow button into your browser bookmarks bar</li>
-            <li>Navigate to <code>http://srvr-bugtracker/view_all_bug_page.php</code></li>
-            <li>Click the bookmark — this tracker opens with data pre-loaded</li>
-            <li>Click <strong>Import Now</strong> in the blue banner at the top</li>
           </ol>
           <a id="bookmarkletLink" href="#" class="bm-drag" title="Drag me to your bookmarks bar">📋 Import to Tracker</a>
-          <p class="bm-note">⚠️ Works only while your browser can reach srvr-bugtracker. The bookmarklet reads the page you're on — no server connection needed from GitHub Pages.</p>
+          <h4 style="margin-top:16px">Every time you want to refresh</h4>
+          <ol class="bookmarklet-steps">
+            <li>Open <code>http://srvr-bugtracker/view_all_bug_page.php</code> in your browser</li>
+            <li>Click the <strong>📋 Import to Tracker</strong> bookmark — the page navigates here automatically</li>
+            <li>A blue banner appears at the top — click <strong>Import Now</strong></li>
+            <li>If the blue banner says to use clipboard instead, click <strong>Read from Clipboard</strong> in the Paste card below</li>
+          </ol>
+          <p class="bm-note">The bookmarklet always copies data to your clipboard as a backup, so step 4 is a guaranteed fallback if the automatic path doesn't work.</p>
         </div>
       </div>
 
@@ -384,11 +388,14 @@
         <div class="import-msg" id="fileMsg"></div>
       </div>
 
-      <!-- Method 3: Paste -->
+      <!-- Method 3: Paste / Clipboard -->
       <div class="card">
-        <h2>📋 Paste from Spreadsheet</h2>
-        <p>Select all rows in your bugtracker or Excel/Sheets (Ctrl+A → Ctrl+C) and paste below. Headers are detected automatically.</p>
-        <textarea class="paste-area" id="pasteArea" placeholder="Paste tab-separated rows here…"></textarea>
+        <h2>📋 Paste or Read from Clipboard</h2>
+        <p>Either paste manually (Ctrl+V) after copying from the bugtracker or a spreadsheet, or click the button to read the clipboard automatically.</p>
+        <div class="btn-row" style="margin-bottom:10px;margin-top:0">
+          <button class="btn btn-secondary" onclick="readFromClipboard()" title="Reads whatever is currently in your clipboard">📋 Read from Clipboard</button>
+        </div>
+        <textarea class="paste-area" id="pasteArea" placeholder="Paste tab-separated rows here (Ctrl+V), or click Read from Clipboard above…"></textarea>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="importData()">Import Pasted Data</button>
           <button class="btn btn-secondary" onclick="loadDemo()">Load Demo Data</button>
@@ -1090,22 +1097,34 @@ function updateHdrCount() {
 function buildBookmarklet() {
   const trackerUrl = (location.origin + location.pathname).replace(/\/$/, '') + '/';
 
-  // Runs on the bugtracker page.
-  // Navigates the SAME tab to the tracker (avoids popup blockers entirely).
-  // Uses location.hash so the full data never reaches any server.
+  // Two parallel strategies so at least one always works:
+  //  1. Copy TSV to clipboard with execCommand (old API, works in bookmarklets everywhere)
+  //  2. Navigate same tab to tracker with data in URL hash (primary auto-import path)
+  // If the hash import fails for any reason the clipboard button on the tracker is the fallback.
   const code = `(function(){
 try{
   var tables=document.querySelectorAll('table');
-  if(!tables.length){alert('Change Management Tracker:\\nNo <table> found on this page.');return;}
+  if(!tables.length){alert('Change Management Tracker: no <table> found on this page.');return;}
   var best=null,bestRows=0;
   tables.forEach(function(t){if(t.rows.length>bestRows){bestRows=t.rows.length;best=t;}});
-  if(bestRows<2){alert('Change Management Tracker:\\nTable appears empty (fewer than 2 rows).');return;}
+  if(bestRows<2){alert('Change Management Tracker: table is empty.');return;}
   var tsv=Array.from(best.rows).map(function(r){
-    return Array.from(r.cells).map(function(c){return c.innerText.replace(/[\\t]/g,' ').replace(/[\\r\\n]+/g,' ').trim();}).join('\\t');
-  }).join('\\n');
-  var b64=btoa(unescape(encodeURIComponent(tsv)));
-  location.href='${trackerUrl}#import='+b64;
-}catch(e){alert('Change Management Tracker:\\nError: '+e.message);}
+    return Array.from(r.cells).map(function(c){
+      return c.innerText.replace(/\t/g,' ').replace(/\r?\n/g,' ').trim();
+    }).join('\t');
+  }).join('\n');
+  var ta=document.createElement('textarea');
+  ta.value=tsv;ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand('copy');}catch(x){}
+  document.body.removeChild(ta);
+  try{
+    var b64=btoa(unescape(encodeURIComponent(tsv)));
+    location.href='${trackerUrl}#import='+b64;
+  }catch(e2){
+    location.href='${trackerUrl}#clipboard';
+  }
+}catch(e){alert('Change Management Tracker error: '+e.message);}
 })();`;
 
   return 'javascript:' + encodeURIComponent(code);
@@ -1122,37 +1141,53 @@ function initBookmarklet() {
 let _pendingAutoImport = null;
 
 function checkUrlImport() {
-  // Read from hash (#import=...) — never touches any server
   const hash = location.hash;
-  if (!hash.startsWith('#import=')) return;
-
-  const raw = hash.slice('#import='.length);
+  if (!hash.startsWith('#import=') && hash !== '#clipboard') return;
 
   // Strip the hash immediately so a refresh doesn't re-trigger
   history.replaceState(null, '', location.pathname);
 
+  // Always switch to Import tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="import"]').classList.add('active');
+  document.getElementById('tab-import').classList.add('active');
+
+  // #clipboard fallback: bookmarklet copied data but couldn't encode in URL
+  if (hash === '#clipboard') {
+    showBanner(
+      `Bookmarklet ran — data is in your clipboard. Click <strong>Read from Clipboard</strong> below, then click Import.`,
+      false
+    );
+    return;
+  }
+
+  // #import=<base64> primary path
+  const raw = hash.slice('#import='.length);
   try {
     const tsv = decodeURIComponent(escape(atob(raw)));
     const parsed = parseTSV(tsv);
-    if (!parsed.length) throw new Error('No rows could be parsed from the bookmarklet data');
-
+    if (!parsed.length) throw new Error('no rows found after parsing');
     _pendingAutoImport = parsed;
-
-    // Switch to Import tab and show banner
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelector('[data-tab="import"]').classList.add('active');
-    document.getElementById('tab-import').classList.add('active');
-
-    const banner = document.getElementById('autoImportBanner');
-    document.getElementById('autoImportMsg').innerHTML =
-      `Data received from bookmarklet — <strong>${parsed.length} rows</strong> detected. Your existing update notes will be preserved.`;
-    banner.style.display = 'flex';
-    banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showBanner(
+      `Bookmarklet data received — <strong>${parsed.length} rows</strong> ready. Click Import Now, or use <strong>Read from Clipboard</strong> if the count looks wrong.`,
+      true
+    );
   } catch(e) {
-    console.warn('Auto-import failed:', e);
-    alert('Change Management Tracker:\nCould not read bookmarklet data — ' + e.message);
+    // Hash decoding failed — fall back to clipboard path
+    showBanner(
+      `Bookmarklet ran but data could not be decoded automatically (<em>${e.message}</em>). Click <strong>Read from Clipboard</strong> below to load it manually.`,
+      false
+    );
   }
+}
+
+function showBanner(html, showImportBtn) {
+  const banner = document.getElementById('autoImportBanner');
+  document.getElementById('autoImportMsg').innerHTML = html;
+  document.getElementById('bannerImportBtn').style.display = showImportBtn ? '' : 'none';
+  banner.style.display = 'flex';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function confirmAutoImport() {
@@ -1163,12 +1198,26 @@ function confirmAutoImport() {
   updateHdrCount();
   renderDashboard();
   document.getElementById('autoImportBanner').style.display = 'none';
-  toast(`Imported ${tickets.length} tickets from bookmarklet`);
+  toast(`Imported ${tickets.length} tickets`);
 }
 
 function dismissAutoImport() {
   _pendingAutoImport = null;
   document.getElementById('autoImportBanner').style.display = 'none';
+}
+
+async function readFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text.trim()) { showMsg('err', 'Clipboard is empty.'); return; }
+    document.getElementById('pasteArea').value = text;
+    showMsg('ok', `✓ Pasted ${text.split('\n').length} lines from clipboard — click Import Pasted Data to continue.`);
+    document.getElementById('pasteArea').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch(e) {
+    // Permission denied or API not available — tell user to paste manually
+    showMsg('err', 'Could not read clipboard automatically (browser permission required). Press Ctrl+V in the paste box below instead.');
+    document.getElementById('pasteArea').focus();
+  }
 }
 
 // ═══════════════════════════════════════════════════════
