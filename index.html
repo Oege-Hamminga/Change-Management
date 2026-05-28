@@ -97,7 +97,7 @@
     /* ── Dashboard dark/light sections ── */
     .dash-section-dark  { background: #1C1C1C; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; box-shadow: 0 4px 28px rgba(0,0,0,0.22); }
     .dash-section-light { background: #EDEDED; border-radius: var(--radius); padding: 18px 20px; }
-    .dash-grid-top { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-top: 14px; }
+    .dash-grid-top { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 14px; margin-top: 14px; }
     @media (max-width: 900px) { .dash-grid-top { grid-template-columns: 1fr; } }
 
     /* Dark stat cards */
@@ -381,15 +381,37 @@
     tbody tr.row-selected { background: var(--primary-light) !important; }
     tbody tr.row-selected:hover { background: rgba(204,0,0,0.08) !important; }
     .detail-inner { padding: 14px 16px; background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); border-left: 3px solid var(--primary); box-shadow: var(--shadow-sm); }
-    .detail-header { font-size: 10px; font-weight: 700; color: var(--dark); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200); }
-    .detail-weeks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-    .detail-week-card { border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 10px 12px; }
-    .detail-week-label { font-size: 10px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.07em; }
-    .detail-week-text { font-size: 12px; color: var(--gray-700); white-space: pre-wrap; line-height: 1.6; }
-    .detail-history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 8px; margin-top: 8px; }
-    .detail-hist-card { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 8px 10px; }
-    .detail-hist-label { font-size: 9px; font-weight: 700; color: var(--gray-500); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.07em; }
-    .detail-hist-text { font-size: 11px; color: var(--gray-700); white-space: pre-wrap; line-height: 1.5; }
+    .detail-header { font-size: 10px; font-weight: 700; color: var(--dark); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200); }
+    /* Detail task list (vertical, one row per CW) */
+    .detail-task-list { list-style: none; margin: 0; padding: 0; }
+    .detail-task-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--gray-100); }
+    .detail-task-row:last-child { border-bottom: none; }
+    .detail-task-meta { flex-shrink: 0; width: 68px; }
+    .detail-task-cw { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--gray-500); line-height: 1.6; }
+    .detail-task-body { flex: 1; min-width: 0; }
+    .detail-task-text { font-size: 12px; color: var(--gray-800); white-space: pre-wrap; line-height: 1.5; margin-top: 3px; }
+    .detail-task-empty { font-size: 12px; color: var(--gray-400); font-style: italic; margin-top: 3px; }
+    .detail-task-edit-btn { flex-shrink: 0; align-self: flex-start; padding: 3px 11px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; border: 1px solid var(--gray-300); border-radius: var(--radius); background: white; color: var(--gray-600); cursor: pointer; font-family: inherit; transition: all var(--transition); }
+    .detail-task-edit-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .det-edit-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .detail-task-ta { width: 100%; box-sizing: border-box; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 12px; padding: 6px 8px; font-family: inherit; resize: vertical; min-height: 54px; outline: none; color: var(--gray-900); }
+    .detail-task-ta:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+    .det-edit-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .dept-sel-sm { padding: 4px 8px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 10px; font-family: inherit; outline: none; cursor: pointer; color: var(--gray-700); background: white; }
+    .dept-sel-sm:focus { border-color: var(--primary); }
+    .det-save-btn { padding: 4px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; border: none; border-radius: var(--radius); background: var(--primary); color: white; cursor: pointer; font-family: inherit; transition: background var(--transition); }
+    .det-save-btn:hover { background: var(--primary-dark); }
+    .det-cancel-btn { padding: 4px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; border: 1px solid var(--gray-300); border-radius: var(--radius); background: white; color: var(--gray-600); cursor: pointer; font-family: inherit; }
+    /* Department badges */
+    .dept-badge { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; padding: 1px 6px; border-radius: var(--radius); border: 1px solid transparent; }
+    .dept-PM  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .dept-RD  { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+    .dept-PUR { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+    .dept-CC  { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
+    .dept-SQE { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+    /* Dept select in tracker task cell */
+    .task-dept-sel { display: block; width: 100%; margin-top: 4px; padding: 2px 5px; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 9px; font-family: inherit; outline: none; color: var(--gray-600); background: var(--gray-50); cursor: pointer; }
+    .task-dept-sel:focus { border-color: var(--primary); }
 
     .empty-state { text-align: center; padding: 60px 24px; color: var(--gray-500); }
     .empty-icon { font-size: 44px; margin-bottom: 14px; }
@@ -620,6 +642,7 @@ let sortKey    = 'priority';
 let sortDir    = 'asc';
 let colFilters = {};
 let selectedTicketId = null;
+let _detailEdit      = null; // { id, wk }
 
 // ═══════════════════════════════════════════════════════
 //  CALENDAR WEEK UTILITIES
@@ -702,10 +725,13 @@ function rolloverTasks() {
       u.taskWeekKey = CUR_WK_KEY;
       changed = true;
     } else if (u.taskWeekKey !== CUR_WK_KEY) {
-      if (!u.taskHistory) u.taskHistory = {};
+      if (!u.taskHistory)     u.taskHistory     = {};
+      if (!u.taskHistoryDept) u.taskHistoryDept = {};
       if (u.taskThisWeek) u.taskHistory[u.taskWeekKey] = u.taskThisWeek;
+      if (u.taskDept)     u.taskHistoryDept[u.taskWeekKey] = u.taskDept;
       u.taskThisWeek = u.taskNextWeek || '';
       u.taskNextWeek = '';
+      u.taskDept     = '';
       u.taskWeekKey  = CUR_WK_KEY;
       changed = true;
     }
@@ -720,10 +746,13 @@ function ensureTaskRollover(id) {
   if (!u.taskWeekKey) {
     u.taskWeekKey = CUR_WK_KEY;
   } else if (u.taskWeekKey !== CUR_WK_KEY) {
-    if (!u.taskHistory) u.taskHistory = {};
+    if (!u.taskHistory)     u.taskHistory     = {};
+    if (!u.taskHistoryDept) u.taskHistoryDept = {};
     if (u.taskThisWeek) u.taskHistory[u.taskWeekKey] = u.taskThisWeek;
+    if (u.taskDept)     u.taskHistoryDept[u.taskWeekKey] = u.taskDept;
     u.taskThisWeek = u.taskNextWeek || '';
     u.taskNextWeek = '';
+    u.taskDept     = '';
     u.taskWeekKey  = CUR_WK_KEY;
   }
 }
@@ -1103,7 +1132,13 @@ function renderTable() {
       <td><select class="pri-sel ${priCls}" data-id="${esc(t.id)}" onchange="setPriority(this)">${priOpts}</select></td>
       <td><select class="cr-sel ${crCls}" data-id="${esc(t.id)}" onchange="setCR(this)">${crOpts}</select></td>
       <td><textarea class="task-ta prv${prevVal?' has-val':''}" rows="2" readonly title="Last week CW${PREV_WEEK}">${prevVal}</textarea></td>
-      <td><textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea></td>
+      <td>
+        <textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea>
+        <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)">
+          <option value="">— dept —</option>
+          ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+        </select>
+      </td>
     </tr>`;
 
     return isSelected ? mainRow + renderDetailRow(t) : mainRow;
@@ -1149,6 +1184,13 @@ function setTask(el) {
   if (!updates[id]) updates[id] = {};
   updates[id][field] = el.value;
   el.classList.toggle('has-val', !!el.value);
+  save();
+}
+
+function setTaskDept(el) {
+  const id = el.dataset.id;
+  if (!updates[id]) updates[id] = {};
+  updates[id].taskDept = el.value;
   save();
 }
 
@@ -1222,49 +1264,132 @@ function toggleDetail(e, id) {
   renderTable();
 }
 
-function renderDetailRow(t) {
-  const upd  = updates[t.id] || {};
-  const hist = upd.taskHistory || {};
-  const curTask  = upd.taskThisWeek || '';
-  const nextTask = upd.taskNextWeek || '';
+const DEPT_LIST = ['PM','R&D','PUR','CC','SQE'];
+
+function deptBadge(d) {
+  if (!d) return '';
+  const cls = d === 'R&D' ? 'RD' : d;
+  return `<span class="dept-badge dept-${cls}">${esc(d)}</span>`;
+}
+
+function buildDetailInner(t) {
+  const upd      = updates[t.id] || {};
+  const hist     = upd.taskHistory     || {};
+  const histDept = upd.taskHistoryDept || {};
 
   const histEntries = Object.entries(hist)
     .filter(([,v]) => v)
-    .sort(([a],[b]) => b.localeCompare(a));
+    .sort(([a],[b]) => b.localeCompare(a))
+    .map(([wk, text]) => ({
+      wk, cwNum: parseInt(wk.split('-W')[1]||'0', 10), yr: wk.split('-W')[0],
+      text, dept: histDept[wk]||'', isCurrent: false
+    }));
 
-  const curCard = `<div class="detail-week-card" style="border-color:#bfdbfe;background:#eff6ff">
-    <div class="detail-week-label" style="color:#1e40af">CW${CUR_WEEK} – This Week</div>
-    <div class="detail-week-text">${curTask ? esc(curTask) : '<em style="color:var(--gray-400)">No task this week</em>'}</div>
-  </div>`;
+  const entries = [
+    { wk: CUR_WK_KEY, cwNum: CUR_WEEK, yr: String(_now.year), text: upd.taskThisWeek||'', dept: upd.taskDept||'', isCurrent: true },
+    ...histEntries
+  ];
 
-  const nxtCard = `<div class="detail-week-card" style="border-color:#bbf7d0;background:#f0fdf4">
-    <div class="detail-week-label" style="color:#166534">CW${NEXT_WEEK} – Next Week</div>
-    <div class="detail-week-text">${nextTask ? esc(nextTask) : '<em style="color:var(--gray-400)">No task planned</em>'}</div>
-  </div>`;
+  const deptOpts = (cur) => DEPT_LIST.map(d =>
+    `<option value="${d}" ${d===cur?'selected':''}>${d}</option>`
+  ).join('');
 
-  let histHtml = '';
-  if (histEntries.length) {
-    const cards = histEntries.map(([key, task]) => {
-      const wNum = parseInt((key.split('-W')[1]||'0'), 10);
-      const yr   = key.split('-W')[0];
-      return `<div class="detail-hist-card">
-        <div class="detail-hist-label">CW${wNum} ${yr}</div>
-        <div class="detail-hist-text">${esc(task)}</div>
-      </div>`;
-    }).join('');
-    histHtml = `<div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px">Previous Weeks</div>
-      <div class="detail-history-grid">${cards}</div>`;
+  const rows = entries.map(e => {
+    const safeId = esc(t.id).replace(/'/g, '&#39;');
+    const safeWk = esc(e.wk);
+    const isEdit = _detailEdit && _detailEdit.id === t.id && _detailEdit.wk === e.wk;
+
+    const cwLabel = e.isCurrent
+      ? `<span style="color:#1d4ed8;font-size:9px;font-weight:800">CW${e.cwNum}</span><br><span style="font-size:8px;color:#93c5fd;font-weight:600">THIS WEEK</span>`
+      : `<span style="font-size:9px;font-weight:800;color:var(--gray-500)">CW${e.cwNum}</span><br><span style="font-size:8px;color:var(--gray-400)">${e.yr}</span>`;
+
+    if (isEdit) {
+      return `<li class="detail-task-row">
+        <div class="detail-task-meta"><div class="detail-task-cw">${cwLabel}</div></div>
+        <div class="detail-task-body">
+          <div class="det-edit-form" data-wk="${safeWk}">
+            <textarea class="detail-task-ta" rows="3">${esc(e.text)}</textarea>
+            <div class="det-edit-row">
+              <select class="dept-sel-sm">
+                <option value="">— dept —</option>${deptOpts(e.dept)}
+              </select>
+              <button class="det-save-btn" onclick="saveDetailTask('${safeId}','${safeWk}')">Save</button>
+              <button class="det-cancel-btn" onclick="cancelDetailEdit('${safeId}')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </li>`;
+    }
+
+    return `<li class="detail-task-row">
+      <div class="detail-task-meta"><div class="detail-task-cw">${cwLabel}</div></div>
+      <div class="detail-task-body">
+        ${e.dept ? deptBadge(e.dept) : ''}
+        ${e.text
+          ? `<div class="detail-task-text">${esc(e.text)}</div>`
+          : `<div class="detail-task-empty">No task entered</div>`}
+      </div>
+      <button class="detail-task-edit-btn" onclick="editDetailTask('${safeId}','${safeWk}')">Edit</button>
+    </li>`;
+  }).join('');
+
+  return `<div class="detail-header">${esc(t.id)} — ${esc((t.summary||'').slice(0,80))}</div>
+    <ul class="detail-task-list">${rows}</ul>`;
+}
+
+function renderDetailRow(t) {
+  return `<tr class="detail-row"><td colspan="${STATIC_COLS.length}" style="padding:0 12px 10px">
+    <div class="detail-inner" data-ticket-id="${esc(t.id)}">${buildDetailInner(t)}</div>
+  </td></tr>`;
+}
+
+function refreshDetailInner(id) {
+  const t = tickets.find(x => x.id === id);
+  if (!t) return;
+  const el = Array.from(document.querySelectorAll('.detail-inner'))
+    .find(e => e.dataset.ticketId === id);
+  if (el) el.innerHTML = buildDetailInner(t);
+}
+
+function editDetailTask(id, wk) {
+  _detailEdit = { id, wk };
+  refreshDetailInner(id);
+}
+
+function cancelDetailEdit(id) {
+  _detailEdit = null;
+  refreshDetailInner(id);
+}
+
+function saveDetailTask(id, wk) {
+  const el = Array.from(document.querySelectorAll('.detail-inner'))
+    .find(e => e.dataset.ticketId === id);
+  if (!el) return;
+  const form = el.querySelector(`.det-edit-form[data-wk="${wk}"]`);
+  if (!form) return;
+  const text = form.querySelector('textarea').value;
+  const dept = form.querySelector('select').value;
+  if (!updates[id]) updates[id] = {};
+  if (wk === CUR_WK_KEY) {
+    updates[id].taskThisWeek = text;
+    updates[id].taskDept     = dept;
+    // Sync the tracker textarea + dept select if visible
+    const ta = document.querySelector(`textarea[data-id="${id}"][data-field="taskThisWeek"]`);
+    if (ta) { ta.value = text; ta.classList.toggle('has-val', !!text); }
+    const ds = document.querySelector(`.task-dept-sel[data-id="${id}"]`);
+    if (ds) ds.value = dept;
   } else {
-    histHtml = `<div style="font-size:12px;color:var(--gray-400);font-style:italic;margin-top:8px">No previous week history recorded yet.</div>`;
+    if (!updates[id].taskHistory)     updates[id].taskHistory     = {};
+    if (!updates[id].taskHistoryDept) updates[id].taskHistoryDept = {};
+    if (text) updates[id].taskHistory[wk] = text;
+    else      delete updates[id].taskHistory[wk];
+    if (dept) updates[id].taskHistoryDept[wk] = dept;
+    else      delete updates[id].taskHistoryDept[wk];
   }
-
-  const inner = `<div class="detail-inner">
-    <div class="detail-header">📋 ${esc(t.id)} — ${esc((t.summary||'').slice(0,80))}</div>
-    <div class="detail-weeks-grid">${curCard}${nxtCard}</div>
-    ${histHtml}
-  </div>`;
-
-  return `<tr class="detail-row"><td colspan="${STATIC_COLS.length}" style="padding:0 12px 10px">${inner}</td></tr>`;
+  _detailEdit = null;
+  save();
+  refreshDetailInner(id);
+  if (wk === CUR_WK_KEY) renderDashboard();
 }
 
 function setCwField(el) {
@@ -1402,11 +1527,29 @@ function renderDashboard() {
         </li>`;
       }).join('');
 
+  // ── TICKETS PER PHASE BAR CHART ─────────────────────────
+  const maxPhCount = Math.max(...phOrder.map(p => phCounts[p]||0), 1);
+  const phCountBars = phOrder.map(p => {
+    const cnt = phCounts[p] || 0;
+    const w   = Math.round(cnt / maxPhCount * 100);
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);width:14px;flex-shrink:0;text-align:center">${p}</span>
+      <div style="flex:1;height:14px;background:rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden">
+        <div style="width:${w}%;height:100%;background:${phColors[p]};border-radius:var(--radius);transition:width .4s ease"></div>
+      </div>
+      <span style="font-size:11px;font-weight:700;color:${cnt>0?phColors[p]:'rgba(255,255,255,0.2)'};width:20px;text-align:right">${cnt}</span>
+    </div>`;
+  }).join('');
+
   dashGridTop.innerHTML = `
     <div class="dash-card-dk">
       <h3>Phase Distribution &nbsp;<span style="opacity:.5;font-weight:500">${activeTotal} active</span></h3>
       <div class="stacked-bar" style="height:20px;">${stackedSegs||'<div style="width:100%;background:rgba(255,255,255,0.08);height:100%"></div>'}</div>
       <div class="phase-mini-legend" style="margin-top:12px">${phaseLegend}</div>
+    </div>
+    <div class="dash-card-dk">
+      <h3>Tickets per Phase</h3>
+      <div style="margin-top:4px">${phCountBars||'<p style="color:rgba(255,255,255,0.2);font-size:12px">No active tickets</p>'}</div>
     </div>
     <div class="dash-card-dk">
       <h3>High Priority <span class="high-badge">HIGH</span></h3>
