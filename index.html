@@ -161,7 +161,7 @@
     td.col-n { max-width: 80px; } td.col-n .ct { max-width: 72px; } td.col-n .ts-badge { max-width: 70px; }
 
     /* ── Efficiency tab ── */
-    .eff-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; margin-bottom: 16px; }
+    .eff-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
     .eff-stat-card { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
     .eff-stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--gray-300); }
     .eff-stat-card.red::before { background: var(--primary); }
@@ -1845,11 +1845,30 @@ function renderEfficiency() {
     return parseCW(fp) === CUR_WEEK;
   }).length;
 
+  // FP overdue % among active tickets
+  const fpODCount = active.filter(t => {
+    const u = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    return cwIsOverdue(fp);
+  }).length;
+  const fpODPct = activeTotal > 0 ? Math.round(fpODCount / activeTotal * 100) : 0;
+  const fpODCls = fpODPct > 0 ? 'red' : '';
+
   document.getElementById('effStatRow').innerHTML = `
     <div class="eff-stat-card ${netCls}">
       <div class="eff-stat-val">${netSign}${netRes}</div>
       <div class="eff-stat-label">Resolving Efficiency</div>
       <div class="eff-stat-sub">${closedThisMonth} closed · ${openedThisMonth} opened · ${curMonthLabel}</div>
+    </div>
+    <div class="eff-stat-card ${fpODCls}">
+      <div class="eff-stat-val">${fpODPct}%</div>
+      <div class="eff-stat-label">Finish Phase Predictability</div>
+      <div class="eff-stat-sub">${fpODCount} overdue · ${activeTotal} active · ${curMonthLabel}</div>
+    </div>
+    <div class="eff-stat-card ${fpThisCW > 0 ? 'blu' : ''}">
+      <div class="eff-stat-val">${fpThisCW}</div>
+      <div class="eff-stat-label">Phases to Finish This CW</div>
+      <div class="eff-stat-sub">Active tickets with Finish Phase = CW${CUR_WEEK}</div>
     </div>
     <div class="eff-stat-card blu">
       <div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px">
@@ -1857,21 +1876,23 @@ function renderEfficiency() {
         <span style="font-size:22px;font-weight:900;color:#1e40af">${crCounts.Sent}</span><span style="font-size:9px;font-weight:700;color:#1e40af;letter-spacing:.07em;text-transform:uppercase">Sent</span>
         <span style="font-size:22px;font-weight:900;color:#065f46">${crCounts.Signed}</span><span style="font-size:9px;font-weight:700;color:#065f46;letter-spacing:.07em;text-transform:uppercase">Signed</span>
       </div>
-      <div class="eff-stat-label">CR Pipeline</div>
-      <div class="eff-stat-sub">Change requests by stage</div>
-    </div>
-    <div class="eff-stat-card ${fpThisCW > 0 ? 'blu' : ''}">
-      <div class="eff-stat-val">${fpThisCW}</div>
-      <div class="eff-stat-label">Phases to Finish This CW</div>
-      <div class="eff-stat-sub">Active tickets with Finish Phase = CW${CUR_WEEK}</div>
+      <div class="eff-stat-label">Change Requests</div>
+      <div class="eff-stat-sub">CR pipeline by stage</div>
     </div>`;
 
   // Phase overdue aggregate bars
   const phOrder  = ['1','2','3','4','5'];
   const phLabels = { '1':'1 — Investigation','2':'2 — Design','3':'3 — Testing','4':'4 — Implementation','5':'5 — Finalization' };
   const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+
+  // Only include: active tickets + closed tickets closed this year
+  const curYear = new Date().getFullYear().toString();
+  const effTickets = tickets.filter(t =>
+    !isClosed(t) || (t.updated||'').slice(0,4) === curYear
+  );
+
   const phODTotals = { '1':0,'2':0,'3':0,'4':0,'5':0 };
-  tickets.forEach(t => {
+  effTickets.forEach(t => {
     const op = (updates[t.id]||{}).overduePhase || {};
     phOrder.forEach(p => { phODTotals[p] += op[p]||0; });
   });
@@ -1889,8 +1910,8 @@ function renderEfficiency() {
     </div>`;
   }).join('');
 
-  // Per-ticket overdue table
-  const allTickets = [...tickets].sort((a,b) => (a.id||'').localeCompare(b.id||''));
+  // Per-ticket overdue table — active + closed-this-year only
+  const allTickets = [...effTickets].sort((a,b) => (a.id||'').localeCompare(b.id||''));
   const tblRows = allTickets.map(t => {
     const op    = (updates[t.id]||{}).overduePhase || {};
     const total = phOrder.reduce((s,p) => s + (op[p]||0), 0);
@@ -2000,9 +2021,13 @@ function renderEfficiencyChart() {
   const el = document.getElementById('effTimeChart');
   if (!el) return;
 
-  // ── Group opened by dateSubmitted, closed by updated date ──
+  // ── Build period maps (active tickets + closed-this-year only) ───────
+  const _chartYear = new Date().getFullYear().toString();
+  const chartTickets = tickets.filter(t =>
+    !isClosed(t) || (t.updated||'').slice(0,4) === _chartYear
+  );
   const openedMap = {}, closedMap = {};
-  tickets.forEach(t => {
+  chartTickets.forEach(t => {
     const ds = (t.dateSubmitted || '').trim();
     if (ds && /^\d{4}/.test(ds)) {
       const key = _effView === 'year' ? ds.slice(0,4) : ds.slice(0,7);
@@ -2017,7 +2042,6 @@ function renderEfficiencyChart() {
     }
   });
 
-  // Unified period set from both maps
   const allKeys = new Set([...Object.keys(openedMap), ...Object.keys(closedMap)]);
   const periodMap = {};
   allKeys.forEach(k => { periodMap[k] = { opened: openedMap[k]||0, closed: closedMap[k]||0 }; });
@@ -2028,8 +2052,6 @@ function renderEfficiencyChart() {
     document.getElementById('effChartLegend').innerHTML = '';
     return;
   }
-
-  // For monthly view cap at last 24 months
   if (_effView === 'month' && periods.length > 24) periods = periods.slice(-24);
 
   const MON = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2040,83 +2062,94 @@ function renderEfficiencyChart() {
   }
 
   const n = periods.length;
-  const W = 900, padL = 48, padR = 16, padT = 28;
-  const padB = (n > 6) ? 62 : 42;
-  const H = 320 + (padB - 42);
-  const cW = W - padL - padR, cH = H - padT - padB;
-  const step = cW / n;
-  const halfB = Math.max(5, Math.min(20, Math.floor(step * 0.28)));
-  const maxY = Math.max(...periods.map(p => Math.max(periodMap[p].opened, periodMap[p].closed)), 1);
-  const stride = n > 18 ? 3 : n > 10 ? 2 : 1;
-  const netPts = [];
+  // ── Fixed slot width per period — large enough for readable bars ──
+  // Monthly: 90px/slot  |  Yearly: 120px or wider if few periods
+  const slotW  = _effView === 'year' ? Math.max(120, Math.floor(840 / Math.max(n, 1))) : 90;
+  const padL   = 48, padR = 24, padT = 32, padB = 58;
+  const W      = padL + n * slotW + padR;
+  const H      = 320;
+  const cH     = H - padT - padB;
+  const barW   = Math.max(22, Math.floor(slotW * 0.32));
+  const barGap = 4;
+
+  const maxY   = Math.max(...periods.map(p => Math.max(periodMap[p].opened, periodMap[p].closed)), 1);
   let svg = '';
 
-  // ── Y gridlines ─────────────────────────────────────
+  // ── Y gridlines & labels ──────────────────────────
   const yTicks = Math.min(maxY, 6);
   for (let i = 0; i <= yTicks; i++) {
     const val = Math.round(maxY * i / yTicks);
     const y   = padT + cH - cH * i / yTicks;
-    svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#F0F0F0" stroke-width="1"/>`;
-    svg += `<text x="${padL-6}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#9CA3AF">${val}</text>`;
+    svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#F0F0F0" stroke-width="1"/>`;
+    svg += `<text x="${(padL-7).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#9CA3AF">${val}</text>`;
   }
 
-  // ── Bars + target points ─────────────────────────────
+  // ── Slot separator lines (light vertical dividers) ──
+  for (let i = 1; i < n; i++) {
+    const x = padL + i * slotW;
+    svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+cH}" stroke="#EBEBEB" stroke-width="1"/>`;
+  }
+
+  // ── Per-period bars, labels, ticks ───────────────
   periods.forEach((p, i) => {
-    const m  = periodMap[p];
-    const xC = padL + step * i + step / 2;
+    const m   = periodMap[p];
+    const xSL = padL + i * slotW;          // slot left edge
+    const xC  = xSL + slotW / 2;           // slot centre
 
-    // Opened bar (gray, left of center)
-    if (m.opened > 0) {
-      const h = cH * m.opened / maxY;
-      svg += `<rect x="${(xC - halfB*2 - 1).toFixed(1)}" y="${(padT+cH-h).toFixed(1)}" width="${halfB*2}" height="${h.toFixed(1)}" fill="#D1D5DB" rx="1"><title>${fmtPeriod(p)}: ${m.opened} opened</title></rect>`;
-      svg += `<text x="${(xC-halfB-1).toFixed(1)}" y="${(padT+cH-h-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9CA3AF">${m.opened}</text>`;
+    // Subtle alternating background per slot
+    if (i % 2 === 0) {
+      svg += `<rect x="${xSL}" y="${padT}" width="${slotW}" height="${cH}" fill="rgba(0,0,0,0.018)"/>`;
     }
 
-    // Closed bar (green, right of center)
-    if (m.closed > 0) {
-      const h = cH * m.closed / maxY;
-      svg += `<rect x="${(xC+1).toFixed(1)}" y="${(padT+cH-h).toFixed(1)}" width="${halfB*2}" height="${h.toFixed(1)}" fill="#059669" rx="1" opacity=".85"><title>${fmtPeriod(p)}: ${m.closed} closed</title></rect>`;
-      svg += `<text x="${(xC+halfB+1).toFixed(1)}" y="${(padT+cH-h-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#059669">${m.closed}</text>`;
-    }
+    // Opened bar (gray, left of centre)
+    const xO = xC - barGap / 2 - barW;
+    const hO = Math.max(cH * m.opened / maxY, 0.5);
+    svg += `<rect x="${xO.toFixed(1)}" y="${(padT+cH-hO).toFixed(1)}" width="${barW}" height="${hO.toFixed(1)}" fill="#C4C9D4" rx="3"><title>${fmtPeriod(p)}: ${m.opened} opened</title></rect>`;
+    if (m.opened > 0) svg += `<text x="${(xO+barW/2).toFixed(1)}" y="${(padT+cH-hO-6).toFixed(1)}" text-anchor="middle" font-size="11" fill="#888EA8" font-weight="700">${m.opened}</text>`;
 
-    // Net label: closed - opened
-    const net = m.closed - m.opened;
-    netPts.push([xC, net, p]);
+    // Closed bar (green, right of centre)
+    const xCl = xC + barGap / 2;
+    const hC  = Math.max(cH * m.closed / maxY, 0.5);
+    svg += `<rect x="${xCl.toFixed(1)}" y="${(padT+cH-hC).toFixed(1)}" width="${barW}" height="${hC.toFixed(1)}" fill="#059669" rx="3" opacity=".85"><title>${fmtPeriod(p)}: ${m.closed} closed</title></rect>`;
+    if (m.closed > 0) svg += `<text x="${(xCl+barW/2).toFixed(1)}" y="${(padT+cH-hC-6).toFixed(1)}" text-anchor="middle" font-size="11" fill="#059669" font-weight="700">${m.closed}</text>`;
 
-    // X-axis label
-    if (i % stride === 0) {
-      const labelY = padT + cH + 14;
-      const rot = n > 6 ? `transform="rotate(-45 ${xC.toFixed(1)} ${labelY})"` : '';
-      svg += `<text x="${xC.toFixed(1)}" y="${labelY}" text-anchor="${n>6?'end':'middle'}" font-size="10" fill="#6B7280" ${rot}>${fmtPeriod(p)}</text>`;
-    }
-  });
-
-  // ── Net labels below x-axis (green/red) ─────────────
-  netPts.forEach(([x, net, period]) => {
+    // Tick + net label below axis
+    const net  = m.closed - m.opened;
     const sign = net > 0 ? '+' : '';
-    svg += `<text x="${x.toFixed(1)}" y="${(padT+cH+28).toFixed(1)}" text-anchor="middle" font-size="9" fill="${net>=0?'#059669':'#DC2626'}" font-weight="700">${sign}${net}</text>`;
+    const netColor = net >= 0 ? '#059669' : '#DC2626';
+    svg += `<line x1="${xC.toFixed(1)}" y1="${(padT+cH).toFixed(1)}" x2="${xC.toFixed(1)}" y2="${(padT+cH+6).toFixed(1)}" stroke="#AAAAAA" stroke-width="1.5"/>`;
+    svg += `<text x="${xC.toFixed(1)}" y="${(padT+cH+17).toFixed(1)}" text-anchor="middle" font-size="10" fill="${netColor}" font-weight="700">${sign}${net}</text>`;
+
+    // Period label — rotated for monthly to avoid overlap, straight for yearly
+    const labelY = padT + cH + 34;
+    if (_effView === 'month') {
+      svg += `<text x="${xC.toFixed(1)}" y="${labelY}" text-anchor="end" font-size="11" fill="#4B4B4B" font-weight="600" transform="rotate(-38 ${xC.toFixed(1)} ${labelY})">${fmtPeriod(p)}</text>`;
+    } else {
+      svg += `<text x="${xC.toFixed(1)}" y="${labelY}" text-anchor="middle" font-size="12" fill="#2D2D2D" font-weight="700">${fmtPeriod(p)}</text>`;
+    }
   });
 
-  // ── Axes ─────────────────────────────────────────────
-  svg += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+cH}" stroke="#D1D5DB" stroke-width="1"/>`;
-  svg += `<line x1="${padL}" y1="${padT+cH}" x2="${W-padR}" y2="${padT+cH}" stroke="#D1D5DB" stroke-width="1"/>`;
+  // ── Axes ─────────────────────────────────────────
+  svg += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT+cH).toFixed(1)}" stroke="#D1D5DB" stroke-width="1.5"/>`;
+  svg += `<line x1="${padL}" y1="${(padT+cH).toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${(padT+cH).toFixed(1)}" stroke="#D1D5DB" stroke-width="1.5"/>`;
 
-  const minSvgW = _effView === 'month' ? Math.max(480, n * 48) : Math.max(360, n * 90);
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block;min-width:${minSvgW}px">${svg}</svg>`;
-  if (_effView === 'month' && periods.length === 24) {
-    el.innerHTML += `<p style="font-size:10px;color:var(--gray-400);text-align:right;margin-top:4px">Showing last 24 months</p>`;
-  }
+  el.style.overflowX = 'auto';
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="font-family:'Segoe UI',Arial,sans-serif;display:block">${svg}</svg>`;
+  const notes = [];
+  if (_effView === 'month' && periods.length === 24) notes.push('Showing last 24 months');
+  notes.push(`Active tickets + ${_chartYear} closures`);
+  el.innerHTML += `<p style="font-size:10px;color:var(--gray-400);text-align:right;margin-top:4px">${notes.join(' · ')}</p>`;
 
-  // ── Legend ──────────────────────────────────────────
+  // ── Legend ──────────────────────────────────────
   document.getElementById('effChartLegend').innerHTML = `
-    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-600)">
-      <svg width="12" height="12"><rect width="12" height="12" fill="#D1D5DB" rx="1"/></svg> Opened (by submission date)
+    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray-600)">
+      <svg width="14" height="14"><rect width="14" height="14" fill="#C4C9D4" rx="2"/></svg> Opened (by submission date)
     </span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#059669">
-      <svg width="12" height="12"><rect width="12" height="12" fill="#059669" rx="1" opacity=".85"/></svg> Closed (by last-updated date)
+    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#059669">
+      <svg width="14" height="14"><rect width="14" height="14" fill="#059669" rx="2" opacity=".85"/></svg> Closed (by last-updated date)
     </span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-500)">
-      <span style="font-size:10px;font-weight:700;color:#059669">+N</span>&nbsp;/&nbsp;<span style="font-size:10px;font-weight:700;color:#DC2626">−N</span> Net per period (below axis)
+    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray-500)">
+      <span style="font-size:10px;font-weight:700;color:#059669">+N</span>&nbsp;/&nbsp;<span style="font-size:10px;font-weight:700;color:#DC2626">−N</span>&nbsp; Net per period
     </span>`;
 }
 
