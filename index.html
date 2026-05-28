@@ -126,8 +126,8 @@
     .phase-mini-cnt { font-weight: 700; color: white; margin-left: auto; font-size: 12px; }
 
     /* High priority extensive (dark card) */
-    .hi-list { list-style: none; overflow-y: auto; max-height: 320px; }
-    .hi-ext { padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .hi-list { list-style: none; overflow-y: auto; max-height: 400px; }
+    .hi-ext { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
     .hi-ext:last-child { border-bottom: none; padding-bottom: 0; }
     .hi-head { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; min-width: 0; }
     .hi-id { font-size: 11px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
@@ -135,9 +135,9 @@
     .hi-summary { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hi-meta { display: flex; gap: 10px; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 4px; flex-wrap: wrap; }
     .hi-meta strong { color: rgba(255,255,255,0.65); }
-    .hi-progress { font-size: 11px; color: rgba(255,255,255,0.4); font-style: italic; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hi-task { font-size: 11px; background: rgba(37,99,235,0.14); color: rgba(147,197,253,0.9); border-radius: var(--radius); padding: 4px 8px; margin-top: 4px; line-height: 1.4; }
-    .hi-notask { font-size: 11px; color: rgba(255,255,255,0.2); font-style: italic; }
+    .hi-progress { font-size: 11px; color: rgba(255,255,255,0.45); font-style: italic; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hi-task { font-size: 13px; background: rgba(37,99,235,0.18); color: rgba(147,197,253,1); border-radius: var(--radius); padding: 7px 10px; margin-top: 6px; line-height: 1.5; font-weight: 500; white-space: pre-wrap; }
+    .hi-notask { font-size: 11px; color: rgba(255,255,255,0.2); font-style: italic; margin-top: 4px; }
 
     /* CW overdue editable (light card) */
     .od-row { display: flex; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--gray-200); flex-wrap: wrap; }
@@ -383,7 +383,7 @@
     .detail-inner { padding: 14px 16px; background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); border-left: 3px solid var(--primary); box-shadow: var(--shadow-sm); }
     .detail-header { font-size: 10px; font-weight: 700; color: var(--dark); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200); }
     /* Detail task list (vertical, one row per CW) */
-    .detail-task-list { list-style: none; margin: 0; padding: 0; }
+    .detail-task-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; }
     .detail-task-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--gray-100); }
     .detail-task-row:last-child { border-bottom: none; }
     .detail-task-meta { flex-shrink: 0; width: 68px; }
@@ -1272,23 +1272,41 @@ function deptBadge(d) {
   return `<span class="dept-badge dept-${cls}">${esc(d)}</span>`;
 }
 
+function allWeeksFrom(dateStr) {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return [CUR_WK_KEY];
+  const d = new Date(dateStr.slice(0, 10));
+  if (isNaN(d)) return [CUR_WK_KEY];
+  // Step back to Monday of that week
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const weeks = [];
+  let safety = 0;
+  while (safety++ < 260) {
+    const info = isoWeekInfo(d);
+    const wk   = weekKey(info.year, info.week);
+    weeks.push(wk);
+    if (wk >= CUR_WK_KEY) break;
+    d.setDate(d.getDate() + 7);
+  }
+  return weeks.reverse(); // newest first
+}
+
 function buildDetailInner(t) {
   const upd      = updates[t.id] || {};
   const hist     = upd.taskHistory     || {};
   const histDept = upd.taskHistoryDept || {};
 
-  const histEntries = Object.entries(hist)
-    .filter(([,v]) => v)
-    .sort(([a],[b]) => b.localeCompare(a))
-    .map(([wk, text]) => ({
-      wk, cwNum: parseInt(wk.split('-W')[1]||'0', 10), yr: wk.split('-W')[0],
-      text, dept: histDept[wk]||'', isCurrent: false
-    }));
-
-  const entries = [
-    { wk: CUR_WK_KEY, cwNum: CUR_WEEK, yr: String(_now.year), text: upd.taskThisWeek||'', dept: upd.taskDept||'', isCurrent: true },
-    ...histEntries
-  ];
+  const allWeeks = allWeeksFrom(t.dateSubmitted);
+  const entries  = allWeeks.map(wk => {
+    const isCurrent = wk === CUR_WK_KEY;
+    return {
+      wk,
+      cwNum: parseInt(wk.split('-W')[1]||'0', 10),
+      yr:    wk.split('-W')[0],
+      text:  isCurrent ? upd.taskThisWeek||'' : hist[wk]||'',
+      dept:  isCurrent ? upd.taskDept||''     : histDept[wk]||'',
+      isCurrent
+    };
+  });
 
   const deptOpts = (cur) => DEPT_LIST.map(d =>
     `<option value="${d}" ${d===cur?'selected':''}>${d}</option>`
@@ -1520,26 +1538,41 @@ function renderDashboard() {
             <span>Finish <strong>CW${esc(c.fp||'—')}</strong></span>
             ${t.productManager ? `<span>PM: <strong>${esc(t.productManager)}</strong></span>` : ''}
           </div>
-          ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,90)}</div>` : ''}
+          ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>` : ''}
           ${upd.taskThisWeek
             ? `<div class="hi-task">CW${CUR_WEEK}: ${esc(upd.taskThisWeek)}</div>`
             : `<div class="hi-notask">No task entered for CW${CUR_WEEK}</div>`}
         </li>`;
       }).join('');
 
-  // ── TICKETS PER PHASE BAR CHART ─────────────────────────
-  const maxPhCount = Math.max(...phOrder.map(p => phCounts[p]||0), 1);
+  // ── TICKETS PER PHASE — actual vs target ─────────────────
+  const PH_TARGETS = { '1':10, '2':10, '3':15, '4':10, '5':5 };
+  const maxPhScale = Math.max(
+    ...phOrder.map(p => phCounts[p]||0),
+    ...phOrder.map(p => PH_TARGETS[p]),
+    1
+  );
   const phCountBars = phOrder.map(p => {
-    const cnt = phCounts[p] || 0;
-    const w   = Math.round(cnt / maxPhCount * 100);
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
-      <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);width:14px;flex-shrink:0;text-align:center">${p}</span>
-      <div style="flex:1;height:14px;background:rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden">
-        <div style="width:${w}%;height:100%;background:${phColors[p]};border-radius:var(--radius);transition:width .4s ease"></div>
+    const cnt  = phCounts[p] || 0;
+    const tgt  = PH_TARGETS[p];
+    const wAct = (cnt  / maxPhScale * 100).toFixed(1);
+    const wTgt = (tgt  / maxPhScale * 100).toFixed(1);
+    const over = cnt > tgt;
+    const fillColor  = over ? '#22c55e' : phColors[p];
+    const labelColor = cnt > 0 ? (over ? '#4ade80' : phColors[p]) : 'rgba(255,255,255,0.2)';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
+      <span style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.55);width:14px;flex-shrink:0;text-align:center">${p}</span>
+      <div style="flex:1;height:16px;background:rgba(255,255,255,0.06);border-radius:var(--radius);position:relative">
+        <div style="width:${wAct}%;min-width:${cnt>0?'4px':'0'};height:100%;background:${fillColor};border-radius:var(--radius);position:absolute;top:0;left:0;transition:width .4s ease"></div>
+        <div style="position:absolute;top:-3px;bottom:-3px;left:calc(${wTgt}% - 1px);width:2px;background:rgba(255,255,255,0.45);border-radius:1px" title="Target: ${tgt}"></div>
       </div>
-      <span style="font-size:11px;font-weight:700;color:${cnt>0?phColors[p]:'rgba(255,255,255,0.2)'};width:20px;text-align:right">${cnt}</span>
+      <span style="font-size:10px;font-weight:700;color:${labelColor};white-space:nowrap;width:38px;text-align:right">${cnt}<span style="font-weight:400;opacity:.45">/${tgt}</span></span>
     </div>`;
   }).join('');
+  const phCountLegend = `<div style="display:flex;gap:12px;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:.05em;text-transform:uppercase">
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:16px;height:2px;background:rgba(255,255,255,0.45);border-radius:1px"></span>Target</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:1px"></span>Over target</span>
+  </div>`;
 
   dashGridTop.innerHTML = `
     <div class="dash-card-dk">
@@ -1548,8 +1581,9 @@ function renderDashboard() {
       <div class="phase-mini-legend" style="margin-top:12px">${phaseLegend}</div>
     </div>
     <div class="dash-card-dk">
-      <h3>Tickets per Phase</h3>
+      <h3>Tickets per Phase &nbsp;<span style="font-weight:400;opacity:.4;font-size:8px;text-transform:none;letter-spacing:0">actual / target</span></h3>
       <div style="margin-top:4px">${phCountBars||'<p style="color:rgba(255,255,255,0.2);font-size:12px">No active tickets</p>'}</div>
+      ${phCountLegend}
     </div>
     <div class="dash-card-dk">
       <h3>High Priority <span class="high-badge">HIGH</span></h3>
