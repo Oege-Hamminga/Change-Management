@@ -2087,9 +2087,14 @@ function renderEfficiencyChart() {
   // Yearly view: all tickets across all years (full history from 2015 onward)
   // Monthly view: active tickets + closed-this-year only
   const _chartYear = new Date().getFullYear().toString();
+  // For monthly view: include done tickets whose effective close date (updated or dateSubmitted) is this year
+  function doneCloseDate(t) {
+    const du = (t.updated || '').trim();
+    return (du && /^\d{4}/.test(du)) ? du : (t.dateSubmitted || '').trim();
+  }
   const chartTickets = _effView === 'year'
     ? tickets
-    : tickets.filter(t => !isDone(t) || (t.updated||'').slice(0,4) === _chartYear);
+    : tickets.filter(t => !isDone(t) || doneCloseDate(t).slice(0,4) === _chartYear);
   const openedMap = {}, closedMap = {};
   chartTickets.forEach(t => {
     const ds = (t.dateSubmitted || '').trim();
@@ -2097,11 +2102,11 @@ function renderEfficiencyChart() {
       const key = _effView === 'year' ? ds.slice(0,4) : ds.slice(0,7);
       openedMap[key] = (openedMap[key]||0) + 1;
     }
-    // Count both Closed AND Resolved as "done"
+    // Count both Closed AND Resolved as "done"; fall back to dateSubmitted if updated is empty
     if (isDone(t)) {
-      const du = (t.updated || '').trim();
-      if (du && /^\d{4}/.test(du)) {
-        const key = _effView === 'year' ? du.slice(0,4) : du.slice(0,7);
+      const dateForClose = doneCloseDate(t);
+      if (dateForClose && /^\d{4}/.test(dateForClose)) {
+        const key = _effView === 'year' ? dateForClose.slice(0,4) : dateForClose.slice(0,7);
         closedMap[key] = (closedMap[key]||0) + 1;
       }
     }
