@@ -122,7 +122,7 @@
     /* phase-mini-legend removed */
 
     /* High priority extensive (dark card) */
-    .hi-list { list-style: none; overflow-y: auto; max-height: 480px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+    .hi-list { list-style: none; overflow-y: auto; max-height: 480px; }
     .hi-ext { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
     .hi-ext:last-child { border-bottom: none; padding-bottom: 0; }
     .hi-head { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; min-width: 0; }
@@ -1952,39 +1952,31 @@ function renderEfficiency() {
   const netSign = netRes >= 0 ? '+' : '';
   const netCls  = netRes >= 0 ? 'grn' : 'red';
 
-  // Card 2 — FP Predictability: tickets closed/resolved in selected month, how many had FP CW on time
-  // "On time" = FP CW ≤ last ISO week of the selected month
-  const [selYr, selMo] = _kpiMonth.split('-').map(Number);
-  const lastDayOfSelMonth = new Date(selYr, selMo, 0);
-  const lastWeekOfSelMonth = isoWeekInfo(lastDayOfSelMonth).week;
-  const closedInSelMonth = tickets.filter(t => {
-    if (!isDone(t)) return false;
-    return effectiveCloseDate(t).slice(0, 7) === _kpiMonth;
+  // Card 2 — Phase Completion Success Rate for selected month
+  // "Successful" = phase was transitioned on or before its Finish Phase CW deadline
+  const allCompletions = [];
+  tickets.forEach(t => {
+    ((updates[t.id] || {}).phaseCompletions || []).forEach(c => allCompletions.push(c));
   });
-  let fpOnTimePct, fpODCount, fpOnTimeCount, fpODCls, fpSub;
-  if (closedInSelMonth.length > 0) {
-    const onTimeInMonth = closedInSelMonth.filter(t => {
-      const u  = updates[t.id] || {};
-      const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
-      const fpW = parseCW(fp);
-      return fpW !== null && fpW <= lastWeekOfSelMonth;
-    }).length;
-    fpOnTimeCount = onTimeInMonth;
-    fpODCount     = closedInSelMonth.length - onTimeInMonth;
-    fpOnTimePct   = Math.round(onTimeInMonth / closedInSelMonth.length * 100);
-    fpODCls       = fpODCount > 0 ? 'red' : 'grn';
-    fpSub         = `${fpODCount} late · ${fpOnTimeCount} on time · ${selMonthLabel}`;
+  const selMonthCompletions = allCompletions.filter(c => c.month === _kpiMonth);
+  let phSuccessPct, phSuccessCls, phSuccessSub;
+  if (selMonthCompletions.length > 0) {
+    const onTimeCount = selMonthCompletions.filter(c => c.onTime).length;
+    phSuccessPct = Math.round(onTimeCount / selMonthCompletions.length * 100);
+    phSuccessCls = phSuccessPct >= 80 ? 'grn' : phSuccessPct >= 50 ? 'blu' : 'red';
+    phSuccessSub = `${onTimeCount} on time · ${selMonthCompletions.length - onTimeCount} late · ${selMonthCompletions.length} transitions · ${selMonthLabel}`;
   } else {
-    // No closed tickets in selected month — fall back to current active overdue
-    const fpODActive = active.filter(t => {
-      const u = updates[t.id] || {};
-      const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
-      return cwIsOverdue(fp);
-    }).length;
-    fpODCount   = fpODActive;
-    fpOnTimePct = activeTotal > 0 ? 100 - Math.round(fpODActive / activeTotal * 100) : 100;
-    fpODCls     = fpODActive > 0 ? 'red' : 'grn';
-    fpSub       = `${fpODActive} overdue · ${activeTotal - fpODActive} on track · current`;
+    // No transitions recorded for this month yet — show overall if any exist
+    if (allCompletions.length > 0) {
+      const onTimeAll  = allCompletions.filter(c => c.onTime).length;
+      phSuccessPct = Math.round(onTimeAll / allCompletions.length * 100);
+      phSuccessCls = phSuccessPct >= 80 ? 'grn' : phSuccessPct >= 50 ? 'blu' : 'red';
+      phSuccessSub = `${onTimeAll} on time · ${allCompletions.length - onTimeAll} late · overall`;
+    } else {
+      phSuccessPct = null;
+      phSuccessCls = '';
+      phSuccessSub = 'No phase transitions recorded yet';
+    }
   }
 
   // Phases to be finished this CW
@@ -2002,10 +1994,10 @@ function renderEfficiency() {
       <div class="eff-stat-label">Resolving Efficiency</div>
       <div class="eff-stat-sub">${closedSelMonth} closed · ${openedSelMonth} opened · ${selMonthLabel}</div>
     </div>
-    <div class="eff-stat-card ${fpODCls}">
-      <div class="eff-stat-val">${fpOnTimePct}%</div>
-      <div class="eff-stat-label">Finish Phase Predictability</div>
-      <div class="eff-stat-sub">${fpSub}</div>
+    <div class="eff-stat-card ${phSuccessCls}">
+      <div class="eff-stat-val">${phSuccessPct !== null ? phSuccessPct + '%' : '—'}</div>
+      <div class="eff-stat-label">Phase Completion Success</div>
+      <div class="eff-stat-sub">${phSuccessSub}</div>
     </div>
     <div class="eff-stat-card ${fpThisCW > 0 ? 'blu' : ''}">
       <div class="eff-stat-val">${fpThisCW}</div>
