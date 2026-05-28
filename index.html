@@ -544,8 +544,7 @@
       <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap" id="effChartLegend"></div>
     </div>
     <div class="eff-grid">
-      <div class="eff-section" id="effPhaseChart"><h3>Overdue Events by Phase</h3><div id="effPhaseBars"></div></div>
-      <div class="eff-section" id="effPhaseCountChart"><h3>Tickets per Phase</h3><div id="effPhaseCountBars"></div></div>
+      <div class="eff-section" style="grid-column:1/-1" id="effPhaseChart"><h3>Overdue Events by Phase</h3><div id="effPhaseBars"></div></div>
       <div class="eff-section" style="grid-column:1/-1" id="effFPPred">
         <h3>Finish Phase CW Adjustment Frequency <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)">— how often was the Finish Phase CW date changed per phase</span></h3>
         <div id="effFPPredBars"></div>
@@ -1291,6 +1290,15 @@ function setDashCwField(el) {
   if (!updates[id]) updates[id] = {};
   if (field === 'finishPhaseCW' && updates[id][field] !== undefined && updates[id][field] !== el.value.trim()) {
     updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+    // If previous FP was already overdue, record a missed deadline for the ticket's current phase
+    if (cwIsOverdue(updates[id][field])) {
+      const tk = tickets.find(x => x.id === id);
+      const ph = tk ? effPhase(tk) : null;
+      if (ph) {
+        if (!updates[id].overduePhase) updates[id].overduePhase = {};
+        updates[id].overduePhase[ph] = (updates[id].overduePhase[ph]||0) + 1;
+      }
+    }
   }
   updates[id][field] = el.value.trim();
   const ticket = tickets.find(t => t.id === id);
@@ -1458,6 +1466,15 @@ function setCwField(el) {
   if (!updates[id]) updates[id] = {};
   if (field === 'finishPhaseCW' && updates[id][field] !== undefined && updates[id][field] !== el.value.trim()) {
     updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+    // If previous FP was already overdue, record a missed deadline for the ticket's current phase
+    if (cwIsOverdue(updates[id][field])) {
+      const tk = tickets.find(x => x.id === id);
+      const ph = tk ? effPhase(tk) : null;
+      if (ph) {
+        if (!updates[id].overduePhase) updates[id].overduePhase = {};
+        updates[id].overduePhase[ph] = (updates[id].overduePhase[ph]||0) + 1;
+      }
+    }
   }
   updates[id][field] = el.value.trim();
   const ticket = tickets.find(t => t.id === id);
@@ -1805,7 +1822,19 @@ function renderEfficiency() {
   active.forEach(t => { const cr = (updates[t.id]||{}).changeRequest||''; if (crCounts[cr]!==undefined) crCounts[cr]++; });
 
   // Resolving efficiency: net = closed − open
-  const netRes = closed - activeTotal;
+  const curMonth = new Date().toISOString().slice(0, 7);
+  const MON_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const curMonthLabel = MON_NAMES[+curMonth.slice(5, 7) - 1] + ' ' + curMonth.slice(0, 4);
+  let openedThisMonth = 0, closedThisMonth = 0;
+  tickets.forEach(t => {
+    const ds = (t.dateSubmitted||'').trim();
+    if (ds && ds.slice(0,7) === curMonth) openedThisMonth++;
+    if (isClosed(t)) {
+      const du = (t.updated||'').trim();
+      if (du && du.slice(0,7) === curMonth) closedThisMonth++;
+    }
+  });
+  const netRes = closedThisMonth - openedThisMonth;
   const netSign = netRes >= 0 ? '+' : '';
   const netCls  = netRes >= 0 ? 'grn' : 'red';
 
@@ -1820,7 +1849,7 @@ function renderEfficiency() {
     <div class="eff-stat-card ${netCls}">
       <div class="eff-stat-val">${netSign}${netRes}</div>
       <div class="eff-stat-label">Resolving Efficiency</div>
-      <div class="eff-stat-sub">Closed (${closed}) minus Open (${activeTotal})</div>
+      <div class="eff-stat-sub">${closedThisMonth} closed · ${openedThisMonth} opened · ${curMonthLabel}</div>
     </div>
     <div class="eff-stat-card blu">
       <div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px">
@@ -1868,20 +1897,36 @@ function renderEfficiency() {
     const idTag = t.url
       ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:700;text-decoration:none;font-family:'Courier New',monospace;font-size:11px">${esc(t.id)}</a>`
       : `<span style="font-weight:700;font-family:'Courier New',monospace;font-size:11px;color:var(--primary)">${esc(t.id)}</span>`;
+    const curPh   = effPhase(t);
+    const u       = updates[t.id] || {};
+    const effFP   = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    const fpOD    = !isClosed(t) && cwIsOverdue(effFP);
+    const fpAdj   = u.fpCWChanges || 0;
+    const fpCWDisplay = effFP || '—';
+    const fpCWCell = fpOD
+      ? `<td style="text-align:center;background:rgba(204,0,0,0.07)"><span style="font-size:11px;font-weight:700;color:var(--primary)" title="Finish Phase CW overdue — adjusted ${fpAdj}×">CW${fpCWDisplay}</span><br><span style="font-size:8px;color:var(--primary);letter-spacing:.05em">OVERDUE${fpAdj?` ·${fpAdj}×adj`:''}</span></td>`
+      : `<td style="text-align:center"><span style="font-size:11px;color:var(--gray-600)">${effFP?`CW${effFP}`:'—'}</span>${fpAdj?`<br><span style="font-size:8px;color:var(--gray-400)">${fpAdj}× adj</span>`:''}</td>`;
     const phaseCells = phOrder.map(p => {
       const cnt = op[p]||0;
-      return `<td style="text-align:center">
+      const isCurrentPh = p === curPh;
+      const showFpOD = isCurrentPh && fpOD;
+      const tdStyle = showFpOD
+        ? 'text-align:center;background:rgba(204,0,0,0.07);border-top:2px solid var(--primary)'
+        : 'text-align:center';
+      return `<td style="${tdStyle}">
         <span class="odph-badge ${cnt>0?'p':'z'}"
           onclick="bumpOverduePh('${esc(t.id)}','${p}',event)"
           oncontextmenu="bumpOverduePh('${esc(t.id)}','${p}',event)"
-          title="Phase ${p}: ${cnt} (right-click to decrease)">${cnt}</span>
+          title="Phase ${p}: ${cnt} overdue events (right-click to decrease)">${cnt}</span>
+        ${showFpOD ? `<div style="font-size:8px;font-weight:700;color:var(--primary);letter-spacing:.05em;margin-top:2px;text-transform:uppercase">FP late</div>` : ''}
       </td>`;
     }).join('');
-    const closed = isClosed(t) ? ' style="opacity:.45"' : '';
-    return `<tr${closed}>
+    const closedStyle = isClosed(t) ? ' style="opacity:.45"' : '';
+    return `<tr${closedStyle}>
       <td>${idTag}</td>
-      <td style="font-size:11px;color:var(--gray-600);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,60))}</td>
-      <td style="text-align:center">${phaseBadge(effPhase(t))}</td>
+      <td style="font-size:11px;color:var(--gray-600);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,50))}</td>
+      <td style="text-align:center">${phaseBadge(curPh)}</td>
+      ${fpCWCell}
       ${phaseCells}
       <td style="text-align:center"><span class="odph-total ${total>0?'hot':''}">${total}</span></td>
     </tr>`;
@@ -1891,15 +1936,15 @@ function renderEfficiency() {
     <table class="odph-tbl">
       <thead><tr>
         <th>ID</th><th>Summary</th><th>Phase</th>
+        <th style="text-align:center">FP CW</th>
         <th style="text-align:center">P1</th><th style="text-align:center">P2</th>
         <th style="text-align:center">P3</th><th style="text-align:center">P4</th>
         <th style="text-align:center">P5</th><th style="text-align:center">Total</th>
       </tr></thead>
-      <tbody>${tblRows||'<tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:20px">No tickets yet</td></tr>'}</tbody>
+      <tbody>${tblRows||'<tr><td colspan="10" style="text-align:center;color:var(--gray-400);padding:20px">No tickets yet</td></tr>'}</tbody>
     </table>`;
 
   renderEfficiencyChart();
-  renderPhaseCountChart();
   renderFPPredictabilityChart();
 }
 
@@ -1935,49 +1980,6 @@ function renderFPPredictabilityChart() {
       </div>
       <span class="eff-ph-meta" style="color:${c>0?phColors[p]:'var(--gray-300)'}">
         ${c} <span style="font-size:9px;color:var(--gray-400);margin-left:2px">avg ${avg}/ticket</span>
-      </span>
-    </div>`;
-  }).join('');
-}
-
-// ─────────────────────────────────────────────────────
-//  PHASE COUNT CHART — qty of tickets per phase 1-5
-// ─────────────────────────────────────────────────────
-function renderPhaseCountChart() {
-  const el = document.getElementById('effPhaseCountBars');
-  if (!el) return;
-
-  const phOrder  = ['1','2','3','4','5'];
-  const phLabels = { '1':'1 — Investigation','2':'2 — Design','3':'3 — Testing','4':'4 — Implementation','5':'5 — Finalization' };
-  const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-  const phActive = { '1':0,'2':0,'3':0,'4':0,'5':0 };
-  const phClosed = { '1':0,'2':0,'3':0,'4':0,'5':0 };
-
-  tickets.forEach(t => {
-    const ph = effPhase(t);
-    if (!ph || phActive[ph] === undefined) return;
-    if (isClosed(t)) phClosed[ph]++;
-    else             phActive[ph]++;
-  });
-
-  const maxCount = Math.max(...phOrder.map(p => phActive[p] + phClosed[p]), 1);
-
-  el.innerHTML = phOrder.map(p => {
-    const act = phActive[p];
-    const cls = phClosed[p];
-    const tot = act + cls;
-    const wAct = Math.round(act / maxCount * 100);
-    const wCls = Math.round(cls / maxCount * 100);
-    return `<div class="eff-ph-row">
-      <span class="eff-ph-lbl">${phLabels[p]}</span>
-      <div class="eff-ph-bar" style="position:relative">
-        <div style="position:absolute;left:0;top:0;width:${wAct+wCls}%;height:100%;background:${phColors[p]};opacity:.25;border-radius:var(--radius)"></div>
-        <div style="position:absolute;left:0;top:0;width:${wAct}%;height:100%;background:${phColors[p]};border-radius:var(--radius);display:flex;align-items:center;justify-content:flex-end;padding-right:5px">
-          ${act > 0 ? `<span class="eff-ph-cnt">${act}</span>` : ''}
-        </div>
-      </div>
-      <span class="eff-ph-meta" style="color:${tot>0?phColors[p]:'var(--gray-300)'}">
-        ${tot}<span style="font-size:9px;color:var(--gray-400);margin-left:2px">${cls>0?`(${cls}✓)`:''}</span>
       </span>
     </div>`;
   }).join('');
@@ -2044,12 +2046,9 @@ function renderEfficiencyChart() {
   const cW = W - padL - padR, cH = H - padT - padB;
   const step = cW / n;
   const halfB = Math.max(5, Math.min(20, Math.floor(step * 0.28)));
-  const TARGET_DELTA = 3; // need to close 3 more than opened per period
-
-  const maxY = Math.max(...periods.map(p => Math.max(periodMap[p].opened, periodMap[p].closed,
-    periodMap[p].opened + TARGET_DELTA)), 1);
+  const maxY = Math.max(...periods.map(p => Math.max(periodMap[p].opened, periodMap[p].closed)), 1);
   const stride = n > 18 ? 3 : n > 10 ? 2 : 1;
-  const tgtPts = [], netPts = [];
+  const netPts = [];
   let svg = '';
 
   // ── Y gridlines ─────────────────────────────────────
@@ -2080,15 +2079,9 @@ function renderEfficiencyChart() {
       svg += `<text x="${(xC+halfB+1).toFixed(1)}" y="${(padT+cH-h-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#059669">${m.closed}</text>`;
     }
 
-    // Target point: opened + TARGET_DELTA
-    const tgt = m.opened + TARGET_DELTA;
-    const ty  = padT + cH - cH * tgt / maxY;
-    tgtPts.push([xC, ty, tgt, p]);
-
     // Net label: closed - opened
     const net = m.closed - m.opened;
-    const met = net >= TARGET_DELTA;
-    netPts.push([xC, net, met, p]);
+    netPts.push([xC, net, p]);
 
     // X-axis label
     if (i % stride === 0) {
@@ -2098,18 +2091,10 @@ function renderEfficiencyChart() {
     }
   });
 
-  // ── Target line (orange dashed) ──────────────────────
-  if (tgtPts.length > 1) {
-    svg += `<polyline points="${tgtPts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}" fill="none" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3" stroke-linejoin="round"/>`;
-  }
-  tgtPts.forEach(([x,y,tgt,period]) => {
-    svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#f97316" stroke="white" stroke-width="1.5"><title>${fmtPeriod(period)}: target = ${tgt} closed (opened+${TARGET_DELTA})</title></circle>`;
-  });
-
   // ── Net labels below x-axis (green/red) ─────────────
-  netPts.forEach(([x, net, met, period]) => {
+  netPts.forEach(([x, net, period]) => {
     const sign = net > 0 ? '+' : '';
-    svg += `<text x="${x.toFixed(1)}" y="${(padT+cH+28).toFixed(1)}" text-anchor="middle" font-size="9" fill="${met?'#059669':'#DC2626'}" font-weight="700">${sign}${net}</text>`;
+    svg += `<text x="${x.toFixed(1)}" y="${(padT+cH+28).toFixed(1)}" text-anchor="middle" font-size="9" fill="${net>=0?'#059669':'#DC2626'}" font-weight="700">${sign}${net}</text>`;
   });
 
   // ── Axes ─────────────────────────────────────────────
@@ -2129,9 +2114,6 @@ function renderEfficiencyChart() {
     </span>
     <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#059669">
       <svg width="12" height="12"><rect width="12" height="12" fill="#059669" rx="1" opacity=".85"/></svg> Closed (by last-updated date)
-    </span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#f97316">
-      <svg width="22" height="12"><line x1="0" y1="6" x2="22" y2="6" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3"/><circle cx="11" cy="6" r="3" fill="#f97316" stroke="white" stroke-width="1.5"/></svg> Target (opened +${TARGET_DELTA}/period)
     </span>
     <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-500)">
       <span style="font-size:10px;font-weight:700;color:#059669">+N</span>&nbsp;/&nbsp;<span style="font-size:10px;font-weight:700;color:#DC2626">−N</span> Net per period (below axis)
