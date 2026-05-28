@@ -122,8 +122,8 @@
     /* phase-mini-legend removed */
 
     /* High priority extensive (dark card) */
-    .hi-list { list-style: none; overflow-y: auto; max-height: 400px; }
-    .hi-ext { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .hi-list { list-style: none; overflow-y: auto; max-height: 480px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+    .hi-ext { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
     .hi-ext:last-child { border-bottom: none; padding-bottom: 0; }
     .hi-head { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; min-width: 0; }
     .hi-id { font-size: 11px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
@@ -132,8 +132,9 @@
     .hi-meta { display: flex; gap: 10px; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 4px; flex-wrap: wrap; }
     .hi-meta strong { color: rgba(255,255,255,0.65); }
     .hi-progress { font-size: 11px; color: rgba(255,255,255,0.45); font-style: italic; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hi-task { font-size: 13px; background: rgba(37,99,235,0.18); color: rgba(147,197,253,1); border-radius: var(--radius); padding: 7px 10px; margin-top: 6px; line-height: 1.5; font-weight: 500; white-space: pre-wrap; }
-    .hi-notask { font-size: 11px; color: rgba(255,255,255,0.2); font-style: italic; margin-top: 4px; }
+    .hi-task-inp { width: 100%; box-sizing: border-box; background: rgba(37,99,235,0.15); border: 1px solid rgba(37,99,235,0.3); color: rgba(147,197,253,1); border-radius: var(--radius); padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.5; resize: none; outline: none; margin-top: 5px; }
+    .hi-task-inp::placeholder { color: rgba(255,255,255,0.2); font-style: italic; }
+    .hi-task-inp:focus { border-color: rgba(147,197,253,0.6); background: rgba(37,99,235,0.22); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
 
     /* CW overdue editable (light card) */
     .od-row { display: flex; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--gray-200); flex-wrap: wrap; }
@@ -157,10 +158,14 @@
     .cr-signed { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }
 
     /* Narrow first-5 columns */
-    .sort-row th.col-n { min-width: 50px; max-width: 80px; }
-    td.col-n { max-width: 80px; } td.col-n .ct { max-width: 72px; } td.col-n .ts-badge { max-width: 70px; }
+    .sort-row th.col-n { min-width: 50px; max-width: 70px; width: 64px; }
+    td.col-n { max-width: 70px; width: 64px; } td.col-n .ct { max-width: 60px; } td.col-n .ts-badge { max-width: 60px; }
 
     /* ── Efficiency tab ── */
+    .kpi-month-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+    .kpi-mon-btn { padding: 4px 10px; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 11px; font-weight: 700; font-family: inherit; background: white; color: var(--gray-600); cursor: pointer; letter-spacing: .04em; transition: background var(--transition), color var(--transition); }
+    .kpi-mon-btn:hover { background: var(--gray-100); color: var(--gray-900); }
+    .kpi-mon-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
     .eff-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
     .eff-stat-card { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
     .eff-stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--gray-300); }
@@ -305,7 +310,7 @@
     .phase-od-pip { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); margin-left: 5px; vertical-align: middle; flex-shrink: 0; }
 
     /* Editable CW inputs */
-    .cw-input { width: 52px; border: 1px solid transparent; border-radius: var(--radius); padding: 3px 5px; font-size: 11px; font-family: inherit; background: transparent; outline: none; color: var(--gray-700); transition: border-color var(--transition), background var(--transition); }
+    .cw-input { width: 66px; border: 1px solid transparent; border-radius: var(--radius); padding: 3px 6px; font-size: 11px; font-family: inherit; background: transparent; outline: none; color: var(--gray-700); transition: border-color var(--transition), background var(--transition); }
     .cw-input:hover { border-color: var(--gray-300); background: white; }
     .cw-input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 2px var(--primary-light); }
     .cw-input.od { color: var(--primary); font-weight: 700; }
@@ -544,6 +549,7 @@
   <!-- EFFICIENCY -->
   <div class="tab-content" id="tab-efficiency">
     <div style="font-size:10px;font-weight:800;color:var(--gray-500);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px">KPI Stats</div>
+    <div class="kpi-month-row" id="kpiMonthRow"></div>
     <div class="eff-stat-row" id="effStatRow"></div>
     <div class="eff-section" style="margin-bottom:14px">
       <h3>Efficiency Over Time</h3>
@@ -694,6 +700,8 @@ let sortKey    = 'priority';
 let sortDir    = 'asc';
 let colFilters = {};
 let selectedTicketId = null;
+let _kpiMonth  = new Date().toISOString().slice(0, 7);  // YYYY-MM, default = current month
+let _skipFilterRowRebuild = false;
 let _detailEdit      = null; // { id, wk }
 
 // ═══════════════════════════════════════════════════════
@@ -1099,7 +1107,9 @@ function mkSelect(key, options, cur, labelFn) {
 
 function setColFilter(key, val) {
   colFilters[key] = val;
+  _skipFilterRowRebuild = true;
   renderTable();
+  _skipFilterRowRebuild = false;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1117,10 +1127,12 @@ function renderTable() {
     return `<th class="${c.cls||''} ${sc}" ${oc}>${c.label}</th>`;
   }).join('');
 
-  // Filter row
-  document.getElementById('filterRow').innerHTML = STATIC_COLS.map(c =>
-    `<th>${buildFilterInput(c.key)}</th>`
-  ).join('');
+  // Filter row — skip rebuild when called from setColFilter to preserve input focus
+  if (!_skipFilterRowRebuild) {
+    document.getElementById('filterRow').innerHTML = STATIC_COLS.map(c =>
+      `<th>${buildFilterInput(c.key)}</th>`
+    ).join('');
+  }
 
   document.getElementById('tblCount').textContent = `${rows.length} shown`;
 
@@ -1662,9 +1674,7 @@ function renderDashboard() {
             ${t.productManager ? `<span>PM: <strong>${esc(t.productManager)}</strong></span>` : ''}
           </div>
           ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>` : ''}
-          ${upd.taskThisWeek
-            ? `<div class="hi-task">CW${CUR_WEEK}: ${esc(upd.taskThisWeek)}</div>`
-            : `<div class="hi-notask">No task entered for CW${CUR_WEEK}</div>`}
+          <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${esc(upd.taskThisWeek||'')}</textarea>
         </li>`;
       }).join('');
 
@@ -1898,22 +1908,62 @@ function renderEfficiency() {
   const crCounts = { PM:0, Sent:0, Signed:0 };
   active.forEach(t => { const cr = (updates[t.id]||{}).changeRequest||''; if (crCounts[cr]!==undefined) crCounts[cr]++; });
 
-  // Resolving efficiency: net = closed − open
-  const curMonth = new Date().toISOString().slice(0, 7);
+  // Month-specific computations (use _kpiMonth for cards 1 & 2)
   const MON_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const curMonthLabel = MON_NAMES[+curMonth.slice(5, 7) - 1] + ' ' + curMonth.slice(0, 4);
-  let openedThisMonth = 0, closedThisMonth = 0;
+  const selMonthLabel = MON_NAMES[+_kpiMonth.slice(5, 7) - 1] + ' ' + _kpiMonth.slice(0, 4);
+
+  // Card 1 — Resolving efficiency for selected month
+  function effectiveCloseDate(t) {
+    const du = (t.updated || '').trim();
+    return (du && /^\d{4}/.test(du)) ? du : (t.dateSubmitted || '').trim();
+  }
+  let openedSelMonth = 0, closedSelMonth = 0;
   tickets.forEach(t => {
     const ds = (t.dateSubmitted||'').trim();
-    if (ds && ds.slice(0,7) === curMonth) openedThisMonth++;
-    if (isClosed(t)) {
-      const du = (t.updated||'').trim();
-      if (du && du.slice(0,7) === curMonth) closedThisMonth++;
+    if (ds && ds.slice(0,7) === _kpiMonth) openedSelMonth++;
+    if (isDone(t)) {
+      const du = effectiveCloseDate(t);
+      if (du && du.slice(0,7) === _kpiMonth) closedSelMonth++;
     }
   });
-  const netRes = closedThisMonth - openedThisMonth;
+  const netRes  = closedSelMonth - openedSelMonth;
   const netSign = netRes >= 0 ? '+' : '';
   const netCls  = netRes >= 0 ? 'grn' : 'red';
+
+  // Card 2 — FP Predictability: tickets closed/resolved in selected month, how many had FP CW on time
+  // "On time" = FP CW ≤ last ISO week of the selected month
+  const [selYr, selMo] = _kpiMonth.split('-').map(Number);
+  const lastDayOfSelMonth = new Date(selYr, selMo, 0);
+  const lastWeekOfSelMonth = isoWeekInfo(lastDayOfSelMonth).week;
+  const closedInSelMonth = tickets.filter(t => {
+    if (!isDone(t)) return false;
+    return effectiveCloseDate(t).slice(0, 7) === _kpiMonth;
+  });
+  let fpOnTimePct, fpODCount, fpOnTimeCount, fpODCls, fpSub;
+  if (closedInSelMonth.length > 0) {
+    const onTimeInMonth = closedInSelMonth.filter(t => {
+      const u  = updates[t.id] || {};
+      const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+      const fpW = parseCW(fp);
+      return fpW !== null && fpW <= lastWeekOfSelMonth;
+    }).length;
+    fpOnTimeCount = onTimeInMonth;
+    fpODCount     = closedInSelMonth.length - onTimeInMonth;
+    fpOnTimePct   = Math.round(onTimeInMonth / closedInSelMonth.length * 100);
+    fpODCls       = fpODCount > 0 ? 'red' : 'grn';
+    fpSub         = `${fpODCount} late · ${fpOnTimeCount} on time · ${selMonthLabel}`;
+  } else {
+    // No closed tickets in selected month — fall back to current active overdue
+    const fpODActive = active.filter(t => {
+      const u = updates[t.id] || {};
+      const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+      return cwIsOverdue(fp);
+    }).length;
+    fpODCount   = fpODActive;
+    fpOnTimePct = activeTotal > 0 ? 100 - Math.round(fpODActive / activeTotal * 100) : 100;
+    fpODCls     = fpODActive > 0 ? 'red' : 'grn';
+    fpSub       = `${fpODActive} overdue · ${activeTotal - fpODActive} on track · current`;
+  }
 
   // Phases to be finished this CW
   const fpThisCW = active.filter(t => {
@@ -1922,26 +1972,18 @@ function renderEfficiency() {
     return parseCW(fp) === CUR_WEEK;
   }).length;
 
-  // FP overdue % among active tickets
-  const fpODCount = active.filter(t => {
-    const u = updates[t.id] || {};
-    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
-    return cwIsOverdue(fp);
-  }).length;
-  const fpODPct    = activeTotal > 0 ? Math.round(fpODCount / activeTotal * 100) : 0;
-  const fpOnTimePct = 100 - fpODPct;
-  const fpODCls    = fpODPct > 0 ? 'red' : 'grn';
+  renderKpiMonthButtons();
 
   document.getElementById('effStatRow').innerHTML = `
     <div class="eff-stat-card ${netCls}">
       <div class="eff-stat-val">${netSign}${netRes}</div>
       <div class="eff-stat-label">Resolving Efficiency</div>
-      <div class="eff-stat-sub">${closedThisMonth} closed · ${openedThisMonth} opened · ${curMonthLabel}</div>
+      <div class="eff-stat-sub">${closedSelMonth} closed · ${openedSelMonth} opened · ${selMonthLabel}</div>
     </div>
     <div class="eff-stat-card ${fpODCls}">
       <div class="eff-stat-val">${fpOnTimePct}%</div>
       <div class="eff-stat-label">Finish Phase Predictability</div>
-      <div class="eff-stat-sub">${fpODCount} overdue · ${activeTotal - fpODCount} on track · ${curMonthLabel}</div>
+      <div class="eff-stat-sub">${fpSub}</div>
     </div>
     <div class="eff-stat-card ${fpThisCW > 0 ? 'blu' : ''}">
       <div class="eff-stat-val">${fpThisCW}</div>
@@ -2077,6 +2119,27 @@ function setEffView(mode, btn) {
   _effView = mode;
   document.querySelectorAll('.eff-btn').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
   renderEfficiencyChart();
+}
+
+function setKpiMonth(month) {
+  _kpiMonth = month;
+  renderEfficiency();
+}
+
+function renderKpiMonthButtons() {
+  const row = document.getElementById('kpiMonthRow');
+  if (!row) return;
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // Show all 12 months of the current year
+  const btns = MONTH_NAMES.map((name, i) => {
+    const mm = String(i + 1).padStart(2, '0');
+    const key = `${curYear}-${mm}`;
+    const active = key === _kpiMonth ? ' active' : '';
+    return `<button class="kpi-mon-btn${active}" onclick="setKpiMonth('${key}')">${name}</button>`;
+  });
+  row.innerHTML = btns.join('');
 }
 
 function renderEfficiencyChart() {
