@@ -97,7 +97,7 @@
     /* ── Dashboard dark/light sections ── */
     .dash-section-dark  { background: #1C1C1C; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; box-shadow: 0 4px 28px rgba(0,0,0,0.22); }
     .dash-section-light { background: #EDEDED; border-radius: var(--radius); padding: 18px 20px; }
-    .dash-grid-top { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 14px; margin-top: 14px; }
+    .dash-grid-top { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-top: 14px; }
     @media (max-width: 900px) { .dash-grid-top { grid-template-columns: 1fr; } }
 
     /* Dark stat cards */
@@ -1545,45 +1545,45 @@ function renderDashboard() {
         </li>`;
       }).join('');
 
-  // ── TICKETS PER PHASE — actual vs target ─────────────────
-  const PH_TARGETS = { '1':10, '2':10, '3':15, '4':10, '5':5 };
-  const maxPhScale = Math.max(
+  // ── PHASE DISTRIBUTION — actual vs target bars ───────────
+  const PH_TARGETS  = { '1':10, '2':10, '3':15, '4':10, '5':5 };
+  const PH_NAMES    = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
+  const maxPhScale  = Math.max(
     ...phOrder.map(p => phCounts[p]||0),
     ...phOrder.map(p => PH_TARGETS[p]),
     1
   );
-  const phCountBars = phOrder.map(p => {
+  const phDistBars = phOrder.map(p => {
     const cnt  = phCounts[p] || 0;
     const tgt  = PH_TARGETS[p];
     const wAct = (cnt  / maxPhScale * 100).toFixed(1);
     const wTgt = (tgt  / maxPhScale * 100).toFixed(1);
     const over = cnt > tgt;
-    const fillColor  = over ? '#22c55e' : phColors[p];
-    const labelColor = cnt > 0 ? (over ? '#4ade80' : phColors[p]) : 'rgba(255,255,255,0.2)';
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
-      <span style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.55);width:14px;flex-shrink:0;text-align:center">${p}</span>
+    const fillColor  = cnt === 0 ? 'rgba(255,255,255,0.04)' : over ? '#CC0000' : '#22c55e';
+    const labelColor = cnt === 0 ? 'rgba(255,255,255,0.2)'  : over ? '#f87171' : '#4ade80';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="flex-shrink:0;width:128px;line-height:1.3">
+        <span style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.6)">${p}</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:5px">${PH_NAMES[p]}</span>
+      </div>
       <div style="flex:1;height:16px;background:rgba(255,255,255,0.06);border-radius:var(--radius);position:relative">
         <div style="width:${wAct}%;min-width:${cnt>0?'4px':'0'};height:100%;background:${fillColor};border-radius:var(--radius);position:absolute;top:0;left:0;transition:width .4s ease"></div>
-        <div style="position:absolute;top:-3px;bottom:-3px;left:calc(${wTgt}% - 1px);width:2px;background:rgba(255,255,255,0.45);border-radius:1px" title="Target: ${tgt}"></div>
+        <div style="position:absolute;top:-3px;bottom:-3px;left:calc(${wTgt}% - 1px);width:2px;background:rgba(255,255,255,0.4);border-radius:1px" title="Target: ${tgt}"></div>
       </div>
       <span style="font-size:10px;font-weight:700;color:${labelColor};white-space:nowrap;width:38px;text-align:right">${cnt}<span style="font-weight:400;opacity:.45">/${tgt}</span></span>
     </div>`;
   }).join('');
-  const phCountLegend = `<div style="display:flex;gap:12px;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:.05em;text-transform:uppercase">
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:16px;height:2px;background:rgba(255,255,255,0.45);border-radius:1px"></span>Target</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:1px"></span>Over target</span>
+  const phDistLegend = `<div style="display:flex;gap:14px;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:.05em;text-transform:uppercase;flex-wrap:wrap">
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:16px;height:2px;background:rgba(255,255,255,0.4);border-radius:1px"></span>Target</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:1px"></span>Under target</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#CC0000;border-radius:1px"></span>Over target</span>
   </div>`;
 
   dashGridTop.innerHTML = `
     <div class="dash-card-dk">
-      <h3>Phase Distribution &nbsp;<span style="opacity:.5;font-weight:500">${activeTotal} active</span></h3>
-      <div class="stacked-bar" style="height:20px;">${stackedSegs||'<div style="width:100%;background:rgba(255,255,255,0.08);height:100%"></div>'}</div>
-      <div class="phase-mini-legend" style="margin-top:12px">${phaseLegend}</div>
-    </div>
-    <div class="dash-card-dk">
-      <h3>Tickets per Phase &nbsp;<span style="font-weight:400;opacity:.4;font-size:8px;text-transform:none;letter-spacing:0">actual / target</span></h3>
-      <div style="margin-top:4px">${phCountBars||'<p style="color:rgba(255,255,255,0.2);font-size:12px">No active tickets</p>'}</div>
-      ${phCountLegend}
+      <h3>Phase Distribution &nbsp;<span style="font-weight:400;opacity:.4;font-size:8px;text-transform:none;letter-spacing:0">actual / target</span></h3>
+      <div style="margin-top:6px">${phDistBars}</div>
+      ${phDistLegend}
     </div>
     <div class="dash-card-dk">
       <h3>High Priority <span class="high-badge">HIGH</span></h3>
@@ -1646,42 +1646,60 @@ function renderDashboard() {
     ? `<ul class="week-list">${lastWeekItems.map(t => lastWeekItem(t, updates[t.id].taskHistory[PREV_WK_KEY])).join('')}</ul>`
     : `<p class="week-empty">No tasks recorded for CW${PREV_WEEK}.</p>`;
 
-  // ── CW OVERDUE (editable) ─────────────────────────────
-  const overdueItems = active
-    .filter(t => { const c=getEC(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); })
-    .sort((a,b) => {
-      const ca=getEC(a), cb=getEC(b);
-      return Math.min(parseCW(ca.sop)||999,parseCW(ca.fp)||999) - Math.min(parseCW(cb.sop)||999,parseCW(cb.fp)||999);
-    });
+  // ── CW OVERDUE — grouped by phase 1–5 ────────────────
+  const odSortByUrgency = (a,b) => {
+    const ca=getEC(a), cb=getEC(b);
+    return Math.min(parseCW(ca.sop)||999,parseCW(ca.fp)||999) - Math.min(parseCW(cb.sop)||999,parseCW(cb.fp)||999);
+  };
+  const overdueItems = active.filter(t => { const c=getEC(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); });
 
+  function odTicketHTML(t) {
+    const c = getEC(t);
+    const sopOD = cwIsOverdue(c.sop), fpOD = cwIsOverdue(c.fp);
+    const idTag = t.url
+      ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="od-id">${esc(t.id)}</a>`
+      : `<span class="od-id">${esc(t.id)}</span>`;
+    return `<div class="od-row">
+      <div class="od-left">
+        ${idTag}
+        <span class="od-summary" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,45))}</span>
+      </div>
+      <div class="od-cws">
+        <div class="od-cw-group">
+          <span class="od-cw-lbl">SOP CW</span>
+          <input class="od-cw-inp${sopOD?' od-active':''}" type="text" value="${esc(c.sop||'')}"
+            data-id="${esc(t.id)}" data-field="sopCW" onblur="setDashCwField(this)" placeholder="CW">
+        </div>
+        <div class="od-cw-group">
+          <span class="od-cw-lbl">Finish CW</span>
+          <input class="od-cw-inp${fpOD?' od-active':''}" type="text" value="${esc(c.fp||'')}"
+            data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setDashCwField(this)" placeholder="CW">
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const OD_PH_NAMES = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization','_':'No Phase' };
   const overdueHTML = overdueItems.length === 0
     ? '<p style="font-size:13px;color:var(--gray-500);padding:8px 0">No overdue CW deadlines ✓</p>'
-    : overdueItems.map(t => {
-        const c = getEC(t);
-        const sopOD = cwIsOverdue(c.sop), fpOD = cwIsOverdue(c.fp);
-        const idTag = t.url
-          ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="od-id">${esc(t.id)}</a>`
-          : `<span class="od-id">${esc(t.id)}</span>`;
-        return `<div class="od-row">
-          <div class="od-left">
-            ${idTag}
-            ${phaseBadge(effPhase(t))}
-            <span class="od-summary" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,50))}</span>
-          </div>
-          <div class="od-cws">
-            <div class="od-cw-group">
-              <span class="od-cw-lbl">SOP CW</span>
-              <input class="od-cw-inp${sopOD?' od-active':''}" type="text" value="${esc(c.sop||'')}"
-                data-id="${esc(t.id)}" data-field="sopCW" onblur="setDashCwField(this)" placeholder="CW">
-            </div>
-            <div class="od-cw-group">
-              <span class="od-cw-lbl">Finish CW</span>
-              <input class="od-cw-inp${fpOD?' od-active':''}" type="text" value="${esc(c.fp||'')}"
-                data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setDashCwField(this)" placeholder="CW">
-            </div>
-          </div>
-        </div>`;
-      }).join('');
+    : (() => {
+        const byPh = { '1':[], '2':[], '3':[], '4':[], '5':[], '_':[] };
+        overdueItems.forEach(t => { const ph = effPhase(t)||'_'; (byPh[ph]||byPh['_']).push(t); });
+        return ['1','2','3','4','5','_'].map((ph, idx) => {
+          const items = [...(byPh[ph]||[])].sort(odSortByUrgency);
+          if (!items.length) return '';
+          const col = phColors[ph] || 'var(--gray-400)';
+          const hdr = `<div style="display:flex;align-items:center;gap:6px;${idx>0?'margin-top:10px;':''
+            }margin-bottom:5px;padding-top:${idx>0?'8px':'0'};${idx>0?'border-top:1px solid var(--gray-100)':''}">
+            <span style="display:inline-block;width:3px;height:14px;background:${col};border-radius:1px;flex-shrink:0"></span>
+            <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:${col}">
+              ${ph !== '_' ? `Phase ${ph}` : ''} — ${OD_PH_NAMES[ph]}
+            </span>
+            <span style="font-size:9px;color:var(--gray-400);margin-left:auto">${items.length} ticket${items.length>1?'s':''}</span>
+          </div>`;
+          return hdr + items.map(odTicketHTML).join('');
+        }).join('');
+      })();
 
   dashGrid.innerHTML = `
     <div class="dash-card">
