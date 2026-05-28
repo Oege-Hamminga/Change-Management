@@ -504,6 +504,10 @@
     <div class="eff-grid">
       <div class="eff-section" id="effPhaseChart"><h3>Overdue Events by Phase</h3><div id="effPhaseBars"></div></div>
       <div class="eff-section" id="effPhaseCountChart"><h3>Tickets per Phase</h3><div id="effPhaseCountBars"></div></div>
+      <div class="eff-section" style="grid-column:1/-1" id="effFPPred">
+        <h3>Finish Phase CW Adjustment Frequency <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)">— how often was the Finish Phase CW date changed per phase</span></h3>
+        <div id="effFPPredBars"></div>
+      </div>
       <div class="eff-section" style="grid-column:1/-1"><h3>Per-Ticket Overdue History &nbsp;<span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)">Click a phase badge to +1, right-click to −1</span></h3><div id="effTicketTable"></div></div>
     </div>
   </div>
@@ -569,18 +573,6 @@
           </ol>
           <p class="bm-note">The bookmarklet also captures ticket links so IDs in the Tracker become clickable links back to the bugtracker.</p>
         </div>
-      </div>
-
-      <div class="card">
-        <h2>📁 Upload a File</h2>
-        <p>Accepts <strong>.csv</strong>, <strong>.tsv</strong>, or <strong>.txt</strong> (tab-separated) exports.</p>
-        <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()">
-          <div style="font-size:28px">📂</div>
-          <strong>Click to choose a file</strong>
-          <p>or drag and drop a CSV / TSV export here</p>
-        </div>
-        <input type="file" id="fileInput" accept=".csv,.tsv,.txt" onchange="handleFileUpload(this.files[0])">
-        <div class="import-msg" id="fileMsg"></div>
       </div>
 
       <div class="card">
@@ -763,7 +755,7 @@ const HDR_MAP  = {
   'p':'p','priority':'p','prio':'p',
   'model':'model','model (cr)':'model',
   'date submitted':'dateSubmitted','datesubmitted':'dateSubmitted','submitted':'dateSubmitted',
-  'updated':'updated','date updated':'updated',
+  'updated':'updated','date updated':'updated','last updated':'updated','lastupdated':'updated',
   'sop':'sop','sop (cw)':'sop',
   'product manager':'productManager','productmanager':'productManager','pm':'productManager',
   'summary':'summary','title':'summary',
@@ -1246,6 +1238,9 @@ function setDashCwField(el) {
   const id    = el.dataset.id;
   const field = el.dataset.field;
   if (!updates[id]) updates[id] = {};
+  if (field === 'finishPhaseCW' && updates[id][field] !== undefined && updates[id][field] !== el.value.trim()) {
+    updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+  }
   updates[id][field] = el.value.trim();
   const ticket = tickets.find(t => t.id === id);
   const isOD   = ticket && !isClosed(ticket) && cwIsOverdue(el.value.trim());
@@ -1410,6 +1405,9 @@ function setCwField(el) {
   const id    = el.dataset.id;
   const field = el.dataset.field;
   if (!updates[id]) updates[id] = {};
+  if (field === 'finishPhaseCW' && updates[id][field] !== undefined && updates[id][field] !== el.value.trim()) {
+    updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+  }
   updates[id][field] = el.value.trim();
   const ticket = tickets.find(t => t.id === id);
   const isOD   = ticket && !isClosed(ticket) && cwIsOverdue(el.value.trim());
@@ -1539,16 +1537,16 @@ function renderDashboard() {
     const over  = cnt > tgt;
     const fill  = cnt === 0 ? 'rgba(255,255,255,0.05)' : over ? '#CC0000' : '#22c55e';
     const clr   = cnt === 0 ? 'rgba(255,255,255,0.2)'  : over ? '#f87171' : '#4ade80';
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
-      <div style="flex-shrink:0;width:130px">
-        <span style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.65)">${p}</span>
-        <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:6px">${phNames[p]}</span>
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="flex-shrink:0;width:140px">
+        <span style="font-size:13px;font-weight:900;color:rgba(255,255,255,0.7)">${p}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.4);margin-left:7px">${phNames[p]}</span>
       </div>
-      <div style="flex:1;height:18px;background:rgba(255,255,255,0.07);border-radius:var(--radius);position:relative;overflow:visible">
+      <div style="flex:1;height:26px;background:rgba(255,255,255,0.07);border-radius:var(--radius);position:relative;overflow:visible">
         <div style="position:absolute;inset:0;width:${wAct}%;min-width:${cnt>0?'3px':'0'};background:${fill};border-radius:var(--radius);transition:width .4s ease"></div>
-        <div style="position:absolute;top:-4px;bottom:-4px;left:calc(${wTgt}% - 1px);width:2px;background:rgba(255,255,255,0.45);border-radius:1px;z-index:1" title="Target: ${tgt}"></div>
+        <div style="position:absolute;top:-5px;bottom:-5px;left:calc(${wTgt}% - 1px);width:2px;background:rgba(255,255,255,0.45);border-radius:1px;z-index:1" title="Target: ${tgt}"></div>
       </div>
-      <span style="font-size:11px;font-weight:700;color:${clr};white-space:nowrap;width:44px;text-align:right">${cnt} <span style="font-weight:400;opacity:.4;font-size:9px">/ ${tgt}</span></span>
+      <span style="font-size:12px;font-weight:700;color:${clr};white-space:nowrap;width:52px;text-align:right">${cnt} <span style="font-weight:400;opacity:.4;font-size:10px">/ ${tgt}</span></span>
     </div>`;
   }).join('');
 
@@ -1829,6 +1827,44 @@ function renderEfficiency() {
 
   renderEfficiencyChart();
   renderPhaseCountChart();
+  renderFPPredictabilityChart();
+}
+
+// ─────────────────────────────────────────────────────
+//  FINISH PHASE CW ADJUSTMENT FREQUENCY PER PHASE
+// ─────────────────────────────────────────────────────
+function renderFPPredictabilityChart() {
+  const el = document.getElementById('effFPPredBars');
+  if (!el) return;
+  const phOrder  = ['1','2','3','4','5'];
+  const phLabels = { '1':'1 — Investigation','2':'2 — Design','3':'3 — Testing','4':'4 — Implementation','5':'5 — Finalization' };
+  const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+  const phChanges = { '1':0,'2':0,'3':0,'4':0,'5':0 };
+  const phTickets = { '1':0,'2':0,'3':0,'4':0,'5':0 };
+
+  tickets.forEach(t => {
+    const ph = effPhase(t);
+    if (!ph || phChanges[ph] === undefined) return;
+    phTickets[ph]++;
+    phChanges[ph] += (updates[t.id]||{}).fpCWChanges || 0;
+  });
+
+  const maxC = Math.max(...phOrder.map(p => phChanges[p]), 1);
+  el.innerHTML = phOrder.map(p => {
+    const c   = phChanges[p];
+    const n   = phTickets[p];
+    const pct = Math.round(c / maxC * 100);
+    const avg = n > 0 ? (c/n).toFixed(1) : '—';
+    return `<div class="eff-ph-row">
+      <span class="eff-ph-lbl">${phLabels[p]}</span>
+      <div class="eff-ph-bar">
+        <div class="eff-ph-fill" style="width:${pct}%;background:${phColors[p]}">${c>0?`<span class="eff-ph-cnt">${c}</span>`:'&nbsp;'}</div>
+      </div>
+      <span class="eff-ph-meta" style="color:${c>0?phColors[p]:'var(--gray-300)'}">
+        ${c} <span style="font-size:9px;color:var(--gray-400);margin-left:2px">avg ${avg}/ticket</span>
+      </span>
+    </div>`;
+  }).join('');
 }
 
 // ─────────────────────────────────────────────────────
@@ -1889,22 +1925,27 @@ function renderEfficiencyChart() {
   const el = document.getElementById('effTimeChart');
   if (!el) return;
 
-  // ── Group tickets by period ──────────────────────────
-  const periodMap = {};
+  // ── Group opened by dateSubmitted, closed by updated date ──
+  const openedMap = {}, closedMap = {};
   tickets.forEach(t => {
-    const d = (t.dateSubmitted || '').trim();
-    if (!d || !/^\d{4}/.test(d)) return;
-    const key = _effView === 'year' ? d.slice(0,4) : d.slice(0,7);
-    if (!periodMap[key]) periodMap[key] = { submitted:0, closed:0, onTime:0, odTotal:0 };
-    const m = periodMap[key];
-    m.submitted++;
-    if (isClosed(t)) m.closed++;
-    const u   = updates[t.id] || {};
-    const sop = u.sopCW !== undefined ? u.sopCW : t.sop;
-    const fp  = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
-    if (!cwIsOverdue(sop) && !cwIsOverdue(fp)) m.onTime++;
-    Object.values(u.overduePhase || {}).forEach(n => { m.odTotal += n||0; });
+    const ds = (t.dateSubmitted || '').trim();
+    if (ds && /^\d{4}/.test(ds)) {
+      const key = _effView === 'year' ? ds.slice(0,4) : ds.slice(0,7);
+      openedMap[key] = (openedMap[key]||0) + 1;
+    }
+    if (isClosed(t)) {
+      const du = (t.updated || '').trim();
+      if (du && /^\d{4}/.test(du)) {
+        const key = _effView === 'year' ? du.slice(0,4) : du.slice(0,7);
+        closedMap[key] = (closedMap[key]||0) + 1;
+      }
+    }
   });
+
+  // Unified period set from both maps
+  const allKeys = new Set([...Object.keys(openedMap), ...Object.keys(closedMap)]);
+  const periodMap = {};
+  allKeys.forEach(k => { periodMap[k] = { opened: openedMap[k]||0, closed: closedMap[k]||0 }; });
 
   let periods = Object.keys(periodMap).sort();
   if (!periods.length) {
@@ -1913,10 +1954,9 @@ function renderEfficiencyChart() {
     return;
   }
 
-  // For monthly view cap at last 24 months to keep chart readable
+  // For monthly view cap at last 24 months
   if (_effView === 'month' && periods.length > 24) periods = periods.slice(-24);
 
-  // ── Month label helper ────────────────────────────────
   const MON = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function fmtPeriod(k) {
     if (_effView === 'year') return k;
@@ -1925,115 +1965,85 @@ function renderEfficiencyChart() {
   }
 
   const n = periods.length;
-
-  // ── Dimensions — wider bottom padding for rotated labels ─
-  const W    = 900;
-  const padL = 44, padR = 56, padT = 22;
-  const padB = (_effView === 'month' && n > 6) ? 62 : 40;
-  const H    = 300 + (padB - 40);
-  const cW   = W - padL - padR;
-  const cH   = H - padT - padB;
+  const W = 900, padL = 48, padR = 16, padT = 28;
+  const padB = (n > 6) ? 62 : 42;
+  const H = 320 + (padB - 42);
+  const cW = W - padL - padR, cH = H - padT - padB;
   const step = cW / n;
-  // Monthly: thinner bars to prevent overlap
-  const barW = _effView === 'month'
-    ? Math.max(6, Math.min(28, Math.floor(step * 0.55)))
-    : Math.max(10, Math.min(52, Math.floor(step * 0.6)));
-  const maxSub = Math.max(...periods.map(p => periodMap[p].submitted), 1);
+  const halfB = Math.max(5, Math.min(20, Math.floor(step * 0.28)));
+  const TARGET_DELTA = 3; // need to close 3 more than opened per period
 
-  // Label stride — skip labels when there are many months
+  const maxY = Math.max(...periods.map(p => Math.max(periodMap[p].opened, periodMap[p].closed,
+    periodMap[p].opened + TARGET_DELTA)), 1);
   const stride = n > 18 ? 3 : n > 10 ? 2 : 1;
-
+  const tgtPts = [], netPts = [];
   let svg = '';
 
-  // ── Y gridlines + left labels (counts) ───────────────
-  const yTicks = Math.min(maxSub, 5);
+  // ── Y gridlines ─────────────────────────────────────
+  const yTicks = Math.min(maxY, 6);
   for (let i = 0; i <= yTicks; i++) {
-    const val = Math.round(maxSub * i / yTicks);
+    const val = Math.round(maxY * i / yTicks);
     const y   = padT + cH - cH * i / yTicks;
     svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#F0F0F0" stroke-width="1"/>`;
     svg += `<text x="${padL-6}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#9CA3AF">${val}</text>`;
   }
 
-  // ── Right axis labels (%) ────────────────────────────
-  for (let p = 0; p <= 100; p += 25) {
-    const y = padT + cH - cH * p / 100;
-    svg += `<text x="${W-padR+6}" y="${(y+3.5).toFixed(1)}" text-anchor="start" font-size="10" fill="#CC0000" opacity=".55">${p}%</text>`;
-  }
-
-  // ── Bars ─────────────────────────────────────────────
-  const linePts   = [];
-  const linePtsOD = [];
-  const maxAvg = Math.max(...periods.map(k => periodMap[k].submitted > 0 ? periodMap[k].odTotal / periodMap[k].submitted : 0), 0.1);
-
+  // ── Bars + target points ─────────────────────────────
   periods.forEach((p, i) => {
     const m  = periodMap[p];
     const xC = padL + step * i + step / 2;
-    const xL = xC - barW / 2;
 
-    // submitted (light gray)
-    const subH = cH * m.submitted / maxSub;
-    const subY = padT + cH - subH;
-    svg += `<rect x="${xL.toFixed(1)}" y="${subY.toFixed(1)}" width="${barW}" height="${subH.toFixed(1)}" fill="#E5E7EB" rx="1"><title>${fmtPeriod(p)}: ${m.submitted} submitted</title></rect>`;
+    // Opened bar (gray, left of center)
+    if (m.opened > 0) {
+      const h = cH * m.opened / maxY;
+      svg += `<rect x="${(xC - halfB*2 - 1).toFixed(1)}" y="${(padT+cH-h).toFixed(1)}" width="${halfB*2}" height="${h.toFixed(1)}" fill="#D1D5DB" rx="1"><title>${fmtPeriod(p)}: ${m.opened} opened</title></rect>`;
+      svg += `<text x="${(xC-halfB-1).toFixed(1)}" y="${(padT+cH-h-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9CA3AF">${m.opened}</text>`;
+    }
 
-    // closed (green overlay)
+    // Closed bar (green, right of center)
     if (m.closed > 0) {
-      const clH = cH * m.closed / maxSub;
-      const clY = padT + cH - clH;
-      svg += `<rect x="${xL.toFixed(1)}" y="${clY.toFixed(1)}" width="${barW}" height="${clH.toFixed(1)}" fill="#059669" rx="1" opacity=".8"><title>${fmtPeriod(p)}: ${m.closed} closed</title></rect>`;
+      const h = cH * m.closed / maxY;
+      svg += `<rect x="${(xC+1).toFixed(1)}" y="${(padT+cH-h).toFixed(1)}" width="${halfB*2}" height="${h.toFixed(1)}" fill="#059669" rx="1" opacity=".85"><title>${fmtPeriod(p)}: ${m.closed} closed</title></rect>`;
+      svg += `<text x="${(xC+halfB+1).toFixed(1)}" y="${(padT+cH-h-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#059669">${m.closed}</text>`;
     }
 
-    // count label above bar (only when bars are wide enough)
-    if (m.submitted > 0 && barW >= 16) {
-      svg += `<text x="${xC.toFixed(1)}" y="${(subY-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6B7280">${m.submitted}</text>`;
-    }
+    // Target point: opened + TARGET_DELTA
+    const tgt = m.opened + TARGET_DELTA;
+    const ty  = padT + cH - cH * tgt / maxY;
+    tgtPts.push([xC, ty, tgt, p]);
 
-    // x-axis label — only every Nth label to avoid overlap
+    // Net label: closed - opened
+    const net = m.closed - m.opened;
+    const met = net >= TARGET_DELTA;
+    netPts.push([xC, net, met, p]);
+
+    // X-axis label
     if (i % stride === 0) {
       const labelY = padT + cH + 14;
-      const rotate = (n > 6) ? `transform="rotate(-45 ${xC.toFixed(1)} ${labelY})"` : '';
-      svg += `<text x="${xC.toFixed(1)}" y="${labelY}" text-anchor="${n>6?'end':'middle'}" font-size="10" fill="#6B7280" ${rotate}>${fmtPeriod(p)}</text>`;
-    }
-
-    // on-time % → right-axis line
-    if (m.submitted > 0) {
-      const pct = m.onTime / m.submitted * 100;
-      const ly  = padT + cH - cH * pct / 100;
-      linePts.push([xC, ly, pct, p]);
-    }
-
-    // avg OD → dashed line (relative scale)
-    if (m.submitted > 0) {
-      const avg = m.odTotal / m.submitted;
-      const ly2 = padT + cH - cH * avg / maxAvg;
-      linePtsOD.push([xC, ly2, avg, p]);
+      const rot = n > 6 ? `transform="rotate(-45 ${xC.toFixed(1)} ${labelY})"` : '';
+      svg += `<text x="${xC.toFixed(1)}" y="${labelY}" text-anchor="${n>6?'end':'middle'}" font-size="10" fill="#6B7280" ${rot}>${fmtPeriod(p)}</text>`;
     }
   });
 
-  // ── On-time % line ───────────────────────────────────
-  if (linePts.length > 1) {
-    svg += `<polyline points="${linePts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}" fill="none" stroke="#CC0000" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  // ── Target line (orange dashed) ──────────────────────
+  if (tgtPts.length > 1) {
+    svg += `<polyline points="${tgtPts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}" fill="none" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3" stroke-linejoin="round"/>`;
   }
-  linePts.forEach(([x,y,pct,period]) => {
-    svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="#CC0000" stroke="white" stroke-width="2"><title>${fmtPeriod(period)}: ${Math.round(pct)}% on-time</title></circle>`;
-    if (barW >= 14 || linePts.length <= 12) {
-      svg += `<text x="${x.toFixed(1)}" y="${(y-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#CC0000" font-weight="700">${Math.round(pct)}%</text>`;
-    }
+  tgtPts.forEach(([x,y,tgt,period]) => {
+    svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#f97316" stroke="white" stroke-width="1.5"><title>${fmtPeriod(period)}: target = ${tgt} closed (opened+${TARGET_DELTA})</title></circle>`;
   });
 
-  // ── OD avg line (dashed gray) ─────────────────────────
-  if (linePtsOD.length > 1) {
-    svg += `<polyline points="${linePtsOD.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}" fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>`;
-    linePtsOD.forEach(([x,y,avg,period]) => {
-      svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#888" stroke="white" stroke-width="1.5"><title>${fmtPeriod(period)}: avg ${avg.toFixed(1)} OD/ticket</title></circle>`;
-    });
-  }
+  // ── Net labels below x-axis (green/red) ─────────────
+  netPts.forEach(([x, net, met, period]) => {
+    const sign = net > 0 ? '+' : '';
+    svg += `<text x="${x.toFixed(1)}" y="${(padT+cH+28).toFixed(1)}" text-anchor="middle" font-size="9" fill="${met?'#059669':'#DC2626'}" font-weight="700">${sign}${net}</text>`;
+  });
 
-  // ── Axes ────────────────────────────────────────────
+  // ── Axes ─────────────────────────────────────────────
   svg += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+cH}" stroke="#D1D5DB" stroke-width="1"/>`;
   svg += `<line x1="${padL}" y1="${padT+cH}" x2="${W-padR}" y2="${padT+cH}" stroke="#D1D5DB" stroke-width="1"/>`;
-  svg += `<line x1="${W-padR}" y1="${padT}" x2="${W-padR}" y2="${padT+cH}" stroke="rgba(204,0,0,.2)" stroke-width="1" stroke-dasharray="2 2"/>`;
 
-  const minSvgW = _effView === 'month' ? Math.max(480, n * 36) : Math.max(360, n * 80);
+  const minSvgW = _effView === 'month' ? Math.max(480, n * 48) : Math.max(360, n * 90);
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block;min-width:${minSvgW}px">${svg}</svg>`;
   if (_effView === 'month' && periods.length === 24) {
     el.innerHTML += `<p style="font-size:10px;color:var(--gray-400);text-align:right;margin-top:4px">Showing last 24 months</p>`;
@@ -2042,16 +2052,16 @@ function renderEfficiencyChart() {
   // ── Legend ──────────────────────────────────────────
   document.getElementById('effChartLegend').innerHTML = `
     <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-600)">
-      <svg width="12" height="12"><rect width="12" height="12" fill="#E5E7EB" rx="1"/></svg> Submitted
+      <svg width="12" height="12"><rect width="12" height="12" fill="#D1D5DB" rx="1"/></svg> Opened (by submission date)
     </span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-600)">
-      <svg width="12" height="12"><rect width="12" height="12" fill="#059669" rx="1" opacity=".8"/></svg> Closed
+    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#059669">
+      <svg width="12" height="12"><rect width="12" height="12" fill="#059669" rx="1" opacity=".85"/></svg> Closed (by last-updated date)
     </span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#CC0000">
-      <svg width="20" height="12"><line x1="0" y1="6" x2="20" y2="6" stroke="#CC0000" stroke-width="2.5"/><circle cx="10" cy="6" r="3.5" fill="#CC0000" stroke="white" stroke-width="1.5"/></svg> On-time % (right axis)
+    <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#f97316">
+      <svg width="22" height="12"><line x1="0" y1="6" x2="22" y2="6" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3"/><circle cx="11" cy="6" r="3" fill="#f97316" stroke="white" stroke-width="1.5"/></svg> Target (opened +${TARGET_DELTA}/period)
     </span>
     <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-500)">
-      <svg width="20" height="12"><line x1="0" y1="6" x2="20" y2="6" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3"/><circle cx="10" cy="6" r="2.5" fill="#888" stroke="white" stroke-width="1.5"/></svg> Avg OD incidents/ticket (relative scale)
+      <span style="font-size:10px;font-weight:700;color:#059669">+N</span>&nbsp;/&nbsp;<span style="font-size:10px;font-weight:700;color:#DC2626">−N</span> Net per period (below axis)
     </span>`;
 }
 
