@@ -82,8 +82,7 @@
 
     .stacked-wrap { margin-bottom: 20px; }
     .stacked-label { font-size: 10px; color: var(--gray-500); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-    .stacked-bar { height: 26px; border-radius: var(--radius); overflow: hidden; display: flex; }
-    .stacked-seg { height: 100%; transition: width .5s ease; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; overflow: hidden; white-space: nowrap; }
+    /* stacked-bar removed */
 
     .hbar-row { margin-bottom: 13px; }
     .hbar-head { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
@@ -120,10 +119,7 @@
     .dash-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 
     /* Phase compact (stacked bar only, no hbars) */
-    .phase-mini-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 14px; }
-    .phase-mini-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.65); }
-    .phase-mini-dot { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
-    .phase-mini-cnt { font-weight: 700; color: white; margin-left: auto; font-size: 12px; }
+    /* phase-mini-legend removed */
 
     /* High priority extensive (dark card) */
     .hi-list { list-style: none; overflow-y: auto; max-height: 400px; }
@@ -1495,26 +1491,10 @@ function renderDashboard() {
 
   // ── PHASE DATA ────────────────────────────────────────
   const phOrder  = ['1','2','3','4','5'];
-  const phShort  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
   const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+  const phNames  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
   const phCounts = {};
   active.forEach(t => { const ph = effPhase(t)||''; phCounts[ph] = (phCounts[ph]||0)+1; });
-
-  const stackedSegs = phOrder.map(p => {
-    const cnt = phCounts[p]||0;
-    if (!cnt) return '';
-    const pct = (cnt/activeTotal*100).toFixed(1);
-    return `<div class="stacked-seg" style="width:${pct}%;background:${phColors[p]}" title="${phShort[p]}: ${cnt}">${parseFloat(pct)>10?cnt:''}</div>`;
-  }).join('');
-
-  const phaseLegend = phOrder.map(p => {
-    const cnt = phCounts[p]||0;
-    return `<div class="phase-mini-row">
-      <span class="phase-mini-dot" style="background:${phColors[p]}"></span>
-      <span>${phShort[p]}</span>
-      <span class="phase-mini-cnt">${cnt}</span>
-    </div>`;
-  }).join('');
 
   // ── HIGH PRIORITY EXTENDED ────────────────────────────
   const highTickets = active.filter(t => effPri(t) === 'HIGH').sort((a,b) => (a.id||'').localeCompare(b.id||''));
@@ -1545,45 +1525,42 @@ function renderDashboard() {
         </li>`;
       }).join('');
 
-  // ── PHASE DISTRIBUTION — actual vs target bars ───────────
-  const PH_TARGETS  = { '1':10, '2':10, '3':15, '4':10, '5':5 };
-  const PH_NAMES    = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
-  const maxPhScale  = Math.max(
-    ...phOrder.map(p => phCounts[p]||0),
-    ...phOrder.map(p => PH_TARGETS[p]),
-    1
-  );
-  const phDistBars = phOrder.map(p => {
-    const cnt  = phCounts[p] || 0;
-    const tgt  = PH_TARGETS[p];
-    const wAct = (cnt  / maxPhScale * 100).toFixed(1);
-    const wTgt = (tgt  / maxPhScale * 100).toFixed(1);
-    const over = cnt > tgt;
-    const fillColor  = cnt === 0 ? 'rgba(255,255,255,0.04)' : over ? '#CC0000' : '#22c55e';
-    const labelColor = cnt === 0 ? 'rgba(255,255,255,0.2)'  : over ? '#f87171' : '#4ade80';
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <div style="flex-shrink:0;width:128px;line-height:1.3">
-        <span style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.6)">${p}</span>
-        <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:5px">${PH_NAMES[p]}</span>
+  // ── PHASE DISTRIBUTION — bar chart actual vs target ──────
+  // Targets: P1=10, P2=10, P3=15, P4=10, P5=5
+  // Lower is favorable: under target → green, over target → red
+  const PH_TGT = { '1':10, '2':10, '3':15, '4':10, '5':5 };
+  const phScale = Math.max(...phOrder.map(p => phCounts[p]||0), ...phOrder.map(p => PH_TGT[p]), 1);
+
+  const phDistBarsHTML = phOrder.map(p => {
+    const cnt   = phCounts[p] || 0;
+    const tgt   = PH_TGT[p];
+    const wAct  = (cnt  / phScale * 100).toFixed(1);
+    const wTgt  = (tgt  / phScale * 100).toFixed(1);
+    const over  = cnt > tgt;
+    const fill  = cnt === 0 ? 'rgba(255,255,255,0.05)' : over ? '#CC0000' : '#22c55e';
+    const clr   = cnt === 0 ? 'rgba(255,255,255,0.2)'  : over ? '#f87171' : '#4ade80';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
+      <div style="flex-shrink:0;width:130px">
+        <span style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.65)">${p}</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:6px">${phNames[p]}</span>
       </div>
-      <div style="flex:1;height:16px;background:rgba(255,255,255,0.06);border-radius:var(--radius);position:relative">
-        <div style="width:${wAct}%;min-width:${cnt>0?'4px':'0'};height:100%;background:${fillColor};border-radius:var(--radius);position:absolute;top:0;left:0;transition:width .4s ease"></div>
-        <div style="position:absolute;top:-3px;bottom:-3px;left:calc(${wTgt}% - 1px);width:2px;background:rgba(255,255,255,0.4);border-radius:1px" title="Target: ${tgt}"></div>
+      <div style="flex:1;height:18px;background:rgba(255,255,255,0.07);border-radius:var(--radius);position:relative;overflow:visible">
+        <div style="position:absolute;inset:0;width:${wAct}%;min-width:${cnt>0?'3px':'0'};background:${fill};border-radius:var(--radius);transition:width .4s ease"></div>
+        <div style="position:absolute;top:-4px;bottom:-4px;left:calc(${wTgt}% - 1px);width:2px;background:rgba(255,255,255,0.45);border-radius:1px;z-index:1" title="Target: ${tgt}"></div>
       </div>
-      <span style="font-size:10px;font-weight:700;color:${labelColor};white-space:nowrap;width:38px;text-align:right">${cnt}<span style="font-weight:400;opacity:.45">/${tgt}</span></span>
+      <span style="font-size:11px;font-weight:700;color:${clr};white-space:nowrap;width:44px;text-align:right">${cnt} <span style="font-weight:400;opacity:.4;font-size:9px">/ ${tgt}</span></span>
     </div>`;
   }).join('');
-  const phDistLegend = `<div style="display:flex;gap:14px;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:.05em;text-transform:uppercase;flex-wrap:wrap">
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:16px;height:2px;background:rgba(255,255,255,0.4);border-radius:1px"></span>Target</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:1px"></span>Under target</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#CC0000;border-radius:1px"></span>Over target</span>
-  </div>`;
 
   dashGridTop.innerHTML = `
     <div class="dash-card-dk">
-      <h3>Phase Distribution &nbsp;<span style="font-weight:400;opacity:.4;font-size:8px;text-transform:none;letter-spacing:0">actual / target</span></h3>
-      <div style="margin-top:6px">${phDistBars}</div>
-      ${phDistLegend}
+      <h3>Phase Distribution <span style="font-size:8px;font-weight:400;opacity:.4;text-transform:none;letter-spacing:0;margin-left:4px">actual / target</span></h3>
+      <div style="margin-top:8px">${phDistBarsHTML}</div>
+      <div style="display:flex;gap:14px;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.06em;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:2px;background:rgba(255,255,255,0.4);border-radius:1px;display:inline-block"></span>Target</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>Under target</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#CC0000;border-radius:2px;display:inline-block"></span>Over target</span>
+      </div>
     </div>
     <div class="dash-card-dk">
       <h3>High Priority <span class="high-badge">HIGH</span></h3>
