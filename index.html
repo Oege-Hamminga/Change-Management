@@ -2084,17 +2084,12 @@ function renderEfficiencyChart() {
   if (!el) return;
 
   // ── Build period maps ─────────────────────────────────────────────────
-  // Yearly view: all tickets across all years (full history from 2015 onward)
-  // Monthly view: active tickets + closed-this-year only
-  const _chartYear = new Date().getFullYear().toString();
-  // For monthly view: include done tickets whose effective close date (updated or dateSubmitted) is this year
+  // Both yearly and monthly views use all tickets (complete history)
   function doneCloseDate(t) {
     const du = (t.updated || '').trim();
     return (du && /^\d{4}/.test(du)) ? du : (t.dateSubmitted || '').trim();
   }
-  const chartTickets = _effView === 'year'
-    ? tickets
-    : tickets.filter(t => !isDone(t) || doneCloseDate(t).slice(0,4) === _chartYear);
+  const chartTickets = tickets;
   const openedMap = {}, closedMap = {};
   chartTickets.forEach(t => {
     const ds = (t.dateSubmitted || '').trim();
