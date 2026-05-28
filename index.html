@@ -555,7 +555,6 @@
       <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap" id="effChartLegend"></div>
     </div>
     <div class="eff-grid">
-      <div class="eff-section" style="grid-column:1/-1" id="effPhaseChart"><h3>Overdue Events by Phase</h3><div id="effPhaseBars"></div></div>
       <div class="eff-section" style="grid-column:1/-1" id="effFPPred">
         <h3>Finish Phase CW Adjustment Frequency <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)">— how often was the Finish Phase CW date changed per phase</span></h3>
         <div id="effFPPredBars"></div>
@@ -1929,8 +1928,9 @@ function renderEfficiency() {
     const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
     return cwIsOverdue(fp);
   }).length;
-  const fpODPct = activeTotal > 0 ? Math.round(fpODCount / activeTotal * 100) : 0;
-  const fpODCls = fpODPct > 0 ? 'red' : '';
+  const fpODPct    = activeTotal > 0 ? Math.round(fpODCount / activeTotal * 100) : 0;
+  const fpOnTimePct = 100 - fpODPct;
+  const fpODCls    = fpODPct > 0 ? 'red' : 'grn';
 
   document.getElementById('effStatRow').innerHTML = `
     <div class="eff-stat-card ${netCls}">
@@ -1939,9 +1939,9 @@ function renderEfficiency() {
       <div class="eff-stat-sub">${closedThisMonth} closed · ${openedThisMonth} opened · ${curMonthLabel}</div>
     </div>
     <div class="eff-stat-card ${fpODCls}">
-      <div class="eff-stat-val">${fpODPct}%</div>
+      <div class="eff-stat-val">${fpOnTimePct}%</div>
       <div class="eff-stat-label">Finish Phase Predictability</div>
-      <div class="eff-stat-sub">${fpODCount} overdue · ${activeTotal} active · ${curMonthLabel}</div>
+      <div class="eff-stat-sub">${fpODCount} overdue · ${activeTotal - fpODCount} on track · ${curMonthLabel}</div>
     </div>
     <div class="eff-stat-card ${fpThisCW > 0 ? 'blu' : ''}">
       <div class="eff-stat-val">${fpThisCW}</div>
@@ -1971,25 +1971,6 @@ function renderEfficiency() {
     (t.dateSubmitted||'').slice(0,4) === curYear ||
     (isDone(t) && (t.updated||'').slice(0,4) === curYear)
   );
-
-  const phODTotals = { '1':0,'2':0,'3':0,'4':0,'5':0 };
-  effTickets.forEach(t => {
-    const op = (updates[t.id]||{}).overduePhase || {};
-    phOrder.forEach(p => { phODTotals[p] += op[p]||0; });
-  });
-  const maxOD = Math.max(...Object.values(phODTotals), 1);
-
-  document.getElementById('effPhaseBars').innerHTML = phOrder.map(p => {
-    const cnt = phODTotals[p];
-    const w   = Math.round(cnt/maxOD*100);
-    return `<div class="eff-ph-row">
-      <span class="eff-ph-lbl">${phLabels[p]}</span>
-      <div class="eff-ph-bar">
-        <div class="eff-ph-fill" style="width:${w}%;background:${phColors[p]}">${cnt>0?`<span class="eff-ph-cnt">${cnt}</span>`:'&nbsp;'}</div>
-      </div>
-      <span class="eff-ph-meta" style="color:${cnt>0?phColors[p]:'var(--gray-300)'}">${cnt}</span>
-    </div>`;
-  }).join('');
 
   // Per-ticket overdue table — active + closed-this-year only
   const allTickets = [...effTickets].sort((a,b) => (a.id||'').localeCompare(b.id||''));
