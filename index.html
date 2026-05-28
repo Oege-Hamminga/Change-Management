@@ -457,6 +457,16 @@
     .toast { position: fixed; bottom: 22px; right: 22px; background: var(--dark); color: white; padding: 10px 18px; border-radius: var(--radius); border-left: 3px solid var(--primary); font-size: 12px; font-weight: 600; letter-spacing: 0.03em; opacity: 0; transform: translateY(8px); transition: all .3s; z-index: 999; pointer-events: none; }
     .toast.show { opacity: 1; transform: translateY(0); }
 
+    /* ── Phase-change modal ── */
+    .ph-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 850; display: flex; align-items: center; justify-content: center; }
+    .ph-modal-box { background: white; border-radius: var(--radius); border-top: 3px solid var(--primary); padding: 28px 30px 24px; width: 360px; max-width: 94vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    .ph-modal-title { font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dark); margin-bottom: 10px; }
+    .ph-modal-sub { font-size: 13px; color: var(--gray-600); margin-bottom: 18px; line-height: 1.55; }
+    .ph-modal-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-500); display: block; margin-bottom: 5px; }
+    .ph-modal-input { width: 100%; padding: 9px 12px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 14px; font-family: inherit; outline: none; margin-bottom: 20px; transition: border-color var(--transition); }
+    .ph-modal-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+    .ph-modal-btns { display: flex; gap: 8px; }
+
     /* ── Password overlay ── */
     .pw-overlay { position: fixed; inset: 0; background: #141414; z-index: 9999; display: flex; align-items: center; justify-content: center; }
     .pw-box { background: #2D2D2D; border: 1px solid #3A3A3A; border-top: 3px solid var(--primary); border-radius: var(--radius); padding: 48px 52px; width: 380px; max-width: 92vw; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
@@ -659,6 +669,21 @@
 
 </main>
 <div class="toast" id="toast"></div>
+
+<!-- Phase-change CW modal -->
+<div id="phModal" class="ph-modal-backdrop" style="display:none" onclick="if(event.target===this)cancelPhaseChange()">
+  <div class="ph-modal-box">
+    <div class="ph-modal-title">Phase Updated</div>
+    <p class="ph-modal-sub" id="phModalMsg"></p>
+    <label class="ph-modal-label">New Finish Phase (CW)</label>
+    <input class="ph-modal-input" type="text" id="phModalInput" placeholder="e.g. 24" maxlength="4"
+           onkeydown="if(event.key==='Enter')confirmPhaseChange();if(event.key==='Escape')cancelPhaseChange()">
+    <div class="ph-modal-btns">
+      <button class="btn btn-primary" onclick="confirmPhaseChange()">Confirm</button>
+      <button class="btn btn-secondary" onclick="cancelPhaseChange()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -1164,7 +1189,7 @@ function renderTable() {
       ${sopCell}
       <td class="${(sopOD||fpOD)?'phase-od-cell':''}">
         <div style="display:flex;align-items:center">
-          <select class="phase-sel ${phaseCls}" data-id="${esc(t.id)}" onchange="setPhase(this)">${phOpts}</select>
+          <select class="phase-sel ${phaseCls}" data-id="${esc(t.id)}" data-prev-phase="${esc(eph||'')}" onchange="setPhase(this)">${phOpts}</select>
           ${(sopOD||fpOD)?`<span class="phase-od-pip" title="${sopOD&&fpOD?'SOP &amp; Finish Phase overdue':sopOD?'SOP CW overdue':'Finish Phase CW overdue'}"></span>`:''}
         </div>
       </td>
@@ -1234,13 +1259,53 @@ function setTaskDept(el) {
   save();
 }
 
+let _phModalEl = null, _phModalPrev = '';
+
 function setPhase(el) {
-  const id = el.dataset.id;
+  _phModalEl   = el;
+  _phModalPrev = el.dataset.prevPhase || el.dataset.prevphase || '';
+  // Store current value as prev for next change
+  el.dataset.prevPhase = el.value;
+
+  const PH_NAMES = {'1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization'};
+  const id   = el.dataset.id;
+  const newP = el.value;
+  const upd  = updates[id] || {};
+  const curFP = upd.finishPhaseCW !== undefined ? upd.finishPhaseCW : ((tickets.find(t=>t.id===id)||{}).finishPhase||'');
+  const label = newP ? `${newP} — ${PH_NAMES[newP]}` : '—';
+
+  document.getElementById('phModalMsg').textContent =
+    `Phase set to "${label}". Please confirm the new Finish Phase calendar week.`;
+  document.getElementById('phModalInput').value = curFP;
+  document.getElementById('phModal').style.display = 'flex';
+  document.getElementById('phModalInput').select();
+  document.getElementById('phModalInput').focus();
+}
+
+function confirmPhaseChange() {
+  if (!_phModalEl) return;
+  const id  = _phModalEl.dataset.id;
+  const cw  = document.getElementById('phModalInput').value.trim();
   if (!updates[id]) updates[id] = {};
-  updates[id].phase = el.value;
-  el.className = `phase-sel ph-${el.value||'x'}`;
+  updates[id].phase = _phModalEl.value;
+  // Update FP CW silently — phase change is intentional, not a missed deadline
+  if (cw !== '') updates[id].finishPhaseCW = cw;
+  _phModalEl.className = `phase-sel ph-${_phModalEl.value||'x'}`;
+  document.getElementById('phModal').style.display = 'none';
+  _phModalEl = null;
   save();
   renderDashboard();
+  renderTable();
+}
+
+function cancelPhaseChange() {
+  if (_phModalEl) {
+    _phModalEl.value = _phModalPrev;
+    _phModalEl.dataset.prevPhase = _phModalPrev;
+    _phModalEl.className = `phase-sel ph-${_phModalPrev||'x'}`;
+    _phModalEl = null;
+  }
+  document.getElementById('phModal').style.display = 'none';
 }
 
 function setCR(el) {
