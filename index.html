@@ -70,6 +70,7 @@
     .stat-card.alert { background: rgba(204,0,0,0.02); border-color: var(--primary-border); }
     .stat-card-btn { cursor: pointer; }
     .stat-card-btn:hover { border-color: rgba(255,255,255,0.18); background: #2e2e2e; }
+    .stat-card-sel { border-bottom: 2px solid rgba(255,255,255,0.5) !important; }
     .stat-val { font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
     .stat-label { font-size: 9px; color: var(--gray-500); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
 
@@ -134,7 +135,7 @@
     .hi-meta { display: flex; gap: 10px; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 4px; flex-wrap: wrap; }
     .hi-meta strong { color: rgba(255,255,255,0.65); }
     .hi-progress { font-size: 11px; color: rgba(255,255,255,0.45); font-style: italic; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hi-task-inp { width: 100%; box-sizing: border-box; background: rgba(37,99,235,0.15); border: 1px solid rgba(37,99,235,0.3); color: rgba(147,197,253,1); border-radius: var(--radius); padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.5; resize: none; outline: none; margin-top: 5px; }
+    .hi-task-inp { flex: 1; min-width: 0; box-sizing: border-box; background: rgba(37,99,235,0.15); border: 1px solid rgba(37,99,235,0.3); color: rgba(147,197,253,1); border-radius: var(--radius); padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.5; resize: none; outline: none; display: block; }
     .hi-task-inp::placeholder { color: rgba(255,255,255,0.2); font-style: italic; }
     .hi-task-inp:focus { border-color: rgba(147,197,253,0.6); background: rgba(37,99,235,0.22); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
 
@@ -227,6 +228,21 @@
     .week-item.done-item { opacity: 0.65; }
     .week-item.done-item .week-task { text-decoration: line-through; color: var(--gray-400); }
     .week-item.missed-item { border-color: #fca5a5; background: #fff5f5; }
+    .week-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .dash-card-dk .week-item { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.07); }
+    .dash-card-dk .week-item:hover { border-color: rgba(255,255,255,0.15); }
+    .dash-card-dk .week-summary { color: rgba(255,255,255,0.5); }
+    .dash-card-dk .week-task { color: rgba(255,255,255,0.75); }
+    .dash-card-dk .week-empty { color: rgba(255,255,255,0.3); }
+    .dash-card-dk .week-item.done-item .week-task { color: rgba(255,255,255,0.3); }
+    .dash-card-dk .week-item.missed-item { border-color: rgba(220,38,38,0.5); background: rgba(220,38,38,0.08); }
+    .dash-card-dk .wst-btn.idle { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.35); }
+    .dash-card-dk .wst-btn.idle:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.6); }
+    .dash-card-dk .od-row { border-bottom-color: rgba(255,255,255,0.07); }
+    .dash-card-dk .od-summary { color: rgba(255,255,255,0.6); }
+    .dash-card-dk .od-cw-lbl { color: rgba(255,255,255,0.3); }
+    .dash-card-dk .od-cw-inp { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); color: rgba(255,255,255,0.8); }
+    .dash-card-dk .cw-cur-label { background: rgba(37,99,235,0.2); color: #93c5fd; }
 
     .dash-empty { text-align: center; padding: 48px; color: var(--gray-500); }
     .dash-empty .ei { font-size: 40px; margin-bottom: 12px; }
@@ -702,10 +718,11 @@ let sortKey    = 'priority';
 let sortDir    = 'asc';
 let colFilters = {};
 let selectedTicketId = null;
-let _kpiMonth  = new Date().toISOString().slice(0, 7);  // YYYY-MM, default = current month
+let _kpiMonth  = new Date().toISOString().slice(0, 7);
 let _skipFilterRowRebuild = false;
-let _dashFPOpen = false;
-let _detailEdit      = null; // { id, wk }
+let _dashTopPanel = 'high';   // 'high' | 'fp' | 'overdue'
+let _btFilter     = 'open';   // 'open' | 'closed' | 'all'
+let _detailEdit      = null;
 
 // ═══════════════════════════════════════════════════════
 //  CALENDAR WEEK UTILITIES
@@ -1656,7 +1673,8 @@ function renderDashboard() {
     return;
   }
   dashEmpty.style.display = 'none';
-  secTop.style.display = secBot.style.display = '';
+  secTop.style.display = '';
+  secBot.style.display = 'none';
 
   const closed      = tickets.filter(t => isClosed(t));
   const active      = tickets.filter(t => !isClosed(t));
@@ -1675,15 +1693,18 @@ function renderDashboard() {
   const fpThisCW = fpThisCWTickets.length;
 
   // ── STAT CARDS (dark) ────────────────────────────────
-  statCards.innerHTML = [
-    { val: activeTotal, label: 'OPEN',                    color: 'white' },
-    { val: fpThisCW,    label: 'PHASES TO FINISH THIS CW', color: fpThisCW>0?'#fbbf24':'rgba(255,255,255,0.38)', click: true },
-    { val: p1Count,     label: 'HIGH PRIORITY',           color: '#f87171' },
-    { val: fpOD,        label: 'FINISH PHASE CW OVERDUE', color: fpOD>0?'#f87171':'rgba(255,255,255,0.38)', alert: fpOD>0 },
-  ].map(s => `<div class="stat-card${s.alert?' alert':''}${s.click?' stat-card-btn':''}"${s.click?` onclick="toggleFPThisCW()" title="Click to view tickets"`:''}>
-    <div class="stat-val" style="color:${s.color}">${s.val}</div>
-    <div class="stat-label">${s.label}</div>
-  </div>`).join('');
+  const _sc = [
+    { val: activeTotal, label: 'OPEN',                     color: 'white',                                         fn: `switchTab('tracker')` },
+    { val: p1Count,     label: 'HIGH PRIORITY',            color: '#f87171',                                       fn: `setDashPanel('high')`,   sel: _dashTopPanel==='high' },
+    { val: fpThisCW,    label: 'PHASES TO FINISH THIS CW', color: fpThisCW>0?'#fbbf24':'rgba(255,255,255,0.38)',   fn: `setDashPanel('fp')`,     sel: _dashTopPanel==='fp' },
+    { val: fpOD,        label: 'FINISH PHASE CW OVERDUE',  color: fpOD>0?'#f87171':'rgba(255,255,255,0.38)',       fn: `setDashPanel('overdue')`,sel: _dashTopPanel==='overdue', alert: fpOD>0 },
+  ];
+  statCards.innerHTML = _sc.map(s =>
+    `<div class="stat-card stat-card-btn${s.alert?' alert':''}${s.sel?' stat-card-sel':''}" onclick="${s.fn}" title="Click">
+      <div class="stat-val" style="color:${s.color}">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>`
+  ).join('');
 
   // ── PHASE DATA ────────────────────────────────────────
   const phOrder  = ['1','2','3','4','5'];
@@ -1750,51 +1771,7 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  dashGridTop.innerHTML = `
-    <div class="dash-card-dk">
-      <h3>Phase Distribution <span style="font-size:8px;font-weight:400;opacity:.4;text-transform:none;letter-spacing:0;margin-left:4px">actual / target</span></h3>
-      <div style="margin-top:8px">${phDistBarsHTML}</div>
-      <div style="display:flex;gap:14px;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.06em;flex-wrap:wrap">
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:2px;background:rgba(255,255,255,0.4);border-radius:1px;display:inline-block"></span>Target</span>
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>Under target</span>
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#CC0000;border-radius:2px;display:inline-block"></span>Over target</span>
-      </div>
-    </div>
-    <div class="dash-card-dk">
-      <h3>High Priority <span class="high-badge">HIGH</span></h3>
-      <ul class="hi-list">${highExtHTML}</ul>
-    </div>
-    ${_dashFPOpen ? `<div class="dash-card-dk" style="grid-column:1/-1">
-      <h3>Phases to Finish This CW &nbsp;<span class="cw-label cw-cur-label">CW${CUR_WEEK}</span></h3>
-      ${fpThisCWTickets.length === 0
-        ? `<p style="color:rgba(255,255,255,0.25);font-size:13px;padding:12px 0">No tickets with Finish Phase = CW${CUR_WEEK}</p>`
-        : `<ul class="hi-list">${fpThisCWTickets.map(t => {
-            const upd2 = updates[t.id]||{};
-            const c2   = getEC(t);
-            const ep2  = effPhase(t);
-            return `<li class="hi-ext">
-              <div class="hi-head">${tktLink(t.id,'hi-id')}
-                <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
-                ${phaseBadge(ep2)}
-              </div>
-              <div class="hi-meta">
-                <span>SOP <strong>CW${esc(c2.sop||'—')}</strong></span>
-                <span>Finish <strong>CW${esc(c2.fp||'—')}</strong></span>
-                ${t.productManager?`<span>PM: <strong>${esc(t.productManager)}</strong></span>`:''}
-              </div>
-              ${t.progressUpdate?`<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>`:''}
-              <div style="display:flex;gap:6px;align-items:flex-start;margin-top:5px">
-                <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
-                <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
-                  <option value="">— dept —</option>
-                  ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
-                </select>
-              </div>
-            </li>`;
-          }).join('')}</ul>`}
-    </div>` : ''}`;
-
-  // ── TASKS THIS WEEK ───────────────────────────────────
+  // ── TASKS WEEKS ──────────────────────────────────────
   function weekItem(t, taskText) {
     const ep = effPri(t);
     const idTag = tktLink(t.id, 'week-id');
@@ -1809,14 +1786,14 @@ function renderDashboard() {
   }
 
   function lastWeekItem(t, taskText) {
-    const ep  = effPri(t);
+    const ep    = effPri(t);
     const idTag = tktLink(t.id, 'week-id');
-    const dot = ep === 'HIGH' ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-left:4px;vertical-align:middle"></span>` : '';
-    const st  = ((updates[t.id]||{}).taskHistoryStatus||{})[PREV_WK_KEY] || '';
+    const dot   = ep === 'HIGH' ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-left:4px;vertical-align:middle"></span>` : '';
+    const st    = ((updates[t.id]||{}).taskHistoryStatus||{})[PREV_WK_KEY] || '';
     const doneCls   = st === 'done'   ? ' done'   : ' idle';
     const missedCls = st === 'missed' ? ' missed' : ' idle';
-    const itemCls   = st === 'done' ? ' done-item' : st === 'missed' ? ' missed-item' : '';
-    const idSafe = esc(t.id).replace(/'/g,"\\'");
+    const itemCls   = st === 'done'   ? ' done-item' : st === 'missed' ? ' missed-item' : '';
+    const idSafe    = esc(t.id).replace(/'/g,"\\'");
     return `<li class="week-item${itemCls}">
       <div class="week-id-col">
         ${idTag}${dot}
@@ -1833,10 +1810,7 @@ function renderDashboard() {
   }
 
   const thisWeekItems = active.filter(t => (updates[t.id]||{}).taskThisWeek);
-  const lastWeekItems = active.filter(t => {
-    const hist = (updates[t.id]||{}).taskHistory||{};
-    return hist[PREV_WK_KEY];
-  });
+  const lastWeekItems = active.filter(t => !!((updates[t.id]||{}).taskHistory||{})[PREV_WK_KEY]);
 
   const thisWeekHTML = thisWeekItems.length
     ? `<ul class="week-list">${thisWeekItems.map(t => weekItem(t, updates[t.id].taskThisWeek)).join('')}</ul>`
@@ -1846,7 +1820,7 @@ function renderDashboard() {
     ? `<ul class="week-list">${lastWeekItems.map(t => lastWeekItem(t, updates[t.id].taskHistory[PREV_WK_KEY])).join('')}</ul>`
     : `<p class="week-empty">No tasks recorded for CW${PREV_WEEK}.</p>`;
 
-  // ── CW OVERDUE — grouped by phase 1–5 ────────────────
+  // ── CW OVERDUE ────────────────────────────────────────
   const odSortByUrgency = (a,b) => {
     const ca=getEC(a), cb=getEC(b);
     return Math.min(parseCW(ca.sop)||999,parseCW(ca.fp)||999) - Math.min(parseCW(cb.sop)||999,parseCW(cb.fp)||999);
@@ -1854,7 +1828,7 @@ function renderDashboard() {
   const overdueItems = active.filter(t => { const c=getEC(t); return cwIsOverdue(c.sop)||cwIsOverdue(c.fp); });
 
   function odTicketHTML(t) {
-    const c = getEC(t);
+    const c    = getEC(t);
     const sopOD = cwIsOverdue(c.sop), fpOD = cwIsOverdue(c.fp);
     const idTag = tktLink(t.id, 'od-id');
     return `<div class="od-row">
@@ -1879,45 +1853,125 @@ function renderDashboard() {
 
   const OD_PH_NAMES = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization','_':'No Phase' };
   const overdueHTML = overdueItems.length === 0
-    ? '<p style="font-size:13px;color:var(--gray-500);padding:8px 0">No overdue CW deadlines ✓</p>'
+    ? '<p style="font-size:13px;color:rgba(255,255,255,0.3);padding:8px 0">No overdue CW deadlines ✓</p>'
     : (() => {
         const byPh = { '1':[], '2':[], '3':[], '4':[], '5':[], '_':[] };
         overdueItems.forEach(t => { const ph = effPhase(t)||'_'; (byPh[ph]||byPh['_']).push(t); });
         return ['1','2','3','4','5','_'].map((ph, idx) => {
           const items = [...(byPh[ph]||[])].sort(odSortByUrgency);
           if (!items.length) return '';
-          const col = phColors[ph] || 'var(--gray-400)';
-          const hdr = `<div style="display:flex;align-items:center;gap:6px;${idx>0?'margin-top:10px;':''
-            }margin-bottom:5px;padding-top:${idx>0?'8px':'0'};${idx>0?'border-top:1px solid var(--gray-100)':''}">
+          const col = phColors[ph] || 'rgba(255,255,255,0.4)';
+          const hdr = `<div style="display:flex;align-items:center;gap:6px;${idx>0?'margin-top:10px;':''}margin-bottom:5px;padding-top:${idx>0?'8px':'0'};${idx>0?'border-top:1px solid rgba(255,255,255,0.08)':''}">
             <span style="display:inline-block;width:3px;height:14px;background:${col};border-radius:1px;flex-shrink:0"></span>
-            <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:${col}">
-              ${ph !== '_' ? `Phase ${ph}` : ''} — ${OD_PH_NAMES[ph]}
-            </span>
-            <span style="font-size:9px;color:var(--gray-400);margin-left:auto">${items.length} ticket${items.length>1?'s':''}</span>
+            <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:${col}">${ph !== '_' ? `Phase ${ph}` : ''} — ${OD_PH_NAMES[ph]}</span>
+            <span style="font-size:9px;color:rgba(255,255,255,0.3);margin-left:auto">${items.length} ticket${items.length>1?'s':''}</span>
           </div>`;
           return hdr + items.map(odTicketHTML).join('');
         }).join('');
       })();
 
-  dashGrid.innerHTML = `
-    <div class="dash-card">
-      <h3>Tasks Last Week &nbsp;<span class="cw-label" style="background:rgba(0,0,0,0.06);color:var(--gray-500)">CW${PREV_WEEK}</span></h3>
+  // ── FP THIS CW ITEMS ──────────────────────────────────
+  const fpItemsHTML = fpThisCWTickets.length === 0
+    ? `<p style="color:rgba(255,255,255,0.25);font-size:13px;padding:12px 0">No tickets with Finish Phase = CW${CUR_WEEK}</p>`
+    : `<ul class="hi-list">${fpThisCWTickets.map(t => {
+        const upd2 = updates[t.id]||{};
+        const c2   = getEC(t);
+        const ep2  = effPhase(t);
+        return `<li class="hi-ext">
+          <div class="hi-head">${tktLink(t.id,'hi-id')}
+            <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
+            ${phaseBadge(ep2)}
+          </div>
+          <div class="hi-meta">
+            <span>SOP <strong>CW${esc(c2.sop||'—')}</strong></span>
+            <span>Finish <strong>CW${esc(c2.fp||'—')}</strong></span>
+            ${t.productManager?`<span>PM: <strong>${esc(t.productManager)}</strong></span>`:''}
+          </div>
+          ${t.progressUpdate?`<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>`:''}
+          <div style="display:flex;gap:6px;align-items:flex-start;margin-top:5px">
+            <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
+            <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
+              <option value="">— dept —</option>
+              ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+            </select>
+          </div>
+        </li>`;
+      }).join('')}</ul>`;
+
+  // ── MOST INACTIVE OPEN TICKETS ────────────────────────
+  const inactiveItems = [...active]
+    .sort((a,b) => (a.updated||a.dateSubmitted||'').localeCompare(b.updated||b.dateSubmitted||''))
+    .slice(0, 8);
+  const inactiveHTML = inactiveItems.length === 0
+    ? `<p style="color:rgba(255,255,255,0.25);font-size:13px;padding:12px 0">No open tickets</p>`
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px">${
+        inactiveItems.map((t,i) => {
+          const ep  = effPhase(t);
+          const col = phColors[ep] || 'rgba(255,255,255,0.2)';
+          const lastUpd = t.updated ? t.updated.slice(0,10) : (t.dateSubmitted||'—');
+          return `<div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);padding:8px 10px;border-left:3px solid ${col}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3)">${i+1}.</span>
+              ${tktLink(t.id,'hi-id')}
+              ${phaseBadge(ep)}
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.35">${esc((t.summary||'').slice(0,45))}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:4px">Last update: ${esc(lastUpd)}</div>
+          </div>`;
+        }).join('')
+      }</div>`;
+
+  // ── DYNAMIC PANEL (switched by stat card clicks) ──────
+  let dynTitle, dynHTML;
+  if (_dashTopPanel === 'fp') {
+    dynTitle = `Phases to Finish This CW &nbsp;<span class="cw-label cw-cur-label">CW${CUR_WEEK}</span>`;
+    dynHTML  = fpItemsHTML;
+  } else if (_dashTopPanel === 'overdue') {
+    dynTitle = `CW Overdue &nbsp;<span style="color:${overdueItems.length?'#f87171':'rgba(255,255,255,0.25)'}">CW &lt; ${CUR_WEEK}</span>`;
+    dynHTML  = overdueHTML;
+  } else {
+    dynTitle = `High Priority <span class="high-badge">HIGH</span>`;
+    dynHTML  = `<ul class="hi-list">${highExtHTML}</ul>`;
+  }
+
+  dashGridTop.innerHTML = `
+    <div class="dash-card-dk">
+      <h3>Phase Distribution <span style="font-size:8px;font-weight:400;opacity:.4;text-transform:none;letter-spacing:0;margin-left:4px">actual / target</span></h3>
+      <div style="margin-top:8px">${phDistBarsHTML}</div>
+      <div style="display:flex;gap:14px;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.06em;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:2px;background:rgba(255,255,255,0.4);border-radius:1px;display:inline-block"></span>Target</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>Under target</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#CC0000;border-radius:2px;display:inline-block"></span>Over target</span>
+      </div>
+    </div>
+    <div class="dash-card-dk">
+      <h3>${dynTitle}</h3>
+      ${dynHTML}
+    </div>
+    <div class="dash-card-dk">
+      <h3>Tasks Last Week &nbsp;<span class="cw-label" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.4)">CW${PREV_WEEK}</span></h3>
       ${lastWeekHTML}
     </div>
-    <div class="dash-card">
+    <div class="dash-card-dk">
       <h3>Tasks This Week &nbsp;<span class="cw-label cw-cur-label">CW${CUR_WEEK}</span></h3>
       ${thisWeekHTML}
     </div>
-    <div class="dash-card" style="${overdueItems.length?'border-top-color:var(--primary)':''}">
-      <h3>CW Overdue &nbsp;<span style="color:${overdueItems.length?'#be123c':'var(--gray-300)'}">CW &lt; ${CUR_WEEK}</span></h3>
-      ${overdueHTML}
-    </div>
-  `;
+    <div class="dash-card-dk" style="grid-column:1/-1">
+      <h3>Most Inactive Open Tickets <span style="font-size:9px;font-weight:400;opacity:.4;text-transform:none;letter-spacing:0;margin-left:6px">oldest update first</span></h3>
+      ${inactiveHTML}
+    </div>`;
+
+  dashGrid.innerHTML = '';
 }
 
-function toggleFPThisCW() {
-  _dashFPOpen = !_dashFPOpen;
+function setDashPanel(panel) {
+  _dashTopPanel = panel;
   renderDashboard();
+}
+
+function setBtFilter(f) {
+  _btFilter = f;
+  renderKpiStats();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2076,11 +2130,13 @@ function renderEfficiency() {
 
   const PC_TICK = '✓', PC_CROSS = '✗', PC_OVER = '⏱', PC_NA = '·';
 
-  const allTicketsSorted = [...tickets].sort((a, b) => {
-    const nA = parseInt(((a.id||'').match(/(\d+)\s*$/) || [0,0])[1], 10);
-    const nB = parseInt(((b.id||'').match(/(\d+)\s*$/) || [0,0])[1], 10);
-    return nA - nB;
-  });
+  const allTicketsSorted = [...tickets]
+    .filter(t => _btFilter === 'all' ? true : _btFilter === 'closed' ? isClosed(t) : !isClosed(t))
+    .sort((a, b) => {
+      const nA = parseInt(((a.id||'').match(/(\d+)\s*$/) || [0,0])[1], 10);
+      const nB = parseInt(((b.id||'').match(/(\d+)\s*$/) || [0,0])[1], 10);
+      return nA - nB;
+    });
 
   const phColors2 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
 
@@ -2112,22 +2168,26 @@ function renderEfficiency() {
         return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:13px;color:#d97706" title="Phase ${p}: Finish Phase CW ${effFP} has passed — transition overdue">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span></td>`;
       } else if (p === curPh) {
         // Current phase, on track
-        return `<td style="text-align:center;background:rgba(37,99,235,.05);border-top:2px solid #93c5fd"><span style="font-size:9px;color:#2563eb;font-weight:700" title="Current phase">CUR</span><br><span style="font-size:8px;color:#93c5fd">${effFP?`CW${esc(effFP)}`:'—'}</span></td>`;
+        return `<td style="text-align:center;background:rgba(37,99,235,.05);border-top:2px solid #93c5fd"><span style="font-size:8px;color:#2563eb;font-weight:700;letter-spacing:.06em" title="Current phase">CUR</span><br><span style="font-size:9px;color:#93c5fd;font-weight:700">${effFP?`CW${esc(effFP)}`:'—'}</span></td>`;
       } else {
         // Phase not yet reached
         return `<td style="text-align:center"><span style="font-size:16px;color:var(--gray-200)">${PC_NA}</span></td>`;
       }
     }).join('');
 
-    const doneMark = isDone(t) ? '<span style="font-size:8px;background:#059669;color:white;border-radius:2px;padding:1px 4px;margin-left:4px;font-weight:700">DONE</span>' : '';
     return `<tr>
-      <td style="white-space:nowrap">${idLink}${doneMark}</td>
+      <td style="white-space:nowrap">${idLink}</td>
       <td style="font-size:11px;color:var(--gray-600);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,55))}</td>
       ${phaseCells}
     </tr>`;
   }).join('');
 
   document.getElementById('effTicketTable').innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400)">Show:</span>
+      ${['open','closed','all'].map(f => `<button onclick="setBtFilter('${f}')" style="padding:3px 10px;border-radius:var(--radius);border:1px solid ${_btFilter===f?'var(--primary)':'var(--gray-200)'};background:${_btFilter===f?'var(--primary)':'white'};color:${_btFilter===f?'white':'var(--gray-600)'};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;font-family:inherit">${f}</button>`).join('')}
+      <span style="font-size:10px;color:var(--gray-400);margin-left:6px">${allTicketsSorted.length} ticket${allTicketsSorted.length!==1?'s':''}</span>
+    </div>
     <div style="font-size:10px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:16px;flex-wrap:wrap">
       <span><span style="color:#059669;font-size:12px">✓</span> Completed on time</span>
       <span><span style="color:var(--primary);font-size:12px">✗</span> Completed late</span>
@@ -2178,7 +2238,7 @@ function renderPhaseSuccessChart() {
     ((updates[t.id] || {}).phaseCompletions || []).forEach(c => allEvents.push({ ...c, ticketId: t.id }));
   });
 
-  // Add implied late events: active tickets where FP CW has passed and no transition recorded for current phase
+  // Implied late events: active tickets with overdue FP CW and no recorded transition
   const active = tickets.filter(t => !isDone(t));
   active.forEach(t => {
     const u   = updates[t.id] || {};
@@ -2200,21 +2260,12 @@ function renderPhaseSuccessChart() {
     return;
   }
 
-  // Per-phase totals
-  const byPhase = {};
-  phOrder.forEach(p => { byPhase[p] = { total: 0, onTime: 0 }; });
-  allEvents.forEach(c => {
-    if (!byPhase[c.fromPhase]) return;
-    byPhase[c.fromPhase].total++;
-    if (c.onTime) byPhase[c.fromPhase].onTime++;
-  });
-
+  // Overall totals
   const totalAll  = allEvents.length;
   const onTimeAll = allEvents.filter(c => c.onTime).length;
-  const overallPct = totalAll > 0 ? Math.round(onTimeAll / totalAll * 100) : 0;
+  const overallPct   = totalAll > 0 ? Math.round(onTimeAll / totalAll * 100) : 0;
   const overallColor = overallPct >= 80 ? '#059669' : overallPct >= 50 ? '#d97706' : '#CC0000';
 
-  // Summary
   const summaryHTML = `<div style="display:flex;align-items:center;gap:20px;margin-bottom:18px;padding:12px 16px;background:var(--gray-100);border-radius:var(--radius)">
     <div>
       <div style="font-size:26px;font-weight:900;color:${overallColor}">${overallPct}%</div>
@@ -2228,30 +2279,98 @@ function renderPhaseSuccessChart() {
     </div>
   </div>`;
 
-  // Per-phase horizontal bars
-  const barsHTML = phOrder.map(p => {
-    const d   = byPhase[p];
-    if (!d.total) return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;opacity:.35">
-      <div style="flex-shrink:0;width:140px"><span style="font-size:12px;font-weight:900;color:${phColors[p]}">P${p}</span><span style="font-size:10px;color:var(--gray-500);margin-left:6px">${phNames[p]}</span></div>
-      <div style="flex:1;height:26px;background:var(--gray-100);border-radius:var(--radius);display:flex;align-items:center;padding:0 10px"><span style="font-size:11px;color:var(--gray-400)">No data</span></div>
-    </div>`;
-    const pct  = Math.round(d.onTime / d.total * 100);
-    const col  = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
-    const wOk  = (d.onTime  / d.total * 100).toFixed(1);
-    const wAll = 100;
-    return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <div style="flex-shrink:0;width:140px"><span style="font-size:12px;font-weight:900;color:${phColors[p]}">P${p}</span><span style="font-size:10px;color:var(--gray-500);margin-left:6px">${phNames[p]}</span></div>
-      <div style="flex:1;height:26px;background:rgba(204,0,0,0.08);border-radius:var(--radius);position:relative;overflow:hidden">
-        <div style="position:absolute;inset:0;width:${wOk}%;background:${col};border-radius:var(--radius);transition:width .4s"></div>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 10px;gap:8px">
-          <span style="font-size:12px;font-weight:900;color:white;text-shadow:0 1px 2px rgba(0,0,0,.4)">${pct}%</span>
-          <span style="font-size:10px;color:rgba(255,255,255,.7)">${d.onTime}/${d.total} on time</span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  // Group by month
+  const byMonth = {};
+  allEvents.forEach(c => {
+    const mo = c.month || 'Unknown';
+    if (!byMonth[mo]) byMonth[mo] = { total: 0, onTime: 0, phases: {} };
+    byMonth[mo].total++;
+    if (c.onTime) byMonth[mo].onTime++;
+    if (!byMonth[mo].phases[c.fromPhase]) byMonth[mo].phases[c.fromPhase] = { total: 0, onTime: 0 };
+    byMonth[mo].phases[c.fromPhase].total++;
+    if (c.onTime) byMonth[mo].phases[c.fromPhase].onTime++;
+  });
 
-  el.innerHTML = summaryHTML + barsHTML;
+  const months = Object.keys(byMonth).filter(m => m !== 'Unknown').sort();
+  if (byMonth['Unknown']) months.push('Unknown');
+
+  // SVG bar chart — one bar per month, height = % on-time
+  const MON = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtMo(k) {
+    if (k === 'Unknown') return '?';
+    const [yr, mo] = k.split('-');
+    return `${MON[+mo]||mo} '${yr.slice(2)}`;
+  }
+
+  const n    = months.length;
+  const slotW = Math.max(72, Math.floor(700 / Math.max(n, 1)));
+  const padL = 40, padR = 20, padT = 28, padB = 62;
+  const W    = padL + n * slotW + padR;
+  const H    = 270;
+  const cH   = H - padT - padB;
+  const barW = Math.max(22, Math.floor(slotW * 0.55));
+
+  let svg = '';
+
+  // Y gridlines 0/25/50/75/100%
+  [0, 25, 50, 75, 100].forEach(pct => {
+    const y = padT + cH - cH * pct / 100;
+    svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#F0F0F0" stroke-width="1"/>`;
+    svg += `<text x="${(padL-5).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#9CA3AF">${pct}%</text>`;
+  });
+  // 50% dashed reference
+  const y50 = padT + cH * 0.5;
+  svg += `<line x1="${padL}" y1="${y50.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${y50.toFixed(1)}" stroke="#d97706" stroke-width="1" stroke-dasharray="4,3" opacity=".5"/>`;
+
+  months.forEach((m, i) => {
+    const d   = byMonth[m];
+    const pct = d.total > 0 ? Math.round(d.onTime / d.total * 100) : 0;
+    const col = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
+    const xSL = padL + i * slotW;
+    const xC  = xSL + slotW / 2;
+
+    if (i % 2 === 0) svg += `<rect x="${xSL}" y="${padT}" width="${slotW}" height="${cH}" fill="rgba(0,0,0,0.018)"/>`;
+
+    const barH = Math.max(cH * pct / 100, 2);
+    const barX = xC - barW / 2;
+    const barY = padT + cH - barH;
+    svg += `<rect x="${barX.toFixed(1)}" y="${barY.toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" fill="${col}" rx="3" opacity=".85"><title>${fmtMo(m)}: ${pct}% (${d.onTime}/${d.total} on time)</title></rect>`;
+
+    if (barH > 10) svg += `<text x="${xC.toFixed(1)}" y="${(barY-5).toFixed(1)}" text-anchor="middle" font-size="11" fill="${col}" font-weight="700">${pct}%</text>`;
+
+    // count below axis
+    svg += `<text x="${xC.toFixed(1)}" y="${(padT+cH+13).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9CA3AF">${d.onTime}/${d.total}</text>`;
+
+    // per-phase colour dots below count
+    const activePhases = phOrder.filter(p => (d.phases[p]||{}).total > 0);
+    const dotR = 4, dotGap = 2;
+    const totalDotW = activePhases.length * (dotR*2 + dotGap) - dotGap;
+    let dotX = xC - totalDotW / 2 + dotR;
+    activePhases.forEach(p => {
+      const pc = d.phases[p];
+      const pBorder = pc.onTime === pc.total ? '#059669' : pc.onTime === 0 ? '#CC0000' : '#d97706';
+      svg += `<circle cx="${dotX.toFixed(1)}" cy="${(padT+cH+26).toFixed(1)}" r="${dotR}" fill="${phColors[p]}" stroke="${pBorder}" stroke-width="1.5" opacity=".9"><title>P${p} ${phNames[p]}: ${pc.onTime}/${pc.total} on time</title></circle>`;
+      dotX += dotR*2 + dotGap;
+    });
+
+    // tick + rotated month label
+    svg += `<line x1="${xC.toFixed(1)}" y1="${(padT+cH).toFixed(1)}" x2="${xC.toFixed(1)}" y2="${(padT+cH+4).toFixed(1)}" stroke="#AAAAAA" stroke-width="1.5"/>`;
+    const lY = padT + cH + 50;
+    svg += `<text x="${xC.toFixed(1)}" y="${lY}" text-anchor="end" font-size="11" fill="#4B4B4B" font-weight="600" transform="rotate(-38 ${xC.toFixed(1)} ${lY})">${fmtMo(m)}</text>`;
+  });
+
+  svg += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT+cH).toFixed(1)}" stroke="#D1D5DB" stroke-width="1.5"/>`;
+  svg += `<line x1="${padL}" y1="${(padT+cH).toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${(padT+cH).toFixed(1)}" stroke="#D1D5DB" stroke-width="1.5"/>`;
+
+  const legendHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:10px;color:var(--gray-500)">
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:11px;height:11px;background:#059669;border-radius:2px"></span>≥ 80% on time</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:11px;height:11px;background:#d97706;border-radius:2px"></span>50–79%</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:11px;height:11px;background:#CC0000;border-radius:2px"></span>&lt; 50%</span>
+    <span style="display:flex;align-items:center;gap:4px;margin-left:8px">Dots = phase breakdown (P1–P5)</span>
+  </div>`;
+
+  el.style.overflowX = 'auto';
+  el.innerHTML = summaryHTML + `<div class="eff-chart-wrap"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="font-family:'Segoe UI',Arial,sans-serif;display:block">${svg}</svg></div>` + legendHTML;
 }
 
 // ─────────────────────────────────────────────────────
