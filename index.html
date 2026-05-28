@@ -533,6 +533,7 @@
 
   <!-- EFFICIENCY -->
   <div class="tab-content" id="tab-efficiency">
+    <div style="font-size:10px;font-weight:800;color:var(--gray-500);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px">KPI Stats</div>
     <div class="eff-stat-row" id="effStatRow"></div>
     <div class="eff-section" style="margin-bottom:14px">
       <h3>Efficiency Over Time</h3>
@@ -1288,15 +1289,21 @@ function setDashCwField(el) {
   const id    = el.dataset.id;
   const field = el.dataset.field;
   if (!updates[id]) updates[id] = {};
-  if (field === 'finishPhaseCW' && updates[id][field] !== undefined && updates[id][field] !== el.value.trim()) {
-    updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
-    // If previous FP was already overdue, record a missed deadline for the ticket's current phase
-    if (cwIsOverdue(updates[id][field])) {
-      const tk = tickets.find(x => x.id === id);
-      const ph = tk ? effPhase(tk) : null;
-      if (ph) {
-        if (!updates[id].overduePhase) updates[id].overduePhase = {};
-        updates[id].overduePhase[ph] = (updates[id].overduePhase[ph]||0) + 1;
+  if (field === 'finishPhaseCW') {
+    const tk      = tickets.find(x => x.id === id);
+    // Resolve previous value: user override first, then source ticket
+    const prevVal = updates[id].finishPhaseCW !== undefined
+      ? updates[id].finishPhaseCW
+      : (tk ? (tk.finishPhase || '') : '');
+    const newVal  = el.value.trim();
+    if (newVal !== prevVal) {
+      updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+      if (cwIsOverdue(prevVal)) {
+        const ph = tk ? effPhase(tk) : null;
+        if (ph) {
+          if (!updates[id].overduePhase) updates[id].overduePhase = {};
+          updates[id].overduePhase[ph] = (updates[id].overduePhase[ph]||0) + 1;
+        }
       }
     }
   }
@@ -1464,15 +1471,20 @@ function setCwField(el) {
   const id    = el.dataset.id;
   const field = el.dataset.field;
   if (!updates[id]) updates[id] = {};
-  if (field === 'finishPhaseCW' && updates[id][field] !== undefined && updates[id][field] !== el.value.trim()) {
-    updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
-    // If previous FP was already overdue, record a missed deadline for the ticket's current phase
-    if (cwIsOverdue(updates[id][field])) {
-      const tk = tickets.find(x => x.id === id);
-      const ph = tk ? effPhase(tk) : null;
-      if (ph) {
-        if (!updates[id].overduePhase) updates[id].overduePhase = {};
-        updates[id].overduePhase[ph] = (updates[id].overduePhase[ph]||0) + 1;
+  if (field === 'finishPhaseCW') {
+    const tk      = tickets.find(x => x.id === id);
+    const prevVal = updates[id].finishPhaseCW !== undefined
+      ? updates[id].finishPhaseCW
+      : (tk ? (tk.finishPhase || '') : '');
+    const newVal  = el.value.trim();
+    if (newVal !== prevVal) {
+      updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+      if (cwIsOverdue(prevVal)) {
+        const ph = tk ? effPhase(tk) : null;
+        if (ph) {
+          if (!updates[id].overduePhase) updates[id].overduePhase = {};
+          updates[id].overduePhase[ph] = (updates[id].overduePhase[ph]||0) + 1;
+        }
       }
     }
   }
@@ -2021,11 +2033,13 @@ function renderEfficiencyChart() {
   const el = document.getElementById('effTimeChart');
   if (!el) return;
 
-  // ── Build period maps (active tickets + closed-this-year only) ───────
+  // ── Build period maps ─────────────────────────────────────────────────
+  // Yearly view: all tickets across all years (full history from 2015 onward)
+  // Monthly view: active tickets + closed-this-year only
   const _chartYear = new Date().getFullYear().toString();
-  const chartTickets = tickets.filter(t =>
-    !isClosed(t) || (t.updated||'').slice(0,4) === _chartYear
-  );
+  const chartTickets = _effView === 'year'
+    ? tickets
+    : tickets.filter(t => !isClosed(t) || (t.updated||'').slice(0,4) === _chartYear);
   const openedMap = {}, closedMap = {};
   chartTickets.forEach(t => {
     const ds = (t.dateSubmitted || '').trim();
