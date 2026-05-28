@@ -31,8 +31,8 @@
 
     /* ── Header ── */
     .header { background: white; border-bottom: 2px solid var(--primary); padding: 0 28px; display: flex; align-items: center; gap: 24px; position: sticky; top: 0; z-index: 300; box-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 0 rgba(204,0,0,0.06); height: 56px; }
-    .header-logo { font-size: 11px; font-weight: 900; color: var(--dark); white-space: nowrap; letter-spacing: 0.14em; text-transform: uppercase; }
-    .header-logo span { color: var(--primary); }
+    .header-logo { display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 8px 0; }
+    .header-app-name { font-size: 8px; font-weight: 700; color: var(--gray-400); letter-spacing: 0.16em; text-transform: uppercase; }
     .header-divider { width: 1px; height: 20px; background: var(--gray-200); }
     .tabs { display: flex; height: 100%; }
     .tab { padding: 0 18px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 10px; font-weight: 800; color: var(--gray-500); transition: color var(--transition), border-color var(--transition); white-space: nowrap; user-select: none; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: -2px; display: flex; align-items: center; }
@@ -301,6 +301,8 @@
     /* Overdue CW cells */
     td.cw-od { background: rgba(204,0,0,0.04); border-left: 2px solid var(--primary); }
     td.cw-od .ct { color: var(--primary); font-weight: 600; }
+    td.phase-od-cell { position: relative; }
+    .phase-od-pip { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); margin-left: 5px; vertical-align: middle; flex-shrink: 0; }
 
     /* Editable CW inputs */
     .cw-input { width: 52px; border: 1px solid transparent; border-radius: var(--radius); padding: 3px 5px; font-size: 11px; font-family: inherit; background: transparent; outline: none; color: var(--gray-700); transition: border-color var(--transition), background var(--transition); }
@@ -497,11 +499,11 @@
 </script>
 
 <header class="header">
-  <div class="header-logo" style="display:flex;align-items:center;gap:12px">
-    <img src="Snoeks_LOGO.png" alt="Snoeks Automotive" style="height:26px;width:auto;object-fit:contain;display:block">
-    <div class="header-divider"></div>
-    <span style="font-size:10px;font-weight:800;color:var(--gray-500);letter-spacing:0.14em;text-transform:uppercase">Change Tracker</span>
+  <div class="header-logo">
+    <img src="Snoeks_LOGO.png" alt="Snoeks Automotive" style="height:24px;width:auto;object-fit:contain;display:block">
+    <span class="header-app-name">Change Tracker</span>
   </div>
+  <div class="header-divider"></div>
   <nav class="tabs">
     <div class="tab active" data-tab="dashboard">Dashboard</div>
     <div class="tab" data-tab="tracker">Tracker</div>
@@ -1159,7 +1161,12 @@ function renderTable() {
       <td><span class="ct wide" title="${esc(t.summary)}">${esc(t.summary)||'–'}</span></td>
       <td><span class="ct wide" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate)||'–'}</span></td>
       ${sopCell}
-      <td><select class="phase-sel ${phaseCls}" data-id="${esc(t.id)}" onchange="setPhase(this)">${phOpts}</select></td>
+      <td class="${(sopOD||fpOD)?'phase-od-cell':''}">
+        <div style="display:flex;align-items:center">
+          <select class="phase-sel ${phaseCls}" data-id="${esc(t.id)}" onchange="setPhase(this)">${phOpts}</select>
+          ${(sopOD||fpOD)?`<span class="phase-od-pip" title="${sopOD&&fpOD?'SOP &amp; Finish Phase overdue':sopOD?'SOP CW overdue':'Finish Phase CW overdue'}"></span>`:''}
+        </div>
+      </td>
       ${finishCell}
       <td><select class="pri-sel ${priCls}" data-id="${esc(t.id)}" onchange="setPriority(this)">${priOpts}</select></td>
       <td><select class="cr-sel ${crCls}" data-id="${esc(t.id)}" onchange="setCR(this)">${crOpts}</select></td>
@@ -1797,16 +1804,38 @@ function renderEfficiency() {
   const crCounts = { PM:0, Sent:0, Signed:0 };
   active.forEach(t => { const cr = (updates[t.id]||{}).changeRequest||''; if (crCounts[cr]!==undefined) crCounts[cr]++; });
 
-  document.getElementById('effStatRow').innerHTML = [
-    { val:`${closedPct}%`, label:'Closure Rate',      sub:`${closed} of ${total} tickets closed`, cls:'grn' },
-    { val:`${onTimePct}%`, label:'On-Time Rate',       sub:`${onTime} of ${activeTotal} active on schedule`, cls: onTimePct<70?'red':'grn' },
-    { val:avgOD,           label:'Avg OD Incidents',   sub:`${totalODEvents} total across all tickets`, cls: totalODEvents>0?'red':'' },
-    { val:`${crCounts.PM}/${crCounts.Sent}/${crCounts.Signed}`, label:'CR Pipeline PM/Sent/Signed', sub:'Change requests by stage', cls:'blu' },
-  ].map(s => `<div class="eff-stat-card ${s.cls||''}">
-    <div class="eff-stat-val">${s.val}</div>
-    <div class="eff-stat-label">${s.label}</div>
-    <div class="eff-stat-sub">${s.sub}</div>
-  </div>`).join('');
+  // Resolving efficiency: net = closed − open
+  const netRes = closed - activeTotal;
+  const netSign = netRes >= 0 ? '+' : '';
+  const netCls  = netRes >= 0 ? 'grn' : 'red';
+
+  // Phases to be finished this CW
+  const fpThisCW = active.filter(t => {
+    const u = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    return parseCW(fp) === CUR_WEEK;
+  }).length;
+
+  document.getElementById('effStatRow').innerHTML = `
+    <div class="eff-stat-card ${netCls}">
+      <div class="eff-stat-val">${netSign}${netRes}</div>
+      <div class="eff-stat-label">Resolving Efficiency</div>
+      <div class="eff-stat-sub">Closed (${closed}) minus Open (${activeTotal})</div>
+    </div>
+    <div class="eff-stat-card blu">
+      <div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px">
+        <span style="font-size:22px;font-weight:900;color:#92400e">${crCounts.PM}</span><span style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.07em;text-transform:uppercase">PM</span>
+        <span style="font-size:22px;font-weight:900;color:#1e40af">${crCounts.Sent}</span><span style="font-size:9px;font-weight:700;color:#1e40af;letter-spacing:.07em;text-transform:uppercase">Sent</span>
+        <span style="font-size:22px;font-weight:900;color:#065f46">${crCounts.Signed}</span><span style="font-size:9px;font-weight:700;color:#065f46;letter-spacing:.07em;text-transform:uppercase">Signed</span>
+      </div>
+      <div class="eff-stat-label">CR Pipeline</div>
+      <div class="eff-stat-sub">Change requests by stage</div>
+    </div>
+    <div class="eff-stat-card ${fpThisCW > 0 ? 'blu' : ''}">
+      <div class="eff-stat-val">${fpThisCW}</div>
+      <div class="eff-stat-label">Phases to Finish This CW</div>
+      <div class="eff-stat-sub">Active tickets with Finish Phase = CW${CUR_WEEK}</div>
+    </div>`;
 
   // Phase overdue aggregate bars
   const phOrder  = ['1','2','3','4','5'];
