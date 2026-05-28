@@ -507,7 +507,7 @@
   <nav class="tabs">
     <div class="tab active" data-tab="dashboard">Dashboard</div>
     <div class="tab" data-tab="tracker">Tracker</div>
-    <div class="tab" data-tab="efficiency">Efficiency</div>
+    <div class="tab" data-tab="efficiency">KPI Stats</div>
     <div class="tab" data-tab="import">Import Data</div>
   </nav>
   <div class="hdr-right">
@@ -1015,6 +1015,7 @@ function tsBadge(v) {
 }
 
 function isClosed(t) { return (t.ticketStatus||'').toLowerCase().startsWith('closed'); }
+function isDone(t)   { const s=(t.ticketStatus||'').toLowerCase(); return s.startsWith('closed')||s.startsWith('resolved'); }
 
 // ═══════════════════════════════════════════════════════
 //  TABLE COLUMNS
@@ -1897,10 +1898,13 @@ function renderEfficiency() {
   const phLabels = { '1':'1 — Investigation','2':'2 — Design','3':'3 — Testing','4':'4 — Implementation','5':'5 — Finalization' };
   const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
 
-  // Only include: active tickets + closed tickets closed this year
+  // Only include tickets relevant to this year:
+  //   • submitted this year (active or resolved/closed)
+  //   • OR resolved/closed this year (even if submitted earlier)
   const curYear = new Date().getFullYear().toString();
   const effTickets = tickets.filter(t =>
-    !isClosed(t) || (t.updated||'').slice(0,4) === curYear
+    (t.dateSubmitted||'').slice(0,4) === curYear ||
+    (isDone(t) && (t.updated||'').slice(0,4) === curYear)
   );
 
   const phODTotals = { '1':0,'2':0,'3':0,'4':0,'5':0 };
@@ -2039,7 +2043,7 @@ function renderEfficiencyChart() {
   const _chartYear = new Date().getFullYear().toString();
   const chartTickets = _effView === 'year'
     ? tickets
-    : tickets.filter(t => !isClosed(t) || (t.updated||'').slice(0,4) === _chartYear);
+    : tickets.filter(t => !isDone(t) || (t.updated||'').slice(0,4) === _chartYear);
   const openedMap = {}, closedMap = {};
   chartTickets.forEach(t => {
     const ds = (t.dateSubmitted || '').trim();
@@ -2047,7 +2051,8 @@ function renderEfficiencyChart() {
       const key = _effView === 'year' ? ds.slice(0,4) : ds.slice(0,7);
       openedMap[key] = (openedMap[key]||0) + 1;
     }
-    if (isClosed(t)) {
+    // Count both Closed AND Resolved as "done"
+    if (isDone(t)) {
       const du = (t.updated || '').trim();
       if (du && /^\d{4}/.test(du)) {
         const key = _effView === 'year' ? du.slice(0,4) : du.slice(0,7);
@@ -2160,7 +2165,7 @@ function renderEfficiencyChart() {
       <svg width="14" height="14"><rect width="14" height="14" fill="#C4C9D4" rx="2"/></svg> Opened (by submission date)
     </span>
     <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#059669">
-      <svg width="14" height="14"><rect width="14" height="14" fill="#059669" rx="2" opacity=".85"/></svg> Closed (by last-updated date)
+      <svg width="14" height="14"><rect width="14" height="14" fill="#059669" rx="2" opacity=".85"/></svg> Closed / Resolved (by last-updated date)
     </span>
     <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray-500)">
       <span style="font-size:10px;font-weight:700;color:#059669">+N</span>&nbsp;/&nbsp;<span style="font-size:10px;font-weight:700;color:#DC2626">−N</span>&nbsp; Net per period
