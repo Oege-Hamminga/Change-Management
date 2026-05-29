@@ -2149,12 +2149,17 @@ function renderEfficiency() {
 
   // Card 2 — Phase Completion Success Rate for selected month
   const _monthSuccess = calcMonthPhaseSuccess(_now.year);
-  const _selMD = _monthSuccess[_kpiMonth] || { total: 0, onTime: 0 };
+  const _selMD = _monthSuccess[_kpiMonth] || { total: 0, onTime: 0, upcoming: 0 };
   let phSuccessPct, phSuccessCls, phSuccessSub;
   if (_selMD.total > 0) {
     phSuccessPct = Math.round(_selMD.onTime / _selMD.total * 100);
     phSuccessCls = phSuccessPct >= 80 ? 'grn' : phSuccessPct >= 50 ? 'blu' : 'red';
-    phSuccessSub = `${_selMD.onTime} on time · ${_selMD.total - _selMD.onTime} not transitioned · ${_selMD.total} deadlines · ${selMonthLabel}`;
+    const upcomingNote = _selMD.upcoming > 0 ? ` · ${_selMD.upcoming} upcoming` : '';
+    phSuccessSub = `${_selMD.onTime} on time · ${_selMD.total - _selMD.onTime} not transitioned · ${_selMD.total} evaluated${upcomingNote} · ${selMonthLabel}`;
+  } else if ((_selMD.upcoming || 0) > 0) {
+    phSuccessPct = null;
+    phSuccessCls = '';
+    phSuccessSub = `${_selMD.upcoming} upcoming deadlines · ${selMonthLabel} · not yet evaluated`;
   } else {
     phSuccessPct = null;
     phSuccessCls = '';
@@ -2370,29 +2375,38 @@ function calcMonthPhaseSuccess(year) {
 
   CW_RANGES.forEach(([cwStart, cwEnd], i) => {
     const key = `${year}-${MONTH_KEYS[i]}`;
-    let total = 0, onTime = 0;
+    let total = 0, onTime = 0, upcoming = 0;
     const phases = {};
     for (let cw = cwStart; cw <= cwEnd; cw++) {
+      const evaluated = cw <= CUR_WEEK; // deadline has been reached; future CWs are not yet evaluated
       (compsByCW[cw] || []).forEach(c => {
-        total++;
-        if (c.onTime) onTime++;
-        const p = c.phase;
-        if (p) {
-          if (!phases[p]) phases[p] = { total: 0, onTime: 0 };
-          phases[p].total++;
-          if (c.onTime) phases[p].onTime++;
+        if (evaluated) {
+          total++;
+          if (c.onTime) onTime++;
+          const p = c.phase;
+          if (p) {
+            if (!phases[p]) phases[p] = { total: 0, onTime: 0 };
+            phases[p].total++;
+            if (c.onTime) phases[p].onTime++;
+          }
+        } else {
+          upcoming++; // transition recorded early for a future deadline
         }
       });
       (activeByCW[cw] || []).forEach(a => {
-        total++;
-        const p = a.phase;
-        if (p) {
-          if (!phases[p]) phases[p] = { total: 0, onTime: 0 };
-          phases[p].total++;
+        if (evaluated) {
+          total++;
+          const p = a.phase;
+          if (p) {
+            if (!phases[p]) phases[p] = { total: 0, onTime: 0 };
+            phases[p].total++;
+          }
+        } else {
+          upcoming++; // deadline not yet reached — pending
         }
       });
     }
-    result[key] = { total, onTime, phases };
+    result[key] = { total, onTime, upcoming, phases };
   });
 
   return result;
@@ -2408,15 +2422,19 @@ function renderPhaseSuccessChart() {
 
   const byMonth = calcMonthPhaseSuccess(_now.year);
 
-  // Only show months with at least one deadline
+  // Only show months with at least one evaluated deadline (finishCW <= CUR_WEEK)
   const months = Object.keys(byMonth).filter(k => byMonth[k].total > 0).sort();
 
+  // Count upcoming across all months (for informational note)
+  const totalUpcoming = Object.values(byMonth).reduce((s, d) => s + (d.upcoming || 0), 0);
+
   if (!months.length) {
-    el.innerHTML = '<p style="color:var(--gray-400);font-size:13px;padding:16px 0">No phase deadlines recorded yet. Deadlines are tracked via Finish Phase CW; completed phases are tracked when you select a phase in the Tracker.</p>';
+    const upNote = totalUpcoming > 0 ? ` ${totalUpcoming} upcoming deadline${totalUpcoming !== 1 ? 's' : ''} are scheduled but not yet evaluated.` : '';
+    el.innerHTML = `<p style="color:var(--gray-400);font-size:13px;padding:16px 0">No evaluated phase deadlines yet — deadlines are counted once their CW is reached.${upNote}</p>`;
     return;
   }
 
-  // Overall totals (sum across all months with data)
+  // Overall totals (evaluated months only)
   let totalAll = 0, onTimeAll = 0;
   months.forEach(m => { totalAll += byMonth[m].total; onTimeAll += byMonth[m].onTime; });
   const overallPct   = totalAll > 0 ? Math.round(onTimeAll / totalAll * 100) : 0;
@@ -2431,7 +2449,8 @@ function renderPhaseSuccessChart() {
     <div style="font-size:12px;color:var(--gray-600);line-height:1.8">
       <span style="font-weight:700;color:#059669">${onTimeAll}</span> on time &nbsp;·&nbsp;
       <span style="font-weight:700;color:#CC0000">${totalAll - onTimeAll}</span> not transitioned &nbsp;·&nbsp;
-      <span style="font-weight:700;color:var(--gray-700)">${totalAll}</span> total deadlines
+      <span style="font-weight:700;color:var(--gray-700)">${totalAll}</span> evaluated deadlines
+      ${totalUpcoming > 0 ? `&nbsp;·&nbsp;<span style="font-weight:700;color:#9CA3AF">${totalUpcoming}</span> upcoming` : ''}
     </div>
   </div>`;
 
