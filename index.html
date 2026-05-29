@@ -1081,8 +1081,8 @@ function tsBadge(v) {
            : `<span class="ts-badge ts-other">–</span>`;
 }
 
-function isClosed(t) { return (t.ticketStatus||'').toLowerCase().startsWith('closed'); }
-function isDone(t)   { const s=(t.ticketStatus||'').toLowerCase(); return s.startsWith('closed')||s.startsWith('resolved'); }
+function isClosed(t) { const s=((updates[t.id]||{}).status||t.ticketStatus||'').toLowerCase(); return s.startsWith('closed'); }
+function isDone(t)   { const s=((updates[t.id]||{}).status||t.ticketStatus||'').toLowerCase(); return s.startsWith('closed')||s.startsWith('resolved'); }
 
 // ═══════════════════════════════════════════════════════
 //  TABLE COLUMNS
@@ -1210,8 +1210,9 @@ function renderTable() {
 
     const eph      = effPhase(t);
     const phaseCls = eph ? `ph-${eph}` : 'ph-x';
-    const phOpts   = [['','— phase —'],['1','1. Investigation'],['2','2. Design'],['3','3. Testing'],['4','4. Implementation'],['5','5. Finalization']]
-      .map(([v,l]) => `<option value="${v}" ${eph===v?'selected':''}>${l}</option>`).join('');
+    const phBaseOpts = [['','— phase —'],['1','1. Investigation'],['2','2. Design'],['3','3. Testing'],['4','4. Implementation'],['5','5. Finalization']];
+    if (!isClosed(t)) phBaseOpts.push(['completed','✓ Completed']);
+    const phOpts = phBaseOpts.map(([v,l]) => `<option value="${v}" ${eph===v?'selected':''}>${l}</option>`).join('');
 
     const isSelected = selectedTicketId === t.id;
     const closedCls  = isClosed(t) ? ' row-closed' : '';
@@ -1223,7 +1224,7 @@ function renderTable() {
       .map(([v,l]) => `<option value="${v}" ${crVal===v?'selected':''}>${l}</option>`).join('');
 
     const mainRow = `<tr class="row-selectable ${prClass(ep)}${closedCls}${selCls}" onclick="toggleDetail(event,'${esc(t.id)}')">
-      <td class="col-n">${tsBadge(t.ticketStatus)}</td>
+      <td class="col-n">${tsBadge((updates[t.id]||{}).status || t.ticketStatus)}</td>
       <td class="col-n">${idCell}</td>
       <td class="col-n"><span class="ct" title="${esc(t.model)}">${esc(t.model)||'–'}</span></td>
       <td class="col-n"><span class="ct">${esc(t.dateSubmitted)||'–'}</span></td>
@@ -1303,24 +1304,39 @@ function setTaskDept(el) {
   save();
 }
 
-let _phModalEl = null, _phModalPrev = '', _phModalPrevFP = '';
+let _phModalEl = null, _phModalPrev = '', _phModalPrevFP = '', _phModalCompleting = false;
 
 function setPhase(el) {
-  _phModalEl   = el;
-  _phModalPrev = el.dataset.prevPhase || el.dataset.prevphase || '';
-  // Store current value as prev for next change
-  el.dataset.prevPhase = el.value;
-
   const PH_NAMES = {'1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization'};
   const id   = el.dataset.id;
   const newP = el.value;
   const upd  = updates[id] || {};
   const curFP = upd.finishPhaseCW !== undefined ? upd.finishPhaseCW : ((tickets.find(t=>t.id===id)||{}).finishPhase||'');
-  _phModalPrevFP = curFP;  // save old FP CW for completion recording
-  const label = newP ? `${newP} — ${PH_NAMES[newP]}` : '—';
 
+  _phModalEl   = el;
+  _phModalPrev = el.dataset.prevPhase || el.dataset.prevphase || '';
+  el.dataset.prevPhase = newP === 'completed' ? _phModalPrev : newP;
+  _phModalPrevFP = curFP;
+
+  if (newP === 'completed') {
+    _phModalCompleting = true;
+    const fromLabel = _phModalPrev ? `Phase ${_phModalPrev} — ${PH_NAMES[_phModalPrev]||''}` : 'current phase';
+    document.querySelector('.ph-modal-title').textContent = 'Mark as Completed';
+    document.getElementById('phModalMsg').textContent =
+      `Confirm completing ticket ${id} (from ${fromLabel})? Status will be set to Closed.`;
+    document.querySelector('label.ph-modal-label').textContent = 'Finish Phase CW (for completion record)';
+    document.getElementById('phModalInput').value = curFP || String(CUR_WEEK);
+    document.getElementById('phModal').style.display = 'flex';
+    document.getElementById('phModalInput').focus();
+    return;
+  }
+
+  _phModalCompleting = false;
+  const label = newP ? `${newP} — ${PH_NAMES[newP]}` : '—';
+  document.querySelector('.ph-modal-title').textContent = 'Phase Updated';
   document.getElementById('phModalMsg').textContent =
     `Phase set to "${label}". Please confirm the new Finish Phase calendar week.`;
+  document.querySelector('label.ph-modal-label').textContent = 'New Finish Phase (CW)';
   document.getElementById('phModalInput').value = curFP;
   document.getElementById('phModal').style.display = 'flex';
   document.getElementById('phModalInput').select();
@@ -1329,10 +1345,41 @@ function setPhase(el) {
 
 function confirmPhaseChange() {
   if (!_phModalEl) return;
-  const id       = _phModalEl.dataset.id;
-  const newPhase = _phModalEl.value;
-  const newCW    = document.getElementById('phModalInput').value.trim();
+  const id  = _phModalEl.dataset.id;
+  const cwInp = document.getElementById('phModalInput').value.trim();
   if (!updates[id]) updates[id] = {};
+
+  if (_phModalCompleting) {
+    // Mark ticket as Completed / Closed
+    if (_phModalPrev) {
+      const fpNum  = parseCW(_phModalPrevFP);
+      const onTime = fpNum !== null && CUR_WEEK <= fpNum;
+      if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
+      updates[id].phaseCompletions.push({
+        fromPhase:   _phModalPrev,
+        toPhase:     'completed',
+        finishCW:    _phModalPrevFP,
+        completedCW: CUR_WEEK,
+        onTime:      onTime,
+        month:       cwToYearMonth(_now.year, fpNum || CUR_WEEK) || new Date().toISOString().slice(0, 7)
+      });
+    }
+    updates[id].status = 'Closed';
+    _phModalEl.value = _phModalPrev;
+    _phModalEl.dataset.prevPhase = _phModalPrev;
+    _phModalEl.className = `phase-sel ph-${_phModalPrev||'x'}`;
+    document.querySelector('.ph-modal-title').textContent = 'Phase Updated';
+    document.querySelector('label.ph-modal-label').textContent = 'New Finish Phase (CW)';
+    document.getElementById('phModal').style.display = 'none';
+    _phModalEl = null;
+    _phModalCompleting = false;
+    save();
+    renderDashboard();
+    renderTable();
+    return;
+  }
+
+  const newPhase = _phModalEl.value;
 
   // Record phase completion event (only when phase actually changes)
   if (_phModalPrev && _phModalPrev !== newPhase) {
@@ -1345,13 +1392,12 @@ function confirmPhaseChange() {
       finishCW:    _phModalPrevFP,
       completedCW: CUR_WEEK,
       onTime:      onTime,
-      month:       new Date().toISOString().slice(0, 7)
+      month:       cwToYearMonth(_now.year, parseCW(_phModalPrevFP) || CUR_WEEK) || new Date().toISOString().slice(0, 7)
     });
   }
 
   updates[id].phase = newPhase;
-  // Update FP CW silently — phase change is intentional, not a missed deadline
-  if (newCW !== '') updates[id].finishPhaseCW = newCW;
+  if (cwInp !== '') updates[id].finishPhaseCW = cwInp;
   _phModalEl.className = `phase-sel ph-${newPhase||'x'}`;
   document.getElementById('phModal').style.display = 'none';
   _phModalEl = null;
@@ -1367,6 +1413,9 @@ function cancelPhaseChange() {
     _phModalEl.className = `phase-sel ph-${_phModalPrev||'x'}`;
     _phModalEl = null;
   }
+  _phModalCompleting = false;
+  document.querySelector('.ph-modal-title').textContent = 'Phase Updated';
+  document.querySelector('label.ph-modal-label').textContent = 'New Finish Phase (CW)';
   document.getElementById('phModal').style.display = 'none';
 }
 
@@ -2002,7 +2051,7 @@ function setDashPanel(panel) {
 
 function setBtFilter(f) {
   _btFilter = f;
-  renderKpiStats();
+  renderEffTicketTable();
 }
 
 function goToTicket(id) {
@@ -2113,7 +2162,7 @@ function renderEfficiency() {
       if (!curPh) return;
       const alreadyLeft = (u.phaseCompletions || []).some(c => c.fromPhase === curPh && parseCW(c.finishCW) === fpN);
       if (!alreadyLeft) {
-        const month = getMonthFromIsoWeek(_now.year, fpN);
+        const month = cwToYearMonth(_now.year, fpN);
         allCompletions.push({ fromPhase: curPh, onTime: false, month, implied: true });
       }
     }
@@ -2176,13 +2225,21 @@ function renderEfficiency() {
 
   const phOrder = ['1','2','3','4','5'];
 
-  // ── BUGTRACKER TICKETS — PHASE COMPLETION ───────────────────────────────
-  // For each ticket show P1–P5 phase completion status:
-  //   ✓ green  = transition recorded on time
-  //   ✗ red    = transition recorded late OR phase overdue with no transition yet
-  //   ⏱ amber  = current phase, FP CW already passed (implied late, still active)
-  //   ·  gray  = phase not reached / not applicable
+  renderEffTicketTable();
 
+  renderEfficiencyChart();
+  renderPhaseSuccessChart();
+}
+
+// ─────────────────────────────────────────────────────
+//  BUGTRACKER PHASE COMPLETION TABLE (standalone)
+// ─────────────────────────────────────────────────────
+function renderEffTicketTable() {
+  const el = document.getElementById('effTicketTable');
+  if (!el) return;
+
+  const phOrder   = ['1','2','3','4','5'];
+  const phColors2 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
   const PC_TICK = '✓', PC_CROSS = '✗', PC_OVER = '⏱', PC_NA = '·';
 
   const allTicketsSorted = [...tickets]
@@ -2193,8 +2250,6 @@ function renderEfficiency() {
       return nA - nB;
     });
 
-  const phColors2 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-
   const tblRows = allTicketsSorted.map(t => {
     const u      = updates[t.id] || {};
     const curPh  = effPhase(t);
@@ -2203,18 +2258,16 @@ function renderEfficiency() {
     const curFpOD = !isDone(t) && cwIsOverdue(effFP);
     const idLink  = tktLink(t.id, '', 'color:var(--primary);font-weight:700;text-decoration:none;font-family:"Courier New",monospace;font-size:11px');
 
-    const tStatus = (t.ticketStatus || '');
+    const effSt   = (updates[t.id]||{}).status || t.ticketStatus || '';
     const isCl    = isClosed(t);
     const statusBadge = isCl
-      ? `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:rgba(5,150,105,0.1);color:#059669;font-weight:700;white-space:nowrap">${esc(tStatus)}</span>`
-      : `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:rgba(0,0,0,0.06);color:var(--gray-500);font-weight:600;white-space:nowrap">${esc(tStatus||'Open')}</span>`;
+      ? `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:rgba(5,150,105,0.1);color:#059669;font-weight:700;white-space:nowrap">${esc(effSt||'Closed')}</span>`
+      : `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:rgba(0,0,0,0.06);color:var(--gray-500);font-weight:600;white-space:nowrap">${esc(effSt||'Open')}</span>`;
 
-    const phName  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
     const phBadge = curPh
       ? `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:${phColors2[curPh]}22;color:${phColors2[curPh]};font-weight:700;white-space:nowrap">P${curPh}</span>`
       : `<span style="color:var(--gray-400);font-size:10px">—</span>`;
 
-    // Build per-phase status from recorded completions
     const completions = u.phaseCompletions || [];
     const phStatus = {};
     completions.forEach(c => { phStatus[c.fromPhase] = c.onTime ? 'ok' : 'late'; });
@@ -2222,11 +2275,11 @@ function renderEfficiency() {
     const phaseCells = phOrder.map(p => {
       const st = phStatus[p];
       if (st === 'ok') {
-        return `<td style="text-align:center;background:rgba(5,150,105,.06)"><span style="font-size:13px;color:#059669" title="Phase ${p}: completed on time">${PC_TICK}</span><br><span style="font-size:8px;color:#059669">on time</span></td>`;
+        return `<td style="text-align:center;background:rgba(5,150,105,.06)"><span style="font-size:13px;color:#059669" title="Phase ${p}: on time">${PC_TICK}</span><br><span style="font-size:8px;color:#059669">on time</span></td>`;
       } else if (st === 'late') {
-        return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:13px;color:var(--primary)" title="Phase ${p}: completed late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">late</span></td>`;
+        return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:13px;color:var(--primary)" title="Phase ${p}: late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">late</span></td>`;
       } else if (p === curPh && curFpOD) {
-        return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:12px;color:#d97706" title="Phase ${p}: Finish CW ${effFP} passed">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span></td>`;
+        return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:12px;color:#d97706" title="Finish CW ${effFP} passed">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span></td>`;
       } else if (p === curPh) {
         return `<td style="text-align:center;background:rgba(37,99,235,.05);border-top:2px solid #93c5fd"><span style="font-size:8px;color:#2563eb;font-weight:700;letter-spacing:.06em">CUR</span><br><span style="font-size:9px;color:#93c5fd;font-weight:700">${effFP?`CW${esc(effFP)}`:'—'}</span></td>`;
       } else {
@@ -2238,35 +2291,33 @@ function renderEfficiency() {
       <td style="white-space:nowrap">${statusBadge}</td>
       <td style="white-space:nowrap">${idLink}</td>
       <td style="font-size:11px;color:var(--gray-600);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,50))}</td>
-      <td style="text-align:center;font-size:11px;color:var(--gray-600);white-space:nowrap">${effSOP ? `CW${esc(effSOP)}` : '—'}</td>
+      <td style="text-align:center;font-size:11px;color:var(--gray-600);white-space:nowrap">${effSOP?`CW${esc(effSOP)}`:'—'}</td>
       <td style="text-align:center">${phBadge}</td>
-      <td style="text-align:center;font-size:11px;${curFpOD?'color:var(--primary);font-weight:700':'color:var(--gray-600)'};white-space:nowrap">${effFP ? `CW${esc(effFP)}` : '—'}</td>
+      <td style="text-align:center;font-size:11px;${curFpOD?'color:var(--primary);font-weight:700':'color:var(--gray-600)'};white-space:nowrap">${effFP?`CW${esc(effFP)}`:'—'}</td>
       ${phaseCells}
     </tr>`;
   }).join('');
 
-  document.getElementById('effTicketTable').innerHTML = `
+  el.innerHTML = `
     <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400)">Show:</span>
       ${['open','closed','all'].map(f => `<button onclick="setBtFilter('${f}')" style="padding:3px 10px;border-radius:var(--radius);border:1px solid ${_btFilter===f?'var(--primary)':'var(--gray-200)'};background:${_btFilter===f?'var(--primary)':'white'};color:${_btFilter===f?'white':'var(--gray-600)'};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;font-family:inherit">${f}</button>`).join('')}
       <span style="font-size:10px;color:var(--gray-400);margin-left:6px">${allTicketsSorted.length} ticket${allTicketsSorted.length!==1?'s':''}</span>
     </div>
-    <div style="font-size:10px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:16px;flex-wrap:wrap">
+    <div style="font-size:10px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:14px;flex-wrap:wrap">
       <span><span style="color:#059669;font-size:12px">✓</span> On time</span>
       <span><span style="color:var(--primary);font-size:12px">✗</span> Late</span>
-      <span><span style="color:#d97706;font-size:12px">⏱</span> Overdue, not transitioned</span>
-      <span style="color:#2563eb;font-weight:700">CUR</span> <span>Active phase</span>
-      <span style="color:var(--gray-300);font-size:14px">·</span> <span>Not reached</span>
+      <span><span style="color:#d97706;font-size:12px">⏱</span> Overdue</span>
+      <span style="color:#2563eb;font-weight:700">CUR</span><span>Active phase</span>
+      <span style="color:var(--gray-300);font-size:14px">·</span><span>Not reached</span>
     </div>
     <div style="overflow-x:auto">
     <table class="odph-tbl">
       <thead><tr>
-        <th>Status</th>
-        <th>ID</th>
-        <th>Summary</th>
+        <th>Status</th><th>ID</th><th>Summary</th>
         <th style="text-align:center">SOP CW</th>
         <th style="text-align:center">Phase</th>
-        <th style="text-align:center;${true?'color:var(--primary)':''}">Finish CW</th>
+        <th style="text-align:center;color:var(--primary)">Finish CW</th>
         <th style="text-align:center">P1<br><span style="font-weight:400;opacity:.6">Invest.</span></th>
         <th style="text-align:center">P2<br><span style="font-weight:400;opacity:.6">Design</span></th>
         <th style="text-align:center">P3<br><span style="font-weight:400;opacity:.6">Test</span></th>
@@ -2276,22 +2327,32 @@ function renderEfficiency() {
       <tbody>${tblRows||'<tr><td colspan="11" style="text-align:center;color:var(--gray-400);padding:20px">No tickets yet</td></tr>'}</tbody>
     </table>
     </div>`;
-
-  renderEfficiencyChart();
-  renderPhaseSuccessChart();
 }
 
 // ─────────────────────────────────────────────────────
 //  PHASE COMPLETION SUCCESS RATE (per phase P1–P5)
 // ─────────────────────────────────────────────────────
+function cwToYearMonth(year, cw) {
+  const n = Number(cw);
+  if (!n || n < 1) return null;
+  let mo;
+  if      (n <=  5) mo = '01';
+  else if (n <=  9) mo = '02';
+  else if (n <= 13) mo = '03';
+  else if (n <= 18) mo = '04';
+  else if (n <= 22) mo = '05';
+  else if (n <= 26) mo = '06';
+  else if (n <= 31) mo = '07';
+  else if (n <= 35) mo = '08';
+  else if (n <= 40) mo = '09';
+  else if (n <= 44) mo = '10';
+  else if (n <= 48) mo = '11';
+  else              mo = '12';
+  return `${year}-${mo}`;
+}
+
 function getMonthFromIsoWeek(year, week) {
-  const jan4 = new Date(year, 0, 4);
-  const dow  = jan4.getDay() || 7;
-  const w1mon = new Date(jan4);
-  w1mon.setDate(jan4.getDate() - dow + 1);
-  const target = new Date(w1mon);
-  target.setDate(w1mon.getDate() + (week - 1) * 7);
-  return target.toISOString().slice(0, 7);
+  return cwToYearMonth(year, week);
 }
 
 function renderPhaseSuccessChart() {
@@ -2319,7 +2380,7 @@ function renderPhaseSuccessChart() {
       if (!curPh) return;
       const alreadyLeft = (u.phaseCompletions || []).some(c => c.fromPhase === curPh && parseCW(c.finishCW) === fpN);
       if (!alreadyLeft) {
-        const month = getMonthFromIsoWeek(_now.year, fpN);
+        const month = cwToYearMonth(_now.year, fpN);
         allEvents.push({ fromPhase: curPh, onTime: false, month, implied: true, ticketId: t.id });
       }
     }
