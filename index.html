@@ -520,7 +520,7 @@
 </div>
 <script>
 (function(){
-  var PW='Changes@snoeks26', KEY='cm_auth_v1';
+  var PW='Changes26', KEY='cm_auth_v1';
   function pwLogin(){
     var v=document.getElementById('pwInput').value;
     if(v===PW){sessionStorage.setItem(KEY,'1');document.getElementById('pwOverlay').style.display='none';document.body.style.overflow='';}
@@ -952,7 +952,9 @@ function importData() {
 }
 
 function clearAll() {
-  if (!confirm('Clear all tickets and update notes?')) return;
+  if (!confirm('Clear all tickets and update notes? This cannot be undone.')) return;
+  const pw = prompt('Enter admin password to confirm:');
+  if (pw !== 'PM26') { alert('Incorrect password — clear cancelled.'); return; }
   tickets = []; updates = {};
   save(); updateHdrCount(); renderDashboard(); renderTable();
   toast('All data cleared');
