@@ -242,6 +242,7 @@
     .dash-card-dk .od-summary { color: rgba(255,255,255,0.6); }
     .dash-card-dk .od-cw-lbl { color: rgba(255,255,255,0.3); }
     .dash-card-dk .od-cw-inp { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); color: rgba(255,255,255,0.8); }
+    .dash-card-dk .od-cw-inp.od-active { border-color: #f87171; color: #f87171; background: rgba(220,38,38,0.15); font-weight: 700; }
     .dash-card-dk .cw-cur-label { background: rgba(37,99,235,0.2); color: #93c5fd; }
 
     .dash-empty { text-align: center; padding: 48px; color: var(--gray-500); }
@@ -1785,7 +1786,7 @@ function renderDashboard() {
           </div>
           <div class="hi-meta">
             <span>SOP <strong>CW${esc(c.sop||'—')}</strong></span>
-            <span>Finish <strong>CW${esc(c.fp||'—')}</strong></span>
+            <span>Finish <strong style="${cwIsOverdue(c.fp)?'color:#f87171;font-weight:900':''}">CW${esc(c.fp||'—')}${cwIsOverdue(c.fp)?'<span style="font-size:9px;margin-left:3px;opacity:.8">⚠</span>':''}</strong></span>
             ${t.productManager ? `<span>PM: <strong>${esc(t.productManager)}</strong></span>` : ''}
           </div>
           ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>` : ''}
@@ -1954,7 +1955,7 @@ function renderDashboard() {
           </div>
           <div class="hi-meta">
             <span>SOP <strong>CW${esc(c2.sop||'—')}</strong></span>
-            <span>Finish <strong>CW${esc(c2.fp||'—')}</strong></span>
+            <span>Finish <strong style="${cwIsOverdue(c2.fp)?'color:#f87171;font-weight:900':''}">CW${esc(c2.fp||'—')}${cwIsOverdue(c2.fp)?'<span style="font-size:9px;margin-left:3px;opacity:.8">⚠</span>':''}</strong></span>
             ${t.productManager?`<span>PM: <strong>${esc(t.productManager)}</strong></span>`:''}
           </div>
           ${t.progressUpdate?`<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>`:''}
@@ -2346,22 +2347,24 @@ function calcMonthPhaseSuccess(year) {
     });
   });
 
-  // Track which (ticketId, cwNum) pairs are already covered by a recorded completion
+  // Track which (ticketId, cwNum, phase) triples are already covered by a recorded completion
+  // Using phase in the key allows multiple transitions at the same CW (different phases) to each count
   const coveredPairs = new Set();
   Object.entries(compsByCW).forEach(([cw, comps]) => {
-    comps.forEach(c => coveredPairs.add(`${c.ticketId}|${cw}`));
+    comps.forEach(c => coveredPairs.add(`${c.ticketId}|${cw}|${c.phase||''}`));
   });
 
-  // Build map: cwNum → active tickets with this finishCW but no recorded completion yet
+  // Build map: cwNum → active tickets with this finishCW whose current phase isn't yet recorded
   const activeByCW = {};
   tickets.filter(t => !isDone(t)).forEach(t => {
     const u  = updates[t.id] || {};
     const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
     const n  = parseCW(fp);
     if (n === null) return;
-    if (!coveredPairs.has(`${t.id}|${n}`)) {
+    const curPhase = effPhase(t) || '';
+    if (!coveredPairs.has(`${t.id}|${n}|${curPhase}`)) {
       if (!activeByCW[n]) activeByCW[n] = [];
-      activeByCW[n].push({ ticketId: t.id, phase: effPhase(t) });
+      activeByCW[n].push({ ticketId: t.id, phase: curPhase });
     }
   });
 
