@@ -125,7 +125,7 @@
     /* phase-mini-legend removed */
 
     /* High priority extensive (dark card) */
-    .hi-list { list-style: none; overflow-y: auto; max-height: 480px; }
+    .hi-list { list-style: none; }
     .hi-ext { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
     .hi-ext:last-child { border-bottom: none; padding-bottom: 0; }
     .hi-head { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; min-width: 0; }
@@ -280,8 +280,8 @@
     .sort-row th.sort-desc::after { content: ' ↓'; color: var(--primary); }
     .sort-row th.upd-th  { color: #FF8080; }
     .sort-row th.upd-th:hover { color: #FFAAAA; }
-    .sort-row th.task-prv { color: #9CA3AF; min-width: 160px; }
-    .sort-row th.task-cur { color: #60A5FA; min-width: 170px; }
+    .sort-row th.task-prv { color: #9CA3AF; min-width: 240px; }
+    .sort-row th.task-cur { color: #60A5FA; min-width: 250px; }
     .sort-row th.task-cur:hover { color: #93C5FD; }
     .sort-row th.task-nxt { color: #4ADE80; min-width: 170px; }
     .sort-row th.task-nxt:hover { color: #86EFAC; }
@@ -1722,6 +1722,12 @@ function renderDashboard() {
         const c    = getEC(t);
         const idTag = tktLink(t.id, 'hi-id');
         const ep = effPhase(t);
+        const lastTask = ((upd.taskHistory||{})[PREV_WK_KEY]) || '';
+        const lastSt   = ((upd.taskHistoryStatus||{})[PREV_WK_KEY]) || '';
+        const lastStStyle = lastSt === 'done'   ? 'background:rgba(5,150,105,0.2);color:#4ade80;'
+                          : lastSt === 'missed' ? 'background:rgba(220,38,38,0.15);color:#f87171;'
+                          :                       'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);';
+        const lastStTxt = lastSt === 'done' ? '✓ done' : lastSt === 'missed' ? '✗ missed' : 'pending';
         return `<li class="hi-ext">
           <div class="hi-head">
             ${idTag}
@@ -1734,12 +1740,21 @@ function renderDashboard() {
             ${t.productManager ? `<span>PM: <strong>${esc(t.productManager)}</strong></span>` : ''}
           </div>
           ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>` : ''}
-          <div style="display:flex;gap:6px;align-items:flex-start;margin-top:5px">
-            <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
-            <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
-              <option value="">— dept —</option>
-              ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
-            </select>
+          <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;gap:6px;align-items:flex-start">
+              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK} last</span>
+              <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:5px 8px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.4;min-height:30px;word-break:break-word">${lastTask ? esc(lastTask) : '<span style="opacity:.4">—</span>'}</div>
+              <span style="flex-shrink:0;font-size:9px;padding:3px 6px;border-radius:var(--radius);white-space:nowrap;align-self:flex-start;margin-top:2px;${lastStStyle}">${lastStTxt}</span>
+              <span style="flex-shrink:0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);padding-top:5px;min-width:28px;text-align:center">${esc(upd.taskDept||'')}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:flex-start">
+              <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK} this</span>
+              <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
+              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
+                <option value="">— dept —</option>
+                ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+              </select>
+            </div>
           </div>
         </li>`;
       }).join('');
@@ -1877,6 +1892,12 @@ function renderDashboard() {
         const upd2 = updates[t.id]||{};
         const c2   = getEC(t);
         const ep2  = effPhase(t);
+        const lastTask2 = ((upd2.taskHistory||{})[PREV_WK_KEY]) || '';
+        const lastSt2   = ((upd2.taskHistoryStatus||{})[PREV_WK_KEY]) || '';
+        const lastStStyle2 = lastSt2 === 'done'   ? 'background:rgba(5,150,105,0.2);color:#4ade80;'
+                           : lastSt2 === 'missed' ? 'background:rgba(220,38,38,0.15);color:#f87171;'
+                           :                        'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);';
+        const lastStTxt2 = lastSt2 === 'done' ? '✓ done' : lastSt2 === 'missed' ? '✗ missed' : 'pending';
         return `<li class="hi-ext">
           <div class="hi-head">${tktLink(t.id,'hi-id')}
             <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
@@ -1888,12 +1909,21 @@ function renderDashboard() {
             ${t.productManager?`<span>PM: <strong>${esc(t.productManager)}</strong></span>`:''}
           </div>
           ${t.progressUpdate?`<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>`:''}
-          <div style="display:flex;gap:6px;align-items:flex-start;margin-top:5px">
-            <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
-            <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
-              <option value="">— dept —</option>
-              ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
-            </select>
+          <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;gap:6px;align-items:flex-start">
+              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK} last</span>
+              <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:5px 8px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.4;min-height:30px;word-break:break-word">${lastTask2 ? esc(lastTask2) : '<span style="opacity:.4">—</span>'}</div>
+              <span style="flex-shrink:0;font-size:9px;padding:3px 6px;border-radius:var(--radius);white-space:nowrap;align-self:flex-start;margin-top:2px;${lastStStyle2}">${lastStTxt2}</span>
+              <span style="flex-shrink:0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);padding-top:5px;min-width:28px;text-align:center">${esc(upd2.taskDept||'')}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:flex-start">
+              <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK} this</span>
+              <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
+              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
+                <option value="">— dept —</option>
+                ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+              </select>
+            </div>
           </div>
         </li>`;
       }).join('')}</ul>`;
@@ -1909,10 +1939,11 @@ function renderDashboard() {
           const ep  = effPhase(t);
           const col = phColors[ep] || 'rgba(255,255,255,0.2)';
           const lastUpd = t.updated ? t.updated.slice(0,10) : (t.dateSubmitted||'—');
-          return `<div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);padding:8px 10px;border-left:3px solid ${col}">
+          const idSafeInact = esc(t.id).replace(/'/g,"\\'");
+          return `<div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);padding:8px 10px;border-left:3px solid ${col};cursor:pointer;transition:background .15s" onclick="goToTicket('${idSafeInact}')" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
               <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3)">${i+1}.</span>
-              ${tktLink(t.id,'hi-id')}
+              <span style="font-size:11px;font-weight:700;color:var(--primary);font-family:'Courier New',monospace">${esc(t.id)}</span>
               ${phaseBadge(ep)}
             </div>
             <div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.35">${esc((t.summary||'').slice(0,45))}</div>
@@ -1972,6 +2003,15 @@ function setDashPanel(panel) {
 function setBtFilter(f) {
   _btFilter = f;
   renderKpiStats();
+}
+
+function goToTicket(id) {
+  selectedTicketId = id;
+  switchTab('tracker');
+  setTimeout(() => {
+    const sel = document.querySelector('tr.row-selected');
+    if (sel) sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 150);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2058,10 +2098,25 @@ function renderEfficiency() {
   const netCls  = netRes >= 0 ? 'grn' : 'red';
 
   // Card 2 — Phase Completion Success Rate for selected month
-  // "Successful" = phase was transitioned on or before its Finish Phase CW deadline
+  // Includes recorded transitions AND implied late (active tickets with overdue FP CW)
   const allCompletions = [];
   tickets.forEach(t => {
     ((updates[t.id] || {}).phaseCompletions || []).forEach(c => allCompletions.push(c));
+  });
+  // Add implied late events (overdue active tickets with no recorded transition)
+  tickets.filter(t => !isDone(t)).forEach(t => {
+    const u  = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    const fpN = parseCW(fp);
+    if (fpN !== null && fpN < CUR_WEEK) {
+      const curPh = effPhase(t);
+      if (!curPh) return;
+      const alreadyLeft = (u.phaseCompletions || []).some(c => c.fromPhase === curPh && parseCW(c.finishCW) === fpN);
+      if (!alreadyLeft) {
+        const month = getMonthFromIsoWeek(_now.year, fpN);
+        allCompletions.push({ fromPhase: curPh, onTime: false, month, implied: true });
+      }
+    }
   });
   const selMonthCompletions = allCompletions.filter(c => c.month === _kpiMonth);
   let phSuccessPct, phSuccessCls, phSuccessSub;
