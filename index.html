@@ -2196,71 +2196,86 @@ function renderEfficiency() {
   const phColors2 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
 
   const tblRows = allTicketsSorted.map(t => {
-    const u     = updates[t.id] || {};
-    const curPh = effPhase(t);
-    const effFP = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    const u      = updates[t.id] || {};
+    const curPh  = effPhase(t);
+    const effSOP = u.sopCW !== undefined ? u.sopCW : t.sop;
+    const effFP  = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
     const curFpOD = !isDone(t) && cwIsOverdue(effFP);
-    const idLink = tktLink(t.id, '', 'color:var(--primary);font-weight:700;text-decoration:none;font-family:"Courier New",monospace;font-size:11px');
+    const idLink  = tktLink(t.id, '', 'color:var(--primary);font-weight:700;text-decoration:none;font-family:"Courier New",monospace;font-size:11px');
+
+    const tStatus = (t.ticketStatus || '');
+    const isCl    = isClosed(t);
+    const statusBadge = isCl
+      ? `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:rgba(5,150,105,0.1);color:#059669;font-weight:700;white-space:nowrap">${esc(tStatus)}</span>`
+      : `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:rgba(0,0,0,0.06);color:var(--gray-500);font-weight:600;white-space:nowrap">${esc(tStatus||'Open')}</span>`;
+
+    const phName  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
+    const phBadge = curPh
+      ? `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius);background:${phColors2[curPh]}22;color:${phColors2[curPh]};font-weight:700;white-space:nowrap">P${curPh}</span>`
+      : `<span style="color:var(--gray-400);font-size:10px">—</span>`;
 
     // Build per-phase status from recorded completions
     const completions = u.phaseCompletions || [];
-    // For each phase number, find the last recorded completion leaving that phase
     const phStatus = {};
-    completions.forEach(c => {
-      if (!phStatus[c.fromPhase] || true) {  // take last recorded
-        phStatus[c.fromPhase] = c.onTime ? 'ok' : 'late';
-      }
-    });
+    completions.forEach(c => { phStatus[c.fromPhase] = c.onTime ? 'ok' : 'late'; });
 
     const phaseCells = phOrder.map(p => {
       const st = phStatus[p];
       if (st === 'ok') {
-        return `<td style="text-align:center;background:rgba(5,150,105,.06)"><span style="font-size:14px;color:#059669" title="Phase ${p}: completed on time">${PC_TICK}</span><br><span style="font-size:8px;color:#059669">on time</span></td>`;
+        return `<td style="text-align:center;background:rgba(5,150,105,.06)"><span style="font-size:13px;color:#059669" title="Phase ${p}: completed on time">${PC_TICK}</span><br><span style="font-size:8px;color:#059669">on time</span></td>`;
       } else if (st === 'late') {
-        return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:14px;color:var(--primary)" title="Phase ${p}: completed late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">late</span></td>`;
+        return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:13px;color:var(--primary)" title="Phase ${p}: completed late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">late</span></td>`;
       } else if (p === curPh && curFpOD) {
-        // Current phase with overdue FP CW — implied late
-        return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:13px;color:#d97706" title="Phase ${p}: Finish Phase CW ${effFP} has passed — transition overdue">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span></td>`;
+        return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:12px;color:#d97706" title="Phase ${p}: Finish CW ${effFP} passed">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span></td>`;
       } else if (p === curPh) {
-        // Current phase, on track
-        return `<td style="text-align:center;background:rgba(37,99,235,.05);border-top:2px solid #93c5fd"><span style="font-size:8px;color:#2563eb;font-weight:700;letter-spacing:.06em" title="Current phase">CUR</span><br><span style="font-size:9px;color:#93c5fd;font-weight:700">${effFP?`CW${esc(effFP)}`:'—'}</span></td>`;
+        return `<td style="text-align:center;background:rgba(37,99,235,.05);border-top:2px solid #93c5fd"><span style="font-size:8px;color:#2563eb;font-weight:700;letter-spacing:.06em">CUR</span><br><span style="font-size:9px;color:#93c5fd;font-weight:700">${effFP?`CW${esc(effFP)}`:'—'}</span></td>`;
       } else {
-        // Phase not yet reached
-        return `<td style="text-align:center"><span style="font-size:16px;color:var(--gray-200)">${PC_NA}</span></td>`;
+        return `<td style="text-align:center"><span style="font-size:15px;color:var(--gray-200)">${PC_NA}</span></td>`;
       }
     }).join('');
 
     return `<tr>
+      <td style="white-space:nowrap">${statusBadge}</td>
       <td style="white-space:nowrap">${idLink}</td>
-      <td style="font-size:11px;color:var(--gray-600);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,55))}</td>
+      <td style="font-size:11px;color:var(--gray-600);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,50))}</td>
+      <td style="text-align:center;font-size:11px;color:var(--gray-600);white-space:nowrap">${effSOP ? `CW${esc(effSOP)}` : '—'}</td>
+      <td style="text-align:center">${phBadge}</td>
+      <td style="text-align:center;font-size:11px;${curFpOD?'color:var(--primary);font-weight:700':'color:var(--gray-600)'};white-space:nowrap">${effFP ? `CW${esc(effFP)}` : '—'}</td>
       ${phaseCells}
     </tr>`;
   }).join('');
 
   document.getElementById('effTicketTable').innerHTML = `
-    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400)">Show:</span>
       ${['open','closed','all'].map(f => `<button onclick="setBtFilter('${f}')" style="padding:3px 10px;border-radius:var(--radius);border:1px solid ${_btFilter===f?'var(--primary)':'var(--gray-200)'};background:${_btFilter===f?'var(--primary)':'white'};color:${_btFilter===f?'white':'var(--gray-600)'};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;font-family:inherit">${f}</button>`).join('')}
       <span style="font-size:10px;color:var(--gray-400);margin-left:6px">${allTicketsSorted.length} ticket${allTicketsSorted.length!==1?'s':''}</span>
     </div>
     <div style="font-size:10px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:16px;flex-wrap:wrap">
-      <span><span style="color:#059669;font-size:12px">✓</span> Completed on time</span>
-      <span><span style="color:var(--primary);font-size:12px">✗</span> Completed late</span>
-      <span><span style="color:#d97706;font-size:12px">⏱</span> Deadline passed, not yet transitioned</span>
-      <span style="color:#2563eb;font-weight:700;font-size:10px">CUR</span> <span>Current active phase</span>
+      <span><span style="color:#059669;font-size:12px">✓</span> On time</span>
+      <span><span style="color:var(--primary);font-size:12px">✗</span> Late</span>
+      <span><span style="color:#d97706;font-size:12px">⏱</span> Overdue, not transitioned</span>
+      <span style="color:#2563eb;font-weight:700">CUR</span> <span>Active phase</span>
       <span style="color:var(--gray-300);font-size:14px">·</span> <span>Not reached</span>
     </div>
+    <div style="overflow-x:auto">
     <table class="odph-tbl">
       <thead><tr>
-        <th>ID</th><th>Summary</th>
+        <th>Status</th>
+        <th>ID</th>
+        <th>Summary</th>
+        <th style="text-align:center">SOP CW</th>
+        <th style="text-align:center">Phase</th>
+        <th style="text-align:center;${true?'color:var(--primary)':''}">Finish CW</th>
         <th style="text-align:center">P1<br><span style="font-weight:400;opacity:.6">Invest.</span></th>
         <th style="text-align:center">P2<br><span style="font-weight:400;opacity:.6">Design</span></th>
         <th style="text-align:center">P3<br><span style="font-weight:400;opacity:.6">Test</span></th>
         <th style="text-align:center">P4<br><span style="font-weight:400;opacity:.6">Impl.</span></th>
         <th style="text-align:center">P5<br><span style="font-weight:400;opacity:.6">Final.</span></th>
       </tr></thead>
-      <tbody>${tblRows||'<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px">No tickets yet</td></tr>'}</tbody>
-    </table>`;
+      <tbody>${tblRows||'<tr><td colspan="11" style="text-align:center;color:var(--gray-400);padding:20px">No tickets yet</td></tr>'}</tbody>
+    </table>
+    </div>`;
 
   renderEfficiencyChart();
   renderPhaseSuccessChart();
