@@ -1798,9 +1798,9 @@ function renderDashboard() {
             </div>
             <div style="display:flex;gap:6px;align-items:flex-start">
               <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK} this</span>
-              <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
-              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
-                <option value="">— dept —</option>
+              <textarea class="hi-task-inp" rows="3" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1;min-height:52px">${esc(upd.taskThisWeek||'')}</textarea>
+              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
+                <option value="">dept</option>
                 ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
               </select>
             </div>
@@ -1967,9 +1967,9 @@ function renderDashboard() {
             </div>
             <div style="display:flex;gap:6px;align-items:flex-start">
               <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK} this</span>
-              <textarea class="hi-task-inp" rows="2" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
-              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center">
-                <option value="">— dept —</option>
+              <textarea class="hi-task-inp" rows="3" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1;min-height:52px">${esc(upd2.taskThisWeek||'')}</textarea>
+              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
+                <option value="">dept</option>
                 ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
               </select>
             </div>
@@ -2147,45 +2147,17 @@ function renderEfficiency() {
   const netCls  = netRes >= 0 ? 'grn' : 'red';
 
   // Card 2 — Phase Completion Success Rate for selected month
-  // Includes recorded transitions AND implied late (active tickets with overdue FP CW)
-  const allCompletions = [];
-  tickets.forEach(t => {
-    ((updates[t.id] || {}).phaseCompletions || []).forEach(c => allCompletions.push(c));
-  });
-  // Add implied late events (overdue active tickets with no recorded transition)
-  tickets.filter(t => !isDone(t)).forEach(t => {
-    const u  = updates[t.id] || {};
-    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
-    const fpN = parseCW(fp);
-    if (fpN !== null && fpN < CUR_WEEK) {
-      const curPh = effPhase(t);
-      if (!curPh) return;
-      const alreadyLeft = (u.phaseCompletions || []).some(c => c.fromPhase === curPh && parseCW(c.finishCW) === fpN);
-      if (!alreadyLeft) {
-        const month = cwToYearMonth(_now.year, fpN);
-        allCompletions.push({ fromPhase: curPh, onTime: false, month, implied: true });
-      }
-    }
-  });
-  const selMonthCompletions = allCompletions.filter(c => c.month === _kpiMonth);
+  const _monthSuccess = calcMonthPhaseSuccess(_now.year);
+  const _selMD = _monthSuccess[_kpiMonth] || { total: 0, onTime: 0 };
   let phSuccessPct, phSuccessCls, phSuccessSub;
-  if (selMonthCompletions.length > 0) {
-    const onTimeCount = selMonthCompletions.filter(c => c.onTime).length;
-    phSuccessPct = Math.round(onTimeCount / selMonthCompletions.length * 100);
+  if (_selMD.total > 0) {
+    phSuccessPct = Math.round(_selMD.onTime / _selMD.total * 100);
     phSuccessCls = phSuccessPct >= 80 ? 'grn' : phSuccessPct >= 50 ? 'blu' : 'red';
-    phSuccessSub = `${onTimeCount} on time · ${selMonthCompletions.length - onTimeCount} late · ${selMonthCompletions.length} transitions · ${selMonthLabel}`;
+    phSuccessSub = `${_selMD.onTime} on time · ${_selMD.total - _selMD.onTime} not transitioned · ${_selMD.total} deadlines · ${selMonthLabel}`;
   } else {
-    // No transitions recorded for this month yet — show overall if any exist
-    if (allCompletions.length > 0) {
-      const onTimeAll  = allCompletions.filter(c => c.onTime).length;
-      phSuccessPct = Math.round(onTimeAll / allCompletions.length * 100);
-      phSuccessCls = phSuccessPct >= 80 ? 'grn' : phSuccessPct >= 50 ? 'blu' : 'red';
-      phSuccessSub = `${onTimeAll} on time · ${allCompletions.length - onTimeAll} late · overall`;
-    } else {
-      phSuccessPct = null;
-      phSuccessCls = '';
-      phSuccessSub = 'No phase transitions recorded yet';
-    }
+    phSuccessPct = null;
+    phSuccessCls = '';
+    phSuccessSub = `No deadlines in ${selMonthLabel}`;
   }
 
   // Phases to be finished this CW
@@ -2355,6 +2327,74 @@ function getMonthFromIsoWeek(year, week) {
   return cwToYearMonth(year, week);
 }
 
+function calcMonthPhaseSuccess(year) {
+  const CW_RANGES = [
+    [1,5],[6,9],[10,13],[14,18],[19,22],[23,26],[27,31],[32,35],[36,40],[41,44],[45,48],[49,52]
+  ];
+  const MONTH_KEYS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const result = {};
+
+  // Build map: cwNum → recorded completions for that finishCW
+  const compsByCW = {};
+  tickets.forEach(t => {
+    ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
+      const n = parseCW(c.finishCW);
+      if (n !== null) {
+        if (!compsByCW[n]) compsByCW[n] = [];
+        compsByCW[n].push({ ticketId: t.id, onTime: c.onTime, phase: c.fromPhase });
+      }
+    });
+  });
+
+  // Track which (ticketId, cwNum) pairs are already covered by a recorded completion
+  const coveredPairs = new Set();
+  Object.entries(compsByCW).forEach(([cw, comps]) => {
+    comps.forEach(c => coveredPairs.add(`${c.ticketId}|${cw}`));
+  });
+
+  // Build map: cwNum → active tickets with this finishCW but no recorded completion yet
+  const activeByCW = {};
+  tickets.filter(t => !isDone(t)).forEach(t => {
+    const u  = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    const n  = parseCW(fp);
+    if (n === null) return;
+    if (!coveredPairs.has(`${t.id}|${n}`)) {
+      if (!activeByCW[n]) activeByCW[n] = [];
+      activeByCW[n].push({ ticketId: t.id, phase: effPhase(t) });
+    }
+  });
+
+  CW_RANGES.forEach(([cwStart, cwEnd], i) => {
+    const key = `${year}-${MONTH_KEYS[i]}`;
+    let total = 0, onTime = 0;
+    const phases = {};
+    for (let cw = cwStart; cw <= cwEnd; cw++) {
+      (compsByCW[cw] || []).forEach(c => {
+        total++;
+        if (c.onTime) onTime++;
+        const p = c.phase;
+        if (p) {
+          if (!phases[p]) phases[p] = { total: 0, onTime: 0 };
+          phases[p].total++;
+          if (c.onTime) phases[p].onTime++;
+        }
+      });
+      (activeByCW[cw] || []).forEach(a => {
+        total++;
+        const p = a.phase;
+        if (p) {
+          if (!phases[p]) phases[p] = { total: 0, onTime: 0 };
+          phases[p].total++;
+        }
+      });
+    }
+    result[key] = { total, onTime, phases };
+  });
+
+  return result;
+}
+
 function renderPhaseSuccessChart() {
   const el = document.getElementById('effPhaseSuccess');
   if (!el) return;
@@ -2363,37 +2403,19 @@ function renderPhaseSuccessChart() {
   const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
   const phNames  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
 
-  // Collect recorded transitions
-  const allEvents = [];
-  tickets.forEach(t => {
-    ((updates[t.id] || {}).phaseCompletions || []).forEach(c => allEvents.push({ ...c, ticketId: t.id }));
-  });
+  const byMonth = calcMonthPhaseSuccess(_now.year);
 
-  // Implied late events: active tickets with overdue FP CW and no recorded transition
-  const active = tickets.filter(t => !isDone(t));
-  active.forEach(t => {
-    const u   = updates[t.id] || {};
-    const fp  = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
-    const fpN = parseCW(fp);
-    if (fpN !== null && fpN < CUR_WEEK) {
-      const curPh = effPhase(t);
-      if (!curPh) return;
-      const alreadyLeft = (u.phaseCompletions || []).some(c => c.fromPhase === curPh && parseCW(c.finishCW) === fpN);
-      if (!alreadyLeft) {
-        const month = cwToYearMonth(_now.year, fpN);
-        allEvents.push({ fromPhase: curPh, onTime: false, month, implied: true, ticketId: t.id });
-      }
-    }
-  });
+  // Only show months with at least one deadline
+  const months = Object.keys(byMonth).filter(k => byMonth[k].total > 0).sort();
 
-  if (!allEvents.length) {
-    el.innerHTML = '<p style="color:var(--gray-400);font-size:13px;padding:16px 0">No phase transitions recorded yet. Success is tracked when a phase is changed in the Tracker; overdue phases are auto-counted as late.</p>';
+  if (!months.length) {
+    el.innerHTML = '<p style="color:var(--gray-400);font-size:13px;padding:16px 0">No phase deadlines recorded yet. Deadlines are tracked via Finish Phase CW; completed phases are tracked when you select a phase in the Tracker.</p>';
     return;
   }
 
-  // Overall totals
-  const totalAll  = allEvents.length;
-  const onTimeAll = allEvents.filter(c => c.onTime).length;
+  // Overall totals (sum across all months with data)
+  let totalAll = 0, onTimeAll = 0;
+  months.forEach(m => { totalAll += byMonth[m].total; onTimeAll += byMonth[m].onTime; });
   const overallPct   = totalAll > 0 ? Math.round(onTimeAll / totalAll * 100) : 0;
   const overallColor = overallPct >= 80 ? '#059669' : overallPct >= 50 ? '#d97706' : '#CC0000';
 
@@ -2405,30 +2427,13 @@ function renderPhaseSuccessChart() {
     <div style="width:1px;height:36px;background:var(--gray-200)"></div>
     <div style="font-size:12px;color:var(--gray-600);line-height:1.8">
       <span style="font-weight:700;color:#059669">${onTimeAll}</span> on time &nbsp;·&nbsp;
-      <span style="font-weight:700;color:#CC0000">${totalAll - onTimeAll}</span> late &nbsp;·&nbsp;
-      <span style="font-weight:700;color:var(--gray-700)">${totalAll}</span> total transitions
+      <span style="font-weight:700;color:#CC0000">${totalAll - onTimeAll}</span> not transitioned &nbsp;·&nbsp;
+      <span style="font-weight:700;color:var(--gray-700)">${totalAll}</span> total deadlines
     </div>
   </div>`;
 
-  // Group by month
-  const byMonth = {};
-  allEvents.forEach(c => {
-    const mo = c.month || 'Unknown';
-    if (!byMonth[mo]) byMonth[mo] = { total: 0, onTime: 0, phases: {} };
-    byMonth[mo].total++;
-    if (c.onTime) byMonth[mo].onTime++;
-    if (!byMonth[mo].phases[c.fromPhase]) byMonth[mo].phases[c.fromPhase] = { total: 0, onTime: 0 };
-    byMonth[mo].phases[c.fromPhase].total++;
-    if (c.onTime) byMonth[mo].phases[c.fromPhase].onTime++;
-  });
-
-  const months = Object.keys(byMonth).filter(m => m !== 'Unknown').sort();
-  if (byMonth['Unknown']) months.push('Unknown');
-
-  // SVG bar chart — one bar per month, height = % on-time
   const MON = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function fmtMo(k) {
-    if (k === 'Unknown') return '?';
     const [yr, mo] = k.split('-');
     return `${MON[+mo]||mo} '${yr.slice(2)}`;
   }
@@ -2443,13 +2448,11 @@ function renderPhaseSuccessChart() {
 
   let svg = '';
 
-  // Y gridlines 0/25/50/75/100%
   [0, 25, 50, 75, 100].forEach(pct => {
     const y = padT + cH - cH * pct / 100;
     svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#F0F0F0" stroke-width="1"/>`;
     svg += `<text x="${(padL-5).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#9CA3AF">${pct}%</text>`;
   });
-  // 50% dashed reference
   const y50 = padT + cH * 0.5;
   svg += `<line x1="${padL}" y1="${y50.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${y50.toFixed(1)}" stroke="#d97706" stroke-width="1" stroke-dasharray="4,3" opacity=".5"/>`;
 
@@ -2469,10 +2472,8 @@ function renderPhaseSuccessChart() {
 
     if (barH > 10) svg += `<text x="${xC.toFixed(1)}" y="${(barY-5).toFixed(1)}" text-anchor="middle" font-size="11" fill="${col}" font-weight="700">${pct}%</text>`;
 
-    // count below axis
     svg += `<text x="${xC.toFixed(1)}" y="${(padT+cH+13).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9CA3AF">${d.onTime}/${d.total}</text>`;
 
-    // per-phase colour dots below count
     const activePhases = phOrder.filter(p => (d.phases[p]||{}).total > 0);
     const dotR = 4, dotGap = 2;
     const totalDotW = activePhases.length * (dotR*2 + dotGap) - dotGap;
@@ -2484,7 +2485,6 @@ function renderPhaseSuccessChart() {
       dotX += dotR*2 + dotGap;
     });
 
-    // tick + rotated month label
     svg += `<line x1="${xC.toFixed(1)}" y1="${(padT+cH).toFixed(1)}" x2="${xC.toFixed(1)}" y2="${(padT+cH+4).toFixed(1)}" stroke="#AAAAAA" stroke-width="1.5"/>`;
     const lY = padT + cH + 50;
     svg += `<text x="${xC.toFixed(1)}" y="${lY}" text-anchor="end" font-size="11" fill="#4B4B4B" font-weight="600" transform="rotate(-38 ${xC.toFixed(1)} ${lY})">${fmtMo(m)}</text>`;
