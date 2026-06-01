@@ -125,10 +125,13 @@
     /* Phase compact (stacked bar only, no hbars) */
     /* phase-mini-legend removed */
 
-    /* High priority extensive (light card) */
+    /* High priority extensive */
     .hi-list { list-style: none; }
-    .hi-ext { padding: 10px 0; border-bottom: 1px solid var(--gray-200); }
-    .hi-ext:last-child { border-bottom: none; padding-bottom: 0; }
+    .hi-ext { padding: 10px 0 10px 10px; border-bottom: 1px solid var(--gray-200); position: relative; }
+    .hi-ext::before { content:''; position:absolute; left:0; top:8px; bottom:8px; width:3px; background:rgba(204,0,0,0.2); border-radius:1px; }
+    .hi-ext.hi-od { background:rgba(204,0,0,0.025); }
+    .hi-ext.hi-od::before { background:var(--primary); }
+    .hi-ext:last-child { border-bottom: none; }
     .hi-head { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; min-width: 0; }
     .hi-id { font-size: 11px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
     .hi-id:hover { text-decoration: underline; }
@@ -139,6 +142,9 @@
     .hi-task-inp { flex: 1; min-width: 0; box-sizing: border-box; background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.25); color: #1e40af; border-radius: var(--radius); padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.5; resize: none; outline: none; display: block; }
     .hi-task-inp::placeholder { color: var(--gray-400); font-style: italic; }
     .hi-task-inp:focus { border-color: rgba(37,99,235,0.5); background: rgba(37,99,235,0.1); box-shadow: 0 0 0 2px rgba(37,99,235,0.12); }
+    /* Urgent card treatment */
+    .dash-card-dk.hi-urgent { background: rgba(204,0,0,0.018); border-color: rgba(204,0,0,0.2); }
+    .dash-card-dk.hi-urgent::before { height: 4px; }
 
     /* CW overdue editable (light card) */
     .od-row { display: flex; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--gray-200); flex-wrap: wrap; }
@@ -1959,56 +1965,90 @@ function renderDashboard() {
   active.forEach(t => { const ph = effPhase(t)||''; phCounts[ph] = (phCounts[ph]||0)+1; });
 
   // ── HIGH PRIORITY EXTENDED ────────────────────────────
-  const highTickets = active.filter(t => effPri(t) === 'HIGH').sort((a,b) => (a.id||'').localeCompare(b.id||''));
+  const highTickets = active.filter(t => effPri(t) === 'HIGH').sort((a,b) => {
+    // Sort: overdue first, then by ID
+    const aOD = cwIsOverdue(getEC(a).fp) ? 0 : 1;
+    const bOD = cwIsOverdue(getEC(b).fp) ? 0 : 1;
+    return aOD - bOD || (a.id||'').localeCompare(b.id||'');
+  });
+  const highODCount = highTickets.filter(t => cwIsOverdue(getEC(t).fp)).length;
   const highExtHTML = highTickets.length === 0
     ? `<p style="color:var(--gray-400);font-size:13px;padding:12px 0">No HIGH priority tickets</p>`
-    : highTickets.map(t => {
-        const upd  = updates[t.id] || {};
-        const c    = getEC(t);
-        const idTag = tktLink(t.id, 'hi-id');
-        const ep = effPhase(t);
-        const lastTask = ((upd.taskHistory||{})[PREV_WK_KEY]) || '';
-        const lastSt   = ((upd.taskHistoryStatus||{})[PREV_WK_KEY]) || '';
-        const lastStStyle = lastSt === 'done'   ? 'background:rgba(5,150,105,0.1);color:#059669;'
-                          : lastSt === 'missed' ? 'background:rgba(220,38,38,0.1);color:#dc2626;'
-                          :                       'background:var(--gray-100);color:var(--gray-400);';
-        const lastStTxt = lastSt === 'done' ? '✓ done' : lastSt === 'missed' ? '✗ missed' : 'pending';
-        return `<li class="hi-ext">
-          <div class="hi-head">
-            ${idTag}
-            <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
-            ${phaseBadge(ep)}
-          </div>
-          <div class="hi-meta">
-            <span>SOP <strong>CW${esc(c.sop||'—')}</strong></span>
-            <span>Finish <strong style="${cwIsOverdue(c.fp)?'color:#dc2626;font-weight:900':''}">CW${esc(c.fp||'—')}${cwIsOverdue(c.fp)?'<span style="font-size:9px;margin-left:3px;opacity:.8">⚠</span>':''}</strong></span>
-            ${t.productManager ? `<span>PM: <strong>${esc(t.productManager)}</strong></span>` : ''}
-          </div>
-          ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>` : ''}
-          <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
-            <div style="display:flex;gap:6px;align-items:flex-start">
-              <span style="font-size:9px;font-weight:700;color:var(--gray-400);white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK}</span>
-              <div style="flex:1;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:5px 8px;font-size:12px;color:var(--gray-600);line-height:1.4;min-height:30px;word-break:break-word">${lastTask ? esc(lastTask) : '<span style="opacity:.4">—</span>'}</div>
-              <span style="flex-shrink:0;font-size:9px;padding:3px 6px;border-radius:var(--radius);white-space:nowrap;align-self:flex-start;margin-top:2px;${lastStStyle}">${lastStTxt}</span>
-              <span style="flex-shrink:0;font-size:10px;font-weight:700;color:var(--gray-500);padding-top:5px;min-width:28px;text-align:center">${esc(upd.taskDept||'')}</span>
+    : (()=>{
+        const urgencyBar = highODCount > 0
+          ? `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(204,0,0,0.07);border:1px solid rgba(204,0,0,0.15);border-radius:var(--radius);margin-bottom:10px">
+              <span style="font-size:16px;line-height:1">⚠</span>
+              <span style="font-size:11px;font-weight:700;color:var(--primary)">${highODCount} ticket${highODCount>1?'s':''} with overdue Finish Phase CW</span>
+            </div>`
+          : '';
+        const items = highTickets.map(t => {
+          const upd  = updates[t.id] || {};
+          const c    = getEC(t);
+          const idTag = tktLink(t.id, 'hi-id');
+          const ep = effPhase(t);
+          const isOD = cwIsOverdue(c.fp);
+          const lastTask = ((upd.taskHistory||{})[PREV_WK_KEY]) || '';
+          const lastSt   = ((upd.taskHistoryStatus||{})[PREV_WK_KEY]) || '';
+          const lastStStyle = lastSt === 'done'   ? 'background:rgba(5,150,105,0.1);color:#059669;'
+                            : lastSt === 'missed' ? 'background:rgba(220,38,38,0.1);color:#dc2626;'
+                            :                       'background:var(--gray-100);color:var(--gray-400);';
+          const lastStTxt = lastSt === 'done' ? '✓ done' : lastSt === 'missed' ? '✗ missed' : 'pending';
+          return `<li class="hi-ext${isOD?' hi-od':''}">
+            <div class="hi-head">
+              ${idTag}
+              <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
+              ${phaseBadge(ep)}
+              ${isOD ? `<span style="flex-shrink:0;font-size:9px;font-weight:800;color:var(--primary);background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.18);border-radius:var(--radius);padding:1px 5px;text-transform:uppercase;letter-spacing:.05em">Overdue</span>` : ''}
             </div>
-            <div style="display:flex;gap:6px;align-items:flex-start">
-              <span style="font-size:9px;font-weight:700;color:#1d4ed8;white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK}</span>
-              <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
-              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
-                <option value="">dept</option>
-                ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
-              </select>
+            <div class="hi-meta">
+              <span>SOP <strong>CW${esc(c.sop||'—')}</strong></span>
+              <span>Finish <strong style="${isOD?'color:#dc2626;font-weight:900':''}">CW${esc(c.fp||'—')}${isOD?'<span style="font-size:9px;margin-left:3px">⚠</span>':''}</strong></span>
+              ${t.productManager ? `<span>PM: <strong>${esc(t.productManager)}</strong></span>` : ''}
             </div>
-          </div>
-        </li>`;
-      }).join('');
+            ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>` : ''}
+            <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;gap:6px;align-items:flex-start">
+                <span style="font-size:9px;font-weight:700;color:var(--gray-400);white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK}</span>
+                <div style="flex:1;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:5px 8px;font-size:12px;color:var(--gray-600);line-height:1.4;min-height:30px;word-break:break-word">${lastTask ? esc(lastTask) : '<span style="opacity:.4">—</span>'}</div>
+                <span style="flex-shrink:0;font-size:9px;padding:3px 6px;border-radius:var(--radius);white-space:nowrap;align-self:flex-start;margin-top:2px;${lastStStyle}">${lastStTxt}</span>
+                <span style="flex-shrink:0;font-size:10px;font-weight:700;color:var(--gray-500);padding-top:5px;min-width:28px;text-align:center">${esc(upd.taskDept||'')}</span>
+              </div>
+              <div style="display:flex;gap:6px;align-items:flex-start">
+                <span style="font-size:9px;font-weight:700;color:#1d4ed8;white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK}</span>
+                <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
+                <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
+                  <option value="">dept</option>
+                  ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </li>`;
+        }).join('');
+        return urgencyBar + `<ul class="hi-list">${items}</ul>`;
+      })();
 
   // ── PHASE DISTRIBUTION — bar chart actual vs target ──────
   // Targets: P1=10, P2=10, P3=15, P4=10, P5=5
   // Lower is favorable: under target → green, over target → red
   const PH_TGT = { '1':10, '2':10, '3':15, '4':10, '5':5 };
   const phScale = Math.max(...phOrder.map(p => phCounts[p]||0), ...phOrder.map(p => PH_TGT[p]), 1);
+
+  // Count active tickets per phase with finishPhaseCW in the current month's CW range
+  const _cwRangesDash = [[1,5],[6,9],[10,13],[14,18],[19,22],[23,26],[27,31],[32,35],[36,40],[41,44],[45,48],[49,52]];
+  const _curMonthRange = _cwRangesDash.find(([s,e]) => CUR_WEEK >= s && CUR_WEEK <= e) || null;
+  const phThisMonth = {};
+  if (_curMonthRange) {
+    const [cwS, cwE] = _curMonthRange;
+    active.forEach(t => {
+      const u  = updates[t.id] || {};
+      const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+      const n  = parseCW(fp);
+      if (n !== null && n >= cwS && n <= cwE) {
+        const ph = effPhase(t) || '';
+        phThisMonth[ph] = (phThisMonth[ph] || 0) + 1;
+      }
+    });
+  }
 
   const phDistBarsHTML = phOrder.map(p => {
     const cnt   = phCounts[p] || 0;
@@ -2018,16 +2058,27 @@ function renderDashboard() {
     const over  = cnt > tgt;
     const fill  = cnt === 0 ? 'var(--gray-100)' : over ? '#CC0000' : '#22c55e';
     const clr   = cnt === 0 ? 'var(--gray-300)'  : over ? '#dc2626' : '#16a34a';
-    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-      <div style="flex-shrink:0;width:140px">
-        <span style="font-size:13px;font-weight:900;color:var(--gray-800)">${p}</span>
-        <span style="font-size:10px;color:var(--gray-500);margin-left:7px">${phNames[p]}</span>
+    const moCnt = phThisMonth[p] || 0;
+    const moTag = moCnt > 0
+      ? `<div style="margin-top:4px;font-size:10px;color:#b45309;font-weight:700">
+           <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;background:rgba(217,119,6,0.09);border:1px solid rgba(217,119,6,0.2);border-radius:var(--radius)">
+             ${moCnt} due this month
+           </span>
+         </div>`
+      : '';
+    return `<div style="margin-bottom:${moCnt>0?'16':'14'}px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex-shrink:0;width:140px">
+          <span style="font-size:13px;font-weight:900;color:var(--gray-800)">${p}</span>
+          <span style="font-size:10px;color:var(--gray-500);margin-left:7px">${phNames[p]}</span>
+        </div>
+        <div style="flex:1;height:26px;background:var(--gray-100);border-radius:var(--radius);position:relative;overflow:visible">
+          <div style="position:absolute;inset:0;width:${wAct}%;min-width:${cnt>0?'3px':'0'};background:${fill};border-radius:var(--radius);transition:width .4s ease"></div>
+          <div style="position:absolute;top:-5px;bottom:-5px;left:calc(${wTgt}% - 1px);width:2px;background:var(--gray-400);border-radius:1px;z-index:1" title="Target: ${tgt}"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${clr};white-space:nowrap;width:52px;text-align:right">${cnt} <span style="font-weight:400;opacity:.4;font-size:10px">/ ${tgt}</span></span>
       </div>
-      <div style="flex:1;height:26px;background:var(--gray-100);border-radius:var(--radius);position:relative;overflow:visible">
-        <div style="position:absolute;inset:0;width:${wAct}%;min-width:${cnt>0?'3px':'0'};background:${fill};border-radius:var(--radius);transition:width .4s ease"></div>
-        <div style="position:absolute;top:-5px;bottom:-5px;left:calc(${wTgt}% - 1px);width:2px;background:var(--gray-400);border-radius:1px;z-index:1" title="Target: ${tgt}"></div>
-      </div>
-      <span style="font-size:12px;font-weight:700;color:${clr};white-space:nowrap;width:52px;text-align:right">${cnt} <span style="font-weight:400;opacity:.4;font-size:10px">/ ${tgt}</span></span>
+      ${moTag}
     </div>`;
   }).join('');
 
@@ -2217,7 +2268,7 @@ function renderDashboard() {
   } else {
     dynAccent = p1Count > 0 ? '' : 'acc-gray';
     dynTitle  = `<span>High Priority</span>${p1Count > 0 ? `<span class="h3-badge h3-red">${p1Count} ticket${p1Count>1?'s':''}</span>` : `<span class="h3-badge h3-gray">None</span>`}`;
-    dynHTML   = `<ul class="hi-list">${highExtHTML}</ul>`;
+    dynHTML   = highExtHTML;
   }
 
   dashGridTop.innerHTML = `
@@ -2600,11 +2651,17 @@ function calcMonthPhaseSuccess(year) {
       phases[p][field]++;
     }
     for (let cw = cwStart; cw <= cwEnd; cw++) {
-      // Recorded completions always count — on time or late
-      (compsByCW[cw] || []).forEach(c => {
-        if (c.onTime) { onTime++; phInc(c.phase, 'onTime'); }
-        else          { overdue++; phInc(c.phase, 'overdue'); }
-      });
+      // Recorded completions: only evaluate once their finishCW deadline has been reached.
+      // Early transitions (finishCW > CUR_WEEK) are treated as upcoming — not yet evaluated.
+      if (cw <= CUR_WEEK) {
+        (compsByCW[cw] || []).forEach(c => {
+          if (c.onTime) { onTime++; phInc(c.phase, 'onTime'); }
+          else          { overdue++; phInc(c.phase, 'overdue'); }
+        });
+      } else {
+        // Deadline not yet reached: early transitions count as upcoming
+        (compsByCW[cw] || []).forEach(c => { upcoming++; phInc(c.phase, 'upcoming'); });
+      }
       // Active tickets (no recorded completion for this finishCW)
       (activeByCW[cw] || []).forEach(a => {
         if (cw < CUR_WEEK) { overdue++; phInc(a.phase, 'overdue'); }
