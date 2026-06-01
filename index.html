@@ -994,15 +994,39 @@ function exportPDF(type) {
         }
       }
     });
+    const curYear = now.getFullYear();
     const allMoKeys = [...new Set([...Object.keys(openedByMo),...Object.keys(closedByMo)])].sort();
-    const ocRows = allMoKeys.map(k => {
-      const mo = k.slice(5,7);
-      const moName = MON_NAMES[+mo-1] + ' ' + k.slice(0,4);
-      const op = openedByMo[k]||0, cl = closedByMo[k]||0;
-      const net = cl - op;
-      const netColor = net >= 0 ? '#059669' : '#CC0000';
-      return `<tr><td>${moName}</td><td style="text-align:center">${op}</td><td style="text-align:center;color:#059669;font-weight:700">${cl}</td><td style="text-align:center;font-weight:700;color:${netColor}">${net>=0?'+':''}${net}</td></tr>`;
-    }).join('');
+
+    // Past years: aggregate to one row per year. Current year: one row per month.
+    const ocRowsPastYears = (() => {
+      const byYear = {};
+      allMoKeys.forEach(k => {
+        const yr = k.slice(0,4);
+        if (+yr === curYear) return;
+        if (!byYear[yr]) byYear[yr] = { op:0, cl:0 };
+        byYear[yr].op += openedByMo[k]||0;
+        byYear[yr].cl += closedByMo[k]||0;
+      });
+      return Object.keys(byYear).sort().map(yr => {
+        const { op, cl } = byYear[yr];
+        const net = cl - op;
+        const netColor = net >= 0 ? '#059669' : '#CC0000';
+        return `<tr style="background:var(--gray-50)"><td style="font-weight:700">${yr} (full year)</td><td style="text-align:center">${op}</td><td style="text-align:center;color:#059669;font-weight:700">${cl}</td><td style="text-align:center;font-weight:700;color:${netColor}">${net>=0?'+':''}${net}</td></tr>`;
+      }).join('');
+    })();
+
+    const ocRowsCurYear = allMoKeys
+      .filter(k => k.slice(0,4) === String(curYear))
+      .map(k => {
+        const mo = k.slice(5,7);
+        const moName = MON_NAMES[+mo-1];
+        const op = openedByMo[k]||0, cl = closedByMo[k]||0;
+        const net = cl - op;
+        const netColor = net >= 0 ? '#059669' : '#CC0000';
+        return `<tr><td>${moName} ${curYear}</td><td style="text-align:center">${op}</td><td style="text-align:center;color:#059669;font-weight:700">${cl}</td><td style="text-align:center;font-weight:700;color:${netColor}">${net>=0?'+':''}${net}</td></tr>`;
+      }).join('');
+
+    const ocRows = ocRowsPastYears + ocRowsCurYear;
 
     // Phase distribution
     const PH_NAMES_PDF = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
@@ -2331,14 +2355,14 @@ function renderDashboard() {
       <h3>${dynTitle}</h3>
       ${dynHTML}
     </div>
-    <div class="dash-card-dk acc-gray" style="grid-column:2;grid-row:2;overflow-y:auto;max-height:320px">
+    <div class="dash-card-dk acc-gray" style="grid-column:2;grid-row:2;overflow-y:auto;max-height:640px">
       <h3>
         <span>Tasks Last Week</span>
         <span class="h3-badge h3-gray">CW${PREV_WEEK}</span>
       </h3>
       ${lastWeekHTML}
     </div>
-    <div class="dash-card-dk acc-blue" style="grid-column:3;grid-row:2;overflow-y:auto;max-height:320px">
+    <div class="dash-card-dk acc-blue" style="grid-column:3;grid-row:2;overflow-y:auto;max-height:640px">
       <h3>
         <span>Tasks This Week</span>
         <span class="h3-badge h3-blue">CW${CUR_WEEK}</span>
