@@ -542,7 +542,7 @@
     <div class="tab active" data-tab="dashboard">Dashboard</div>
     <div class="tab" data-tab="tracker">Tracker</div>
     <div class="tab" data-tab="efficiency">KPI Stats</div>
-    <div class="tab" data-tab="import">Import Data</div>
+    <div class="tab" data-tab="import">Import / Export</div>
   </nav>
   <div class="hdr-right">
     <span class="rec-count" id="hdrCount">0 tickets</span>
@@ -561,7 +561,7 @@
       <div class="dash-grid" id="dashGrid"></div>
     </div>
     <div class="dash-empty" id="dashEmpty">
-      <p>No tickets yet — go to <strong>Import Data</strong> to get started.</p>
+      <p>No tickets yet — go to <strong>Import / Export</strong> to get started.</p>
     </div>
   </div>
 
@@ -607,7 +607,7 @@
       </table>
       <div class="empty-state" id="tblEmpty">
         <h3>No tickets yet</h3>
-        <p>Go to <strong>Import Data</strong> and paste your bugtracker rows to get started.</p>
+        <p>Go to <strong>Import / Export</strong> and paste your bugtracker rows to get started.</p>
       </div>
     </div>
   </div>
@@ -643,7 +643,7 @@
             <li>Open <code>http://srvr-bugtracker/view_all_bug_page.php</code></li>
             <li>Click the <strong>Import to Tracker</strong> bookmark</li>
             <li>A confirmation box tells you the data was copied — click OK to open the tracker</li>
-            <li>Go to <strong>Import Data</strong> tab → click <strong>Read from Clipboard</strong> → click <strong>Import</strong></li>
+            <li>Go to <strong>Import / Export</strong> tab → click <strong>Read from Clipboard</strong> → click <strong>Import</strong></li>
           </ol>
           <p class="bm-note">The bookmarklet also captures ticket links so IDs in the Tracker become clickable links back to the bugtracker.</p>
         </div>
@@ -686,6 +686,23 @@
             <span class="chip cw">Tasks Next Week</span>
           </div>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>Export Reports</h2>
+        <p>Generate a PDF report from the current data.</p>
+        <div class="btn-row" style="flex-wrap:wrap;gap:10px">
+          <button class="btn btn-primary" onclick="exportPDF('kpi')" style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:16px">📊</span> Export KPI Stats Report
+          </button>
+          <button class="btn btn-primary" onclick="exportPDF('tasks')" style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:16px">📋</span> Export Tasks Report
+          </button>
+        </div>
+        <p style="font-size:12px;color:var(--gray-500);margin-top:8px">
+          <strong>KPI Stats Report</strong>: Phase completion, resolving efficiency, and CR pipeline stats.<br>
+          <strong>Tasks Report</strong>: High priority tickets, last week's missed tasks, and this week's tasks — sorted by department.
+        </p>
       </div>
 
     </div>
@@ -951,6 +968,116 @@ function importData() {
   toast(`${newCount} new, ${updCount} updated`);
 }
 
+function exportPDF(type) {
+  const MON_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+
+  let title, bodyHTML;
+
+  if (type === 'kpi') {
+    // ── KPI Stats Report ──────────────────────────────────
+    const active  = tickets.filter(t => !isClosed(t));
+    const closed  = tickets.filter(t => isClosed(t)).length;
+    const total   = tickets.length;
+    const getEC   = t => { const u=updates[t.id]||{}; return { sop:u.sopCW!==undefined?u.sopCW:t.sop, fp:u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase }; };
+    const onTimeN = active.filter(t => { const c=getEC(t); return !cwIsOverdue(c.sop) && !cwIsOverdue(c.fp); }).length;
+
+    const mData = calcMonthPhaseSuccess(_now.year);
+    const monthRows = Object.entries(mData)
+      .filter(([k,v]) => v.total > 0 || v.upcoming > 0)
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([k,v]) => {
+        const pct = v.total > 0 ? Math.round(v.onTime/v.total*100) : null;
+        const mo = k.slice(5,7);
+        const moName = MON_NAMES[+mo-1] + ' ' + k.slice(0,4);
+        const bar = pct !== null ? `<td style="text-align:center;font-weight:700;color:${pct>=80?'#059669':pct>=50?'#d97706':'#CC0000'}">${pct}%</td><td style="text-align:center">${v.onTime}</td><td style="text-align:center;color:#CC0000">${v.total-v.onTime}</td><td style="text-align:center">${v.total}</td><td style="text-align:center;color:#9CA3AF">${v.upcoming||0}</td>` : `<td colspan="4" style="text-align:center;color:#9CA3AF">—</td><td style="text-align:center;color:#9CA3AF">${v.upcoming||0}</td>`;
+        return `<tr><td>${moName}</td>${bar}</tr>`;
+      }).join('');
+
+    const crCounts = { PM:0, Sent:0, Signed:0 };
+    active.forEach(t => { const cr=(updates[t.id]||{}).changeRequest||''; if (crCounts[cr]!==undefined) crCounts[cr]++; });
+
+    title = `KPI Stats Report — ${dateStr}`;
+    bodyHTML = `
+      <h2>Overview</h2>
+      <table><tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Total Tickets</td><td>${total}</td></tr>
+        <tr><td>Open / Active</td><td>${active.length}</td></tr>
+        <tr><td>Closed</td><td>${closed}</td></tr>
+        <tr><td>On Time (active, no overdue CW)</td><td>${onTimeN} / ${active.length}</td></tr>
+        <tr><td>CR — PM</td><td>${crCounts.PM}</td></tr>
+        <tr><td>CR — Sent</td><td>${crCounts.Sent}</td></tr>
+        <tr><td>CR — Signed</td><td>${crCounts.Signed}</td></tr>
+      </table>
+      <h2>Phase Completion Success Rate</h2>
+      <table><tr><th>Month</th><th>% On Time</th><th>On Time</th><th>Not On Time</th><th>Evaluated</th><th>Upcoming</th></tr>
+        ${monthRows || '<tr><td colspan="6" style="color:#9CA3AF">No evaluated deadlines yet</td></tr>'}
+      </table>`;
+
+  } else {
+    // ── Tasks Report ──────────────────────────────────────
+    const active = tickets.filter(t => !isClosed(t));
+    const highPri = active.filter(t => effPri(t) === 'HIGH');
+    const missedLW = active.filter(t => ((updates[t.id]||{}).taskHistoryStatus||{})[PREV_WK_KEY] === 'missed');
+    const thisWeekAll = active.filter(t => (updates[t.id]||{}).taskThisWeek);
+
+    // Sort this-week tasks by dept
+    const DEPT_ORDER = ['PM','R&D','PUR','CC','SQE',''];
+    const twSorted = [...thisWeekAll].sort((a,b) => {
+      const da = (updates[a.id]||{}).taskDept||'';
+      const db = (updates[b.id]||{}).taskDept||'';
+      return DEPT_ORDER.indexOf(da) - DEPT_ORDER.indexOf(db) || (a.id||'').localeCompare(b.id||'');
+    });
+
+    function ticketRows(list, showTask, taskFn) {
+      if (!list.length) return '<tr><td colspan="4" style="color:#9CA3AF">None</td></tr>';
+      return list.map(t => {
+        const u = updates[t.id]||{};
+        const task = taskFn ? taskFn(t, u) : '';
+        const dept = u.taskDept || '—';
+        return `<tr><td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td><td>${esc((t.summary||'').slice(0,60))}</td><td style="text-align:center">${esc(dept)}</td><td style="white-space:pre-wrap">${esc(task)}</td></tr>`;
+      }).join('');
+    }
+
+    title = `Tasks Report — CW${CUR_WEEK} — ${dateStr}`;
+    bodyHTML = `
+      <h2>High Priority Tickets</h2>
+      <table><tr><th>ID</th><th>Summary</th><th>Dept</th><th>Task CW${CUR_WEEK}</th></tr>
+        ${ticketRows(highPri, true, (t,u) => u.taskThisWeek||'')}
+      </table>
+      <h2>Last Week Missed Tasks (CW${PREV_WEEK})</h2>
+      <table><tr><th>ID</th><th>Summary</th><th>Dept</th><th>Task CW${PREV_WEEK}</th></tr>
+        ${ticketRows(missedLW, true, (t,u) => (u.taskHistory||{})[PREV_WK_KEY]||'')}
+      </table>
+      <h2>This Week Tasks (CW${CUR_WEEK}) — by Department</h2>
+      <table><tr><th>ID</th><th>Summary</th><th>Dept</th><th>Task CW${CUR_WEEK}</th></tr>
+        ${ticketRows(twSorted, true, (t,u) => u.taskThisWeek||'')}
+      </table>`;
+  }
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Pop-up blocked — please allow pop-ups for this page.'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a1a1a; margin: 24px 32px; }
+    h1 { font-size: 18px; font-weight: 900; border-bottom: 2px solid #CC0000; padding-bottom: 6px; margin-bottom: 18px; }
+    h2 { font-size: 14px; font-weight: 700; margin: 22px 0 8px; color: #333; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11px; }
+    th { background: #f3f4f6; text-align: left; padding: 5px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
+    td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .footer { margin-top: 32px; font-size: 10px; color: #9ca3af; text-align: right; }
+    @media print { body { margin: 12px 16px; } }
+  </style></head><body>
+  <h1>${esc(title)}</h1>
+  ${bodyHTML}
+  <div class="footer">Generated ${dateStr} · Change Management Tracker</div>
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
 function clearAll() {
   if (!confirm('Clear all tickets and update notes? This cannot be undone.')) return;
   const pw = prompt('Enter admin password to confirm:');
@@ -1182,7 +1309,7 @@ function renderTable() {
       empty.querySelector('p').textContent  = 'Adjust filters or search.';
     } else {
       empty.querySelector('h3').textContent = 'No tickets yet';
-      empty.querySelector('p').innerHTML    = 'Go to <strong>Import Data</strong> to get started.';
+      empty.querySelector('p').innerHTML    = 'Go to <strong>Import / Export</strong> to get started.';
     }
     return;
   }
@@ -1794,14 +1921,14 @@ function renderDashboard() {
           ${t.progressUpdate ? `<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>` : ''}
           <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
             <div style="display:flex;gap:6px;align-items:flex-start">
-              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK} last</span>
+              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK}</span>
               <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:5px 8px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.4;min-height:30px;word-break:break-word">${lastTask ? esc(lastTask) : '<span style="opacity:.4">—</span>'}</div>
               <span style="flex-shrink:0;font-size:9px;padding:3px 6px;border-radius:var(--radius);white-space:nowrap;align-self:flex-start;margin-top:2px;${lastStStyle}">${lastStTxt}</span>
               <span style="flex-shrink:0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);padding-top:5px;min-width:28px;text-align:center">${esc(upd.taskDept||'')}</span>
             </div>
             <div style="display:flex;gap:6px;align-items:flex-start">
-              <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK} this</span>
-              <textarea class="hi-task-inp" rows="3" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1;min-height:52px">${esc(upd.taskThisWeek||'')}</textarea>
+              <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK}</span>
+              <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
               <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
                 <option value="">dept</option>
                 ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
@@ -1840,14 +1967,21 @@ function renderDashboard() {
 
   // ── TASKS WEEKS ──────────────────────────────────────
   function weekItem(t, taskText) {
-    const ep = effPri(t);
+    const ep  = effPri(t);
+    const upd = updates[t.id] || {};
     const idTag = tktLink(t.id, 'week-id');
     const dot = ep === 'HIGH' ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-left:4px;vertical-align:middle"></span>` : '';
     return `<li class="week-item">
       <div class="week-id-col">${idTag}${dot}</div>
-      <div class="week-body">
+      <div class="week-body" style="flex:1;min-width:0">
         <div class="week-summary">${esc((t.summary||'').slice(0,50))}</div>
-        <div class="week-task">${esc(taskText)}</div>
+        <div style="display:flex;gap:5px;align-items:flex-start;margin-top:4px">
+          <textarea class="hi-task-inp" rows="1" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1;font-size:11px">${esc(taskText)}</textarea>
+          <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;width:60px;max-width:60px;margin-top:0">
+            <option value="">dept</option>
+            ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
       </div>
     </li>`;
   }
@@ -1963,14 +2097,14 @@ function renderDashboard() {
           ${t.progressUpdate?`<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>`:''}
           <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
             <div style="display:flex;gap:6px;align-items:flex-start">
-              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK} last</span>
+              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK}</span>
               <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:5px 8px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.4;min-height:30px;word-break:break-word">${lastTask2 ? esc(lastTask2) : '<span style="opacity:.4">—</span>'}</div>
               <span style="flex-shrink:0;font-size:9px;padding:3px 6px;border-radius:var(--radius);white-space:nowrap;align-self:flex-start;margin-top:2px;${lastStStyle2}">${lastStTxt2}</span>
               <span style="flex-shrink:0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);padding-top:5px;min-width:28px;text-align:center">${esc(upd2.taskDept||'')}</span>
             </div>
             <div style="display:flex;gap:6px;align-items:flex-start">
-              <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:72px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK} this</span>
-              <textarea class="hi-task-inp" rows="3" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1;min-height:52px">${esc(upd2.taskThisWeek||'')}</textarea>
+              <span style="font-size:9px;font-weight:700;color:rgba(147,197,253,0.8);white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK}</span>
+              <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
               <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
                 <option value="">dept</option>
                 ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
