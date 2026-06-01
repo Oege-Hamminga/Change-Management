@@ -63,25 +63,22 @@
     .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
 
     /* ── Dashboard ── */
-    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-    .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 22px 20px 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
-    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gray-300); }
-    .stat-card.alert::before { background: var(--primary); }
-    .stat-card.alert { background: rgba(204,0,0,0.02); border-color: var(--primary-border); }
-    .stat-card-btn { cursor: pointer; transition: background var(--transition), border-color var(--transition); }
-    .stat-card-btn:hover { border-color: var(--gray-400); background: var(--gray-50); }
-    .stat-card-sel { border-bottom: 2px solid var(--primary) !important; background: rgba(204,0,0,0.03) !important; }
-    .stat-val { font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 20px 18px 15px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gray-200); }
+    .stat-card.s-alert::before { background: var(--primary); }
+    .stat-card.s-alert { border-color: var(--primary-border); }
+    .stat-card.s-amber::before { background: #d97706; }
+    .stat-card.s-amber { border-color: rgba(217,119,6,0.22); }
+    .stat-card.s-blue::before { background: #2563eb; }
+    .stat-card.s-blue { border-color: rgba(37,99,235,0.2); }
+    .stat-card-btn { cursor: pointer; transition: box-shadow var(--transition), border-color var(--transition), transform var(--transition); }
+    .stat-card-btn:hover { border-color: var(--gray-400); box-shadow: 0 2px 10px rgba(0,0,0,0.1); transform: translateY(-1px); }
+    .stat-card-sel { box-shadow: 0 0 0 2px var(--primary-border), var(--shadow-sm) !important; border-color: var(--primary-border) !important; background: rgba(204,0,0,0.02) !important; }
+    .stat-card-sel::before { background: var(--primary) !important; }
+    .stat-val { font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -1.5px; color: var(--gray-900); }
     .stat-label { font-size: 9px; color: var(--gray-500); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
 
-    .dash-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-    @media (max-width: 920px) { .dash-grid { grid-template-columns: 1fr; } }
-    .dash-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 22px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
-    .dash-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--primary); }
-    .dash-card h3 { font-size: 9px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-100); }
-    .dash-card-dark { background: var(--dark); border-color: var(--dark-2); }
-    .dash-card-dark h3 { color: rgba(255,255,255,0.35); border-bottom-color: rgba(255,255,255,0.08); }
-    .dash-card-dark::before { background: var(--primary); }
 
     .stacked-wrap { margin-bottom: 20px; }
     .stacked-label { font-size: 10px; color: var(--gray-500); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
@@ -96,27 +93,34 @@
     .c-ph1 { background: #CC0000; } .c-ph2 { background: #880000; } .c-ph3 { background: #4B4B4B; }
     .c-ph4 { background: #888888; } .c-ph5 { background: #BBBBBB; }
 
-    /* ── Dashboard dark/light sections ── */
-    .dash-section-dark  { background: #1C1C1C; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; box-shadow: 0 4px 28px rgba(0,0,0,0.22); }
-    .dash-section-light { background: #EDEDED; border-radius: var(--radius); padding: 18px 20px; }
-    .dash-grid-top { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-top: 14px; }
-    @media (max-width: 900px) { .dash-grid-top { grid-template-columns: 1fr; } }
+    /* ── Dashboard layout ── */
+    .dash-section-top { margin-bottom: 0; }
+    .dash-grid-top { display: grid; grid-template-columns: 230px 1fr 1fr; gap: 14px; }
+    @media (max-width: 960px) { .dash-grid-top { grid-template-columns: 1fr; } }
 
-    /* Stat cards (light — dashboard) */
-    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    .stat-val { font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -1px; color: var(--gray-900); }
-    .stat-label { font-size: 9px; color: var(--gray-500); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.13em; font-weight: 700; }
+    /* Dash cards — unified style */
+    .dash-card-dk { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 16px 18px; position: relative; overflow: hidden; box-shadow: var(--shadow-sm); }
+    .dash-card-dk::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--primary); }
+    .dash-card-dk.acc-gray::before   { background: var(--gray-300); }
+    .dash-card-dk.acc-amber::before  { background: #d97706; }
+    .dash-card-dk.acc-green::before  { background: #059669; }
+    .dash-card-dk.acc-blue::before   { background: #2563eb; }
+    .dash-card-dk h3 { font-size: 9px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .13em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 7px; }
+    .dash-card-dk h3 .h3-badge { display: inline-flex; align-items: center; padding: 1px 5px; border-radius: var(--radius); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .dash-card-dk h3 .h3-red   { background: rgba(204,0,0,0.08); color: var(--primary); border: 1px solid rgba(204,0,0,0.15); }
+    .dash-card-dk h3 .h3-amber { background: rgba(217,119,6,0.08); color: #b45309; border: 1px solid rgba(217,119,6,0.18); }
+    .dash-card-dk h3 .h3-blue  { background: rgba(37,99,235,0.08); color: #1d4ed8; border: 1px solid rgba(37,99,235,0.15); }
+    .dash-card-dk h3 .h3-gray  { background: var(--gray-100); color: var(--gray-500); border: 1px solid var(--gray-200); }
+    .dash-card-dk h3 .h3-right { margin-left: auto; font-size: 8px; font-weight: 600; color: var(--gray-400); letter-spacing: 0; text-transform: none; }
 
-    /* Dash cards (light, matching eff-section style) */
-    .dash-card-dk { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 18px; position: relative; overflow: hidden; box-shadow: var(--shadow-sm); }
-    .dash-card-dk::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--primary); }
-    .dash-card-dk h3 { font-size: 9px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .13em; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-100); }
-
-    /* Light dash cards (bottom section) */
+    /* Legacy dash-card / dash-grid (unused, kept for safety) */
     .dash-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
     .dash-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--primary); }
     .dash-card h3 { font-size: 9px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-100); }
     .dash-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+    /* Section divider label */
+    .dash-section-lbl { font-size: 9px; font-weight: 800; color: var(--gray-400); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px; }
 
     /* Phase compact (stacked bar only, no hbars) */
     /* phase-mini-legend removed */
@@ -535,11 +539,11 @@
 
   <!-- DASHBOARD -->
   <div class="tab-content active" id="tab-dashboard">
-    <div class="dash-section-dark" id="dashSectionTop" style="display:none">
+    <div class="dash-section-top" id="dashSectionTop" style="display:none">
       <div class="stat-cards" id="statCards"></div>
       <div class="dash-grid-top" id="dashGridTop"></div>
     </div>
-    <div class="dash-section-light" id="dashSectionBottom" style="display:none">
+    <div id="dashSectionBottom" style="display:none">
       <div class="dash-grid" id="dashGrid"></div>
     </div>
     <div class="dash-empty" id="dashEmpty">
@@ -1933,16 +1937,16 @@ function renderDashboard() {
   });
   const fpThisCW = fpThisCWTickets.length;
 
-  // ── STAT CARDS (dark) ────────────────────────────────
+  // ── STAT CARDS ───────────────────────────────────────
   const _sc = [
-    { val: activeTotal, label: 'OPEN',                     color: 'white',                                         fn: `switchTab('tracker')` },
-    { val: p1Count,     label: 'HIGH PRIORITY',            color: p1Count>0?'var(--primary)':'var(--gray-300)',    fn: `setDashPanel('high')`,   sel: _dashTopPanel==='high' },
-    { val: fpThisCW,    label: 'PHASES TO FINISH THIS CW', color: fpThisCW>0?'#d97706':'var(--gray-300)',          fn: `setDashPanel('fp')`,     sel: _dashTopPanel==='fp' },
-    { val: fpOD,        label: 'FINISH PHASE CW OVERDUE',  color: fpOD>0?'var(--primary)':'var(--gray-300)',       fn: `setDashPanel('overdue')`,sel: _dashTopPanel==='overdue', alert: fpOD>0 },
+    { val: activeTotal, label: 'Open Tickets',             valColor: '#2563eb',           accentCls: 's-blue',  fn: `switchTab('tracker')` },
+    { val: p1Count,     label: 'High Priority',            valColor: p1Count>0?'var(--primary)':'var(--gray-300)', accentCls: p1Count>0?'s-alert':'', fn: `setDashPanel('high')`,   sel: _dashTopPanel==='high' },
+    { val: fpThisCW,    label: 'Phases to Finish This CW', valColor: fpThisCW>0?'#b45309':'var(--gray-300)',        accentCls: fpThisCW>0?'s-amber':'', fn: `setDashPanel('fp')`,    sel: _dashTopPanel==='fp' },
+    { val: fpOD,        label: 'Finish Phase CW Overdue',  valColor: fpOD>0?'var(--primary)':'var(--gray-300)',     accentCls: fpOD>0?'s-alert':'',  fn: `setDashPanel('overdue')`, sel: _dashTopPanel==='overdue' },
   ];
   statCards.innerHTML = _sc.map(s =>
-    `<div class="stat-card stat-card-btn${s.alert?' alert':''}${s.sel?' stat-card-sel':''}" onclick="${s.fn}" title="Click">
-      <div class="stat-val" style="color:${s.color}">${s.val}</div>
+    `<div class="stat-card stat-card-btn ${s.accentCls}${s.sel?' stat-card-sel':''}" onclick="${s.fn}" title="Click to filter">
+      <div class="stat-val" style="color:${s.valColor}">${s.val}</div>
       <div class="stat-label">${s.label}</div>
     </div>`
   ).join('');
@@ -2201,42 +2205,57 @@ function renderDashboard() {
       }</div>`;
 
   // ── DYNAMIC PANEL (switched by stat card clicks) ──────
-  let dynTitle, dynHTML;
+  let dynAccent, dynTitle, dynHTML;
   if (_dashTopPanel === 'fp') {
-    dynTitle = `Phases to Finish This CW &nbsp;<span class="cw-label cw-cur-label">CW${CUR_WEEK}</span>`;
-    dynHTML  = fpItemsHTML;
+    dynAccent = fpThisCW > 0 ? 'acc-amber' : 'acc-gray';
+    dynTitle  = `<span>Phases to Finish</span><span class="h3-badge h3-blue">CW${CUR_WEEK}</span>`;
+    dynHTML   = fpItemsHTML;
   } else if (_dashTopPanel === 'overdue') {
-    dynTitle = `CW Overdue &nbsp;<span style="color:${overdueItems.length?'var(--primary)':'var(--gray-300)'}">CW &lt; ${CUR_WEEK}</span>`;
-    dynHTML  = overdueHTML;
+    dynAccent = overdueItems.length ? '' : 'acc-gray';
+    dynTitle  = `<span>CW Overdue</span>${overdueItems.length ? `<span class="h3-badge h3-red">${overdueItems.length} ticket${overdueItems.length>1?'s':''}</span>` : `<span class="h3-badge h3-gray">None</span>`}`;
+    dynHTML   = overdueHTML;
   } else {
-    dynTitle = `High Priority <span class="high-badge">HIGH</span>`;
-    dynHTML  = `<ul class="hi-list">${highExtHTML}</ul>`;
+    dynAccent = p1Count > 0 ? '' : 'acc-gray';
+    dynTitle  = `<span>High Priority</span>${p1Count > 0 ? `<span class="h3-badge h3-red">${p1Count} ticket${p1Count>1?'s':''}</span>` : `<span class="h3-badge h3-gray">None</span>`}`;
+    dynHTML   = `<ul class="hi-list">${highExtHTML}</ul>`;
   }
 
   dashGridTop.innerHTML = `
-    <div class="dash-card-dk">
-      <h3>Phase Distribution <span style="font-size:8px;font-weight:400;opacity:.4;text-transform:none;letter-spacing:0;margin-left:4px">actual / target</span></h3>
-      <div style="margin-top:8px">${phDistBarsHTML}</div>
-      <div style="display:flex;gap:14px;margin-top:10px;font-size:9px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;flex-wrap:wrap">
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:2px;background:var(--gray-400);border-radius:1px;display:inline-block"></span>Target</span>
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>Under target</span>
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#CC0000;border-radius:2px;display:inline-block"></span>Over target</span>
+    <div class="dash-card-dk acc-gray" style="grid-column:1;grid-row:1/3;overflow-y:auto">
+      <h3>
+        <span>Phase Distribution</span>
+        <span class="h3-right">active vs target</span>
+      </h3>
+      <div>${phDistBarsHTML}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-100);font-size:9px;color:var(--gray-400);letter-spacing:.05em">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:14px;height:2px;background:var(--gray-400);border-radius:1px;display:inline-block;flex-shrink:0"></span>Target line</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;background:#22c55e;border-radius:1px;display:inline-block;flex-shrink:0"></span>Under target</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;background:#CC0000;border-radius:1px;display:inline-block;flex-shrink:0"></span>Over target</span>
       </div>
     </div>
-    <div class="dash-card-dk">
+    <div class="dash-card-dk ${dynAccent}" style="grid-column:2/4;grid-row:1;overflow-y:auto;max-height:420px">
       <h3>${dynTitle}</h3>
       ${dynHTML}
     </div>
-    <div class="dash-card-dk">
-      <h3>Tasks Last Week &nbsp;<span class="cw-label" style="background:var(--gray-100);color:var(--gray-500)">CW${PREV_WEEK}</span></h3>
+    <div class="dash-card-dk acc-gray" style="grid-column:2;grid-row:2;overflow-y:auto;max-height:320px">
+      <h3>
+        <span>Tasks Last Week</span>
+        <span class="h3-badge h3-gray">CW${PREV_WEEK}</span>
+      </h3>
       ${lastWeekHTML}
     </div>
-    <div class="dash-card-dk">
-      <h3>Tasks This Week &nbsp;<span class="cw-label cw-cur-label">CW${CUR_WEEK}</span></h3>
+    <div class="dash-card-dk acc-blue" style="grid-column:3;grid-row:2;overflow-y:auto;max-height:320px">
+      <h3>
+        <span>Tasks This Week</span>
+        <span class="h3-badge h3-blue">CW${CUR_WEEK}</span>
+      </h3>
       ${thisWeekHTML}
     </div>
-    <div class="dash-card-dk" style="grid-column:1/-1">
-      <h3>Most Inactive Open Tickets <span style="font-size:9px;font-weight:400;opacity:.4;text-transform:none;letter-spacing:0;margin-left:6px">oldest update first</span></h3>
+    <div class="dash-card-dk acc-gray" style="grid-column:1/-1;grid-row:3">
+      <h3>
+        <span>Most Inactive Open Tickets</span>
+        <span class="h3-right">oldest update first</span>
+      </h3>
       ${inactiveHTML}
     </div>`;
 
