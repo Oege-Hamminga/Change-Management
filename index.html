@@ -731,6 +731,7 @@ let selectedTicketId = null;
 let _kpiMonth  = new Date().toISOString().slice(0, 7);
 let _skipFilterRowRebuild = false;
 let _dashTopPanel = 'high';   // 'high' | 'fp' | 'overdue'
+let _dashFpCW     = null;     // null = CUR_WEEK (which week is selected in fp panel)
 let _btFilter     = 'open';   // 'open' | 'closed' | 'all'
 let _detailEdit      = null;
 
@@ -1563,7 +1564,7 @@ function confirmPhaseChange() {
         finishCW:    _phModalPrevFP,
         completedCW: CUR_WEEK,
         onTime:      onTime,
-        month:       cwToYearMonth(_now.year, fpNum || CUR_WEEK) || new Date().toISOString().slice(0, 7)
+        month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
       });
     }
     updates[id].status = 'Closed';
@@ -1594,7 +1595,7 @@ function confirmPhaseChange() {
       finishCW:    _phModalPrevFP,
       completedCW: CUR_WEEK,
       onTime:      onTime,
-      month:       cwToYearMonth(_now.year, parseCW(_phModalPrevFP) || CUR_WEEK) || new Date().toISOString().slice(0, 7)
+      month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
     });
   }
 
@@ -1935,13 +1936,35 @@ function renderDashboard() {
   const p1Count = active.filter(t => effPri(t)==='HIGH').length;
   const fpOD    = active.filter(t => cwIsOverdue(getEC(t).fp)).length;
 
-  // Phases finishing this CW
-  const fpThisCWTickets = active.filter(t => {
-    const u  = updates[t.id] || {};
+  // Phases finishing this CW (stat card count stays as CUR_WEEK)
+  const fpThisCW = active.filter(t => {
+    const u = updates[t.id] || {};
     const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
     return parseCW(fp) === CUR_WEEK;
+  }).length;
+
+  // Current month CW range for the fp panel week selector
+  const _fpCwRanges = [[1,5],[6,9],[10,13],[14,18],[19,22],[23,26],[27,31],[32,35],[36,40],[41,44],[45,48],[49,52]];
+  const _fpMonthRange = _fpCwRanges.find(([s,e]) => CUR_WEEK >= s && CUR_WEEK <= e) || [CUR_WEEK, CUR_WEEK];
+  const [_fpCwStart, _fpCwEnd] = _fpMonthRange;
+  const _fpSelCW = (_dashFpCW !== null && _dashFpCW >= _fpCwStart && _dashFpCW <= _fpCwEnd) ? _dashFpCW : CUR_WEEK;
+
+  // Count tickets per CW in the current month
+  const _fpCwCounts = {};
+  for (let cw = _fpCwStart; cw <= _fpCwEnd; cw++) _fpCwCounts[cw] = 0;
+  active.forEach(t => {
+    const u = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    const n = parseCW(fp);
+    if (n !== null && n >= _fpCwStart && n <= _fpCwEnd) _fpCwCounts[n] = (_fpCwCounts[n] || 0) + 1;
   });
-  const fpThisCW = fpThisCWTickets.length;
+
+  // Tickets for selected CW
+  const fpSelTickets = active.filter(t => {
+    const u = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    return parseCW(fp) === _fpSelCW;
+  });
 
   // ── STAT CARDS ───────────────────────────────────────
   const _sc = [
@@ -2188,10 +2211,29 @@ function renderDashboard() {
         }).join('');
       })();
 
-  // ── FP THIS CW ITEMS ──────────────────────────────────
-  const fpItemsHTML = fpThisCWTickets.length === 0
-    ? `<p style="color:var(--gray-400);font-size:13px;padding:12px 0">No tickets with Finish Phase = CW${CUR_WEEK}</p>`
-    : `<ul class="hi-list">${fpThisCWTickets.map(t => {
+  // ── FP PANEL — CW selector + ticket list ──────────────
+  const _fpCwBtns = Array.from({ length: _fpCwEnd - _fpCwStart + 1 }, (_, i) => {
+    const cw  = _fpCwStart + i;
+    const cnt = _fpCwCounts[cw] || 0;
+    const sel = cw === _fpSelCW;
+    const isOD = cw < CUR_WEEK;
+    const isCur = cw === CUR_WEEK;
+    const bgSel   = sel ? (isOD ? '#CC0000' : isCur ? '#2563eb' : '#6366f1') : 'var(--gray-100)';
+    const colSel  = sel ? '#fff' : isOD ? '#dc2626' : isCur ? '#1d4ed8' : 'var(--gray-600)';
+    const borderSel = sel ? 'transparent' : isOD ? 'rgba(220,38,38,.25)' : isCur ? 'rgba(37,99,235,.3)' : 'var(--gray-200)';
+    return `<button onclick="setDashFpCW(${cw})" style="cursor:pointer;border:1px solid ${borderSel};background:${bgSel};color:${colSel};border-radius:var(--radius);padding:4px 10px;font-size:11px;font-weight:${sel?'800':'600'};line-height:1.4;transition:all .15s">
+      CW${cw}${cnt ? ` <span style="opacity:.75;font-weight:400">(${cnt})</span>` : ''}
+      ${isCur && !sel ? '<span style="font-size:8px;vertical-align:middle;opacity:.6"> ●</span>' : ''}
+    </button>`;
+  }).join('');
+  const _fpCwSelectorHTML = `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--gray-400);flex-shrink:0;margin-right:2px">Week</span>
+    ${_fpCwBtns}
+  </div>`;
+
+  const fpItemsHTML = _fpCwSelectorHTML + (fpSelTickets.length === 0
+    ? `<p style="color:var(--gray-400);font-size:13px;padding:8px 0">No tickets with Finish Phase = CW${_fpSelCW}</p>`
+    : `<ul class="hi-list">${fpSelTickets.map(t => {
         const upd2 = updates[t.id]||{};
         const c2   = getEC(t);
         const ep2  = effPhase(t);
@@ -2229,7 +2271,7 @@ function renderDashboard() {
             </div>
           </div>
         </li>`;
-      }).join('')}</ul>`;
+      }).join('')}</ul>`);
 
   // ── MOST INACTIVE OPEN TICKETS ────────────────────────
   const inactiveItems = [...active]
@@ -2258,8 +2300,9 @@ function renderDashboard() {
   // ── DYNAMIC PANEL (switched by stat card clicks) ──────
   let dynAccent, dynTitle, dynHTML;
   if (_dashTopPanel === 'fp') {
-    dynAccent = fpThisCW > 0 ? 'acc-amber' : 'acc-gray';
-    dynTitle  = `<span>Phases to Finish</span><span class="h3-badge h3-blue">CW${CUR_WEEK}</span>`;
+    const _fpSelOD = _fpSelCW < CUR_WEEK;
+    dynAccent = _fpSelOD ? '' : fpThisCW > 0 ? 'acc-amber' : 'acc-gray';
+    dynTitle  = `<span>Phases to Finish</span><span class="h3-badge ${_fpSelOD ? 'h3-red' : _fpSelCW === CUR_WEEK ? 'h3-blue' : 'h3-gray'}">CW${_fpSelCW}${_fpSelCW === CUR_WEEK ? ' · This Week' : _fpSelOD ? ' · Overdue' : ''}</span>`;
     dynHTML   = fpItemsHTML;
   } else if (_dashTopPanel === 'overdue') {
     dynAccent = overdueItems.length ? '' : 'acc-gray';
@@ -2315,6 +2358,12 @@ function renderDashboard() {
 
 function setDashPanel(panel) {
   _dashTopPanel = panel;
+  _dashFpCW = null;
+  renderDashboard();
+}
+
+function setDashFpCW(cw) {
+  _dashFpCW = cw;
   renderDashboard();
 }
 
@@ -2608,26 +2657,29 @@ function calcMonthPhaseSuccess(year) {
   const MONTH_KEYS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
   const result = {};
 
-  // Build map: cwNum → recorded completions for that finishCW
+  // Build map: completedCW → recorded completions (keyed by WHEN the shift was made, not the deadline)
   const compsByCW = {};
   tickets.forEach(t => {
     ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
-      const n = parseCW(c.finishCW);
-      if (n !== null) {
+      const n = typeof c.completedCW === 'number' ? c.completedCW : parseCW(String(c.completedCW ?? ''));
+      if (n !== null && n !== undefined) {
         if (!compsByCW[n]) compsByCW[n] = [];
         compsByCW[n].push({ ticketId: t.id, onTime: c.onTime, phase: c.fromPhase });
       }
     });
   });
 
-  // Track which (ticketId, cwNum, phase) triples are already covered by a recorded completion
-  // Using phase in the key allows multiple transitions at the same CW (different phases) to each count
+  // Track which (ticketId, finishCW, phase) triples have a recorded completion
+  // so we don't also count them as active/overdue in activeByCW
   const coveredPairs = new Set();
-  Object.entries(compsByCW).forEach(([cw, comps]) => {
-    comps.forEach(c => coveredPairs.add(`${c.ticketId}|${cw}|${c.phase||''}`));
+  tickets.forEach(t => {
+    ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
+      const finishN = parseCW(c.finishCW);
+      if (finishN !== null) coveredPairs.add(`${t.id}|${finishN}|${c.fromPhase || ''}`);
+    });
   });
 
-  // Build map: cwNum → active tickets with this finishCW whose current phase isn't yet recorded
+  // Build map: finishCW → active tickets (no recorded completion) with that deadline
   const activeByCW = {};
   tickets.filter(t => !isDone(t)).forEach(t => {
     const u  = updates[t.id] || {};
@@ -2651,18 +2703,14 @@ function calcMonthPhaseSuccess(year) {
       phases[p][field]++;
     }
     for (let cw = cwStart; cw <= cwEnd; cw++) {
-      // Recorded completions: only evaluate once their finishCW deadline has been reached.
-      // Early transitions (finishCW > CUR_WEEK) are treated as upcoming — not yet evaluated.
-      if (cw <= CUR_WEEK) {
-        (compsByCW[cw] || []).forEach(c => {
-          if (c.onTime) { onTime++; phInc(c.phase, 'onTime'); }
-          else          { overdue++; phInc(c.phase, 'overdue'); }
-        });
-      } else {
-        // Deadline not yet reached: early transitions count as upcoming
-        (compsByCW[cw] || []).forEach(c => { upcoming++; phInc(c.phase, 'upcoming'); });
-      }
-      // Active tickets (no recorded completion for this finishCW)
+      // Completions keyed by completedCW: count them in the month the shift was made.
+      // All recorded completions have already happened (completedCW <= CUR_WEEK by definition).
+      (compsByCW[cw] || []).forEach(c => {
+        if (c.onTime) { onTime++; phInc(c.phase, 'onTime'); }
+        else          { overdue++; phInc(c.phase, 'overdue'); }
+      });
+      // Active tickets (no recorded completion) keyed by their finishCW deadline.
+      // Past deadline → overdue; current/future → upcoming.
       (activeByCW[cw] || []).forEach(a => {
         if (cw < CUR_WEEK) { overdue++; phInc(a.phase, 'overdue'); }
         else               { upcoming++; phInc(a.phase, 'upcoming'); }
@@ -2693,7 +2741,7 @@ function renderPhaseSuccessChart() {
 
   if (!months.length) {
     const upNote = totalUpcoming > 0 ? ` ${totalUpcoming} upcoming deadline${totalUpcoming !== 1 ? 's' : ''} are scheduled but not yet evaluated.` : '';
-    el.innerHTML = `<p style="color:var(--gray-400);font-size:13px;padding:16px 0">No evaluated phase deadlines yet — deadlines are counted once their CW is reached.${upNote}</p>`;
+    el.innerHTML = `<p style="color:var(--gray-400);font-size:13px;padding:16px 0">No phase completions recorded yet — completions are tracked in the month the phase shift was made.${upNote}</p>`;
     return;
   }
 
@@ -2784,7 +2832,7 @@ function renderPhaseSuccessChart() {
     <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:11px;height:11px;background:#d97706;border-radius:2px"></span>50–79%</span>
     <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:11px;height:11px;background:#CC0000;border-radius:2px"></span>&lt; 50%</span>
     <span style="display:flex;align-items:center;gap:4px;margin-left:8px">Dots = phase breakdown (P1–P5)</span>
-    <span style="margin-left:8px;font-style:italic">Bar = % on time per month (late transitions + overdue = not on time)</span>
+    <span style="margin-left:8px;font-style:italic">Bar = % on time per month (each bar shows the month the phase shift was made)</span>
   </div>`;
 
   // ── Per-phase breakdown (aggregated across all months) ──
