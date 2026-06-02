@@ -1791,11 +1791,17 @@ function setDashCwField(el) {
   if (!updates[id]) updates[id] = {};
   if (field === 'finishPhaseCW') {
     const tk      = tickets.find(x => x.id === id);
-    // Resolve previous value: user override first, then source ticket
     const prevVal = updates[id].finishPhaseCW !== undefined
       ? updates[id].finishPhaseCW
       : (tk ? (tk.finishPhase || '') : '');
     const newVal  = el.value.trim();
+    const parsed  = parseCW(newVal);
+    if (parsed !== null && parsed < CUR_WEEK) {
+      el.value = prevVal;
+      el.className = `od-cw-inp${cwIsOverdue(prevVal) ? ' od-active' : ''}`;
+      showMsg('err', `CW${parsed} has already passed — deadline must be CW${CUR_WEEK} or later.`);
+      return;
+    }
     if (newVal !== prevVal) {
       updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
       if (cwIsOverdue(prevVal)) {
@@ -1977,6 +1983,15 @@ function setCwField(el) {
       ? updates[id].finishPhaseCW
       : (tk ? (tk.finishPhase || '') : '');
     const newVal  = el.value.trim();
+    const parsed  = parseCW(newVal);
+    if (parsed !== null && parsed < CUR_WEEK) {
+      el.value = prevVal;
+      const td2 = el.closest('td');
+      if (td2) td2.className = cwIsOverdue(prevVal) ? 'cw-od' : '';
+      el.className = `cw-input${cwIsOverdue(prevVal) ? ' od' : ''}`;
+      showMsg('err', `CW${parsed} has already passed — deadline must be CW${CUR_WEEK} or later.`);
+      return;
+    }
     if (newVal !== prevVal) {
       updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
       if (cwIsOverdue(prevVal)) {
@@ -2465,64 +2480,84 @@ function renderDashboard() {
   if (_dashTopPanel === null) {
     dashGridTop.innerHTML = '';
   } else if (_dashTopPanel === 'open') {
-    // ── Open Tickets — Phase Deadline Chart ─────────────────────────────
+    // ── Open Tickets — Phase Deadline Stacked Bar Chart ─────────────────
     const maxCW   = isoWeekCount(_now.year);
-    const phClrs  = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-    // Build per-CW buckets: { count, tickets[] }
+    const phClrs5 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+    const phOrd5  = ['1','2','3','4','5'];
+
+    // Per-CW buckets: { count, tickets[], byPhase:{} }
     const cwBuckets = {};
-    for (let w = 1; w <= maxCW; w++) cwBuckets[w] = { count: 0, tickets: [] };
+    for (let w = 1; w <= maxCW; w++) cwBuckets[w] = { count: 0, tickets: [], byPhase: {} };
     active.forEach(t => {
       const fp = parseCW(getEC(t).fp);
       if (fp !== null && fp >= 1 && fp <= maxCW) {
+        const ep = String(effPhase(t) || '1');
         cwBuckets[fp].count++;
         cwBuckets[fp].tickets.push(t);
+        cwBuckets[fp].byPhase[ep] = (cwBuckets[fp].byPhase[ep] || 0) + 1;
       }
     });
     const maxCount = Math.max(...Object.values(cwBuckets).map(b => b.count), 1);
 
     // SVG chart
-    const W = 860, H = 190;
-    const padL = 28, padR = 14, padT = 18, padB = 34;
+    const W = 860, H = 200;
+    const padL = 28, padR = 14, padT = 20, padB = 36;
     const chartW = W - padL - padR;
     const chartH = H - padT - padB;
     const xStep  = chartW / maxCW;
-    const bW     = Math.max(3, Math.floor(xStep * 0.7));
+    const bW     = Math.max(3, Math.floor(xStep * 0.72));
 
-    // Y-axis grid lines
     const yTicks = maxCount <= 4 ? maxCount : maxCount <= 8 ? Math.ceil(maxCount/2)*2 : Math.ceil(maxCount/5)*5;
-    const ySteps = Math.min(yTicks, 5);
+    const ySteps = Math.min(yTicks, 6);
     let gridLines = '';
     for (let i = 0; i <= ySteps; i++) {
       const val = Math.round((i / ySteps) * yTicks);
       const y   = padT + chartH - (val / yTicks) * chartH;
       gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+chartW}" y2="${y.toFixed(1)}" stroke="#f3f4f6" stroke-width="1"/>`;
-      gridLines += `<text x="${padL-4}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#9ca3af">${val}</text>`;
+      gridLines += `<text x="${(padL-4).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#9ca3af">${val}</text>`;
     }
 
     let bars = '', xLabels = '';
     for (let cw = 1; cw <= maxCW; cw++) {
-      const cnt    = cwBuckets[cw].count;
+      const bkt    = cwBuckets[cw];
+      const cnt    = bkt.count;
       const cx     = padL + (cw - 0.5) * xStep;
-      const bH     = cnt > 0 ? Math.max(5, (cnt / yTicks) * chartH) : 0;
-      const by     = padT + chartH - bH;
       const isPast = cw < CUR_WEEK;
       const isCur  = cw === CUR_WEEK;
       const isSel  = _dashOpenSelCW === cw;
-      const col    = isSel ? '#1d4ed8' : isPast ? '#ef4444' : isCur ? '#2563eb' : '#93c5fd';
       if (cnt > 0) {
-        bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bW}" height="${bH.toFixed(1)}" fill="${col}" rx="2" style="cursor:pointer" onclick="setDashOpenCW(${cw})" title="CW${cw}: ${cnt} ticket${cnt!==1?'s':''}"/>`;
-        if (bH > 12) bars += `<text x="${cx.toFixed(1)}" y="${(by-3).toFixed(1)}" text-anchor="middle" font-size="8" fill="${col}" font-weight="700">${cnt}</text>`;
+        const bH    = Math.max(5, (cnt / yTicks) * chartH);
+        const topY  = padT + chartH - bH;
+        const opac  = isPast ? '0.55' : '1';
+        // Stacked segments bottom (P5) → top (P1)
+        let segY = padT + chartH;
+        ['5','4','3','2','1'].forEach(p => {
+          const pc = bkt.byPhase[p] || 0;
+          if (!pc) return;
+          const segH = Math.max(1, (pc / yTicks) * chartH);
+          segY -= segH;
+          const tooltip = `CW${cw} P${p}: ${pc} ticket${pc!==1?'s':''}`;
+          bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${segY.toFixed(1)}" width="${bW}" height="${segH.toFixed(1)}" fill="${phClrs5[p]}" opacity="${opac}" rx="1"><title>${tooltip}</title></rect>`;
+        });
+        // Count label above bar
+        if (bH > 12) bars += `<text x="${cx.toFixed(1)}" y="${(topY-3).toFixed(1)}" text-anchor="middle" font-size="8" fill="${isPast?'#ef4444':isCur?'#2563eb':'#6b7280'}" font-weight="700">${cnt}</text>`;
+        // Transparent click overlay
+        const phTip = phOrd5.filter(p=>bkt.byPhase[p]).map(p=>`P${p}:${bkt.byPhase[p]}`).join(' ');
+        bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${topY.toFixed(1)}" width="${bW}" height="${bH.toFixed(1)}" fill="transparent" style="cursor:pointer" onclick="setDashOpenCW(${cw})"><title>CW${cw}: ${cnt} ticket${cnt!==1?'s':''} (${phTip})</title></rect>`;
+        // Selection ring
+        if (isSel) bars += `<rect x="${(cx-bW/2-1).toFixed(1)}" y="${(topY-1).toFixed(1)}" width="${bW+2}" height="${bH+2}" fill="none" stroke="#1d4ed8" stroke-width="2" rx="2"/>`;
+        // Current CW ring
+        if (isCur && !isSel) bars += `<rect x="${(cx-bW/2-1).toFixed(1)}" y="${(topY-1).toFixed(1)}" width="${bW+2}" height="${bH+2}" fill="none" stroke="#2563eb" stroke-width="1.5" rx="2"/>`;
       }
       if (isCur || cw % 4 === 0 || cw === 1 || cw === maxCW) {
         xLabels += `<text x="${cx.toFixed(1)}" y="${(H-4).toFixed(1)}" text-anchor="middle" font-size="${isCur?9:8}" fill="${isCur?'#2563eb':'#9ca3af'}" font-weight="${isCur?'700':'400'}">CW${cw}</text>`;
       }
     }
-    // Current CW vertical line
-    const curX = padL + (CUR_WEEK - 0.5) * xStep;
-    const curLine = `<line x1="${curX.toFixed(1)}" y1="${padT-4}" x2="${curX.toFixed(1)}" y2="${padT+chartH}" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4,3" opacity=".7"/>`;
-    const curTri  = `<polygon points="${curX.toFixed(1)},${padT-4} ${(curX-4).toFixed(1)},${(padT-11).toFixed(1)} ${(curX+4).toFixed(1)},${(padT-11).toFixed(1)}" fill="#2563eb" opacity=".8"/>`;
-    // Axes
-    const axes = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>
+    // Current CW dashed line + triangle marker
+    const curX    = padL + (CUR_WEEK - 0.5) * xStep;
+    const curLine = `<line x1="${curX.toFixed(1)}" y1="${padT-4}" x2="${curX.toFixed(1)}" y2="${padT+chartH}" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4,3" opacity=".6"/>`;
+    const curTri  = `<polygon points="${curX.toFixed(1)},${padT-4} ${(curX-4).toFixed(1)},${(padT-12).toFixed(1)} ${(curX+4).toFixed(1)},${(padT-12).toFixed(1)}" fill="#2563eb" opacity=".8"/>`;
+    const axes    = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>
       <line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>`;
 
     const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block;overflow:visible">${gridLines}${axes}${bars}${curLine}${curTri}${xLabels}</svg>`;
@@ -2538,15 +2573,14 @@ function renderDashboard() {
       const statusTxt = isPastSel ? '· Overdue' : isCurSel ? '· This Week' : '· Upcoming';
       const rows = selTkts.length
         ? selTkts.map(t => {
-            const u  = updates[t.id] || {};
-            const ep = effPhase(t);
-            const phCol = ep ? (phClrs[ep] || '#888') : '#888';
+            const ep    = effPhase(t);
+            const phCol = ep ? (phClrs5[ep] || '#888') : '#888';
             return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:11px">
               <span style="font-family:monospace;font-weight:700;color:var(--primary);white-space:nowrap">${esc(t.id)}</span>
               ${ep ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${phCol}22;color:${phCol};font-weight:700;flex-shrink:0">P${ep}</span>` : ''}
               <span style="flex:1;color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,55))}</span>
               <span style="color:var(--gray-400);font-size:10px;white-space:nowrap;flex-shrink:0">Shift to CW:</span>
-              <input type="text" class="od-cw-inp" style="width:52px;flex-shrink:0" placeholder="CW" data-id="${esc(t.id)}" data-field="finishPhaseCW" value="" onblur="setDashCwField(this)">
+              <input type="text" class="od-cw-inp" style="width:52px;flex-shrink:0" placeholder="CW${CUR_WEEK}+" data-id="${esc(t.id)}" data-field="finishPhaseCW" value="" onblur="setDashCwField(this)">
             </div>`;
           }).join('')
         : `<div style="color:var(--gray-400);font-size:11px;padding:6px 0">No tickets planned for CW${_dashOpenSelCW}</div>`;
@@ -2558,17 +2592,25 @@ function renderDashboard() {
       </div>`;
     }
 
-    dashGridTop.innerHTML = `<div class="dash-card-dk acc-blue">
-      <h3><span>Open Tickets — Phase Deadlines per CW</span><span class="h3-badge h3-blue">${activeTotal} open · ${_now.year}</span></h3>
-      <div style="font-size:10px;color:var(--gray-400);margin-bottom:10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-        <span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Past / Overdue</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;margin-right:4px;vertical-align:middle"></span>CW${CUR_WEEK} (now)</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:#93c5fd;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Upcoming</span>
-        <span style="color:var(--gray-400)">▲ = CW${CUR_WEEK} · Click a bar to see tickets &amp; shift deadline</span>
-      </div>
-      ${svg}
-      ${selDetail}
-    </div>`;
+    // Phase legend
+    const phLegend = phOrd5.map(p => `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:${phClrs5[p]};border-radius:2px;flex-shrink:0"></span><span>P${p}</span></span>`).join('');
+
+    dashGridTop.innerHTML = `
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        ${_phDistSidebar}
+        <div class="dash-card-dk acc-blue" style="flex:1">
+          <h3><span>Open Tickets — Phase Deadlines per CW</span><span class="h3-badge h3-blue">${activeTotal} open · ${_now.year}</span></h3>
+          <div style="font-size:10px;color:var(--gray-400);margin-bottom:10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+            ${phLegend}
+            <span style="opacity:.5">|</span>
+            <span style="color:var(--gray-400);opacity:.7">past bars at 55% opacity</span>
+            <span style="color:#2563eb;font-weight:700">▲ CW${CUR_WEEK}</span>
+            <span style="color:var(--gray-400)">· Click a bar to view &amp; shift deadlines</span>
+          </div>
+          ${svg}
+          ${selDetail}
+        </div>
+      </div>`;
   } else if (_dashTopPanel === 'tasks') {
     dashGridTop.innerHTML = `
       <div style="display:flex;gap:14px;align-items:flex-start">
@@ -2609,12 +2651,9 @@ function renderDashboard() {
       dynHTML   = highExtHTML;
     }
     dashGridTop.innerHTML = `
-      <div style="display:flex;gap:14px;align-items:flex-start">
-        ${_phDistSidebar}
-        <div class="dash-card-dk ${dynAccent}" style="flex:1">
-          <h3>${dynTitle}</h3>
-          ${dynHTML}
-        </div>
+      <div class="dash-card-dk ${dynAccent}">
+        <h3>${dynTitle}</h3>
+        ${dynHTML}
       </div>`;
   }
 
