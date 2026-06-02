@@ -754,8 +754,9 @@ let colFilters = {};
 let selectedTicketId = null;
 let _kpiMonth  = new Date().toISOString().slice(0, 7);
 let _skipFilterRowRebuild = false;
-let _dashTopPanel = 'high';   // null | 'high' | 'fp' | 'overdue' | 'tasks'
+let _dashTopPanel = 'high';   // null | 'high' | 'fp' | 'overdue' | 'tasks' | 'open'
 let _dashFpCW     = null;     // null = CUR_WEEK (which week is selected in fp panel)
+let _dashOpenSelCW = null;    // selected CW in the open-tickets phase-deadline chart
 let _btFilter     = 'open';   // 'open' | 'closed' | 'all'
 let _detailEdit      = null;
 
@@ -2092,7 +2093,7 @@ function renderDashboard() {
 
   // ── STAT CARDS ───────────────────────────────────────
   const _sc = [
-    { val: activeTotal, label: 'Open Tickets',             valColor: '#2563eb',             accentCls: 's-blue',  fn: `switchTab('tracker')`,       sel: false },
+    { val: activeTotal, label: 'Open Tickets',             valColor: '#2563eb',             accentCls: 's-blue',  fn: `setDashPanel('open')`,       sel: _dashTopPanel==='open' },
     { val: p1Count,     label: 'High Priority',            valColor: p1Count>0?'var(--primary)':'var(--gray-300)', accentCls: p1Count>0?'s-alert':'', fn: `setDashPanel('high')`,     sel: _dashTopPanel==='high' },
     {
       custom: `<div style="display:flex;gap:6px;align-items:flex-end;line-height:1;margin-bottom:2px">
@@ -2463,6 +2464,111 @@ function renderDashboard() {
 
   if (_dashTopPanel === null) {
     dashGridTop.innerHTML = '';
+  } else if (_dashTopPanel === 'open') {
+    // ── Open Tickets — Phase Deadline Chart ─────────────────────────────
+    const maxCW   = isoWeekCount(_now.year);
+    const phClrs  = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+    // Build per-CW buckets: { count, tickets[] }
+    const cwBuckets = {};
+    for (let w = 1; w <= maxCW; w++) cwBuckets[w] = { count: 0, tickets: [] };
+    active.forEach(t => {
+      const fp = parseCW(getEC(t).fp);
+      if (fp !== null && fp >= 1 && fp <= maxCW) {
+        cwBuckets[fp].count++;
+        cwBuckets[fp].tickets.push(t);
+      }
+    });
+    const maxCount = Math.max(...Object.values(cwBuckets).map(b => b.count), 1);
+
+    // SVG chart
+    const W = 860, H = 190;
+    const padL = 28, padR = 14, padT = 18, padB = 34;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+    const xStep  = chartW / maxCW;
+    const bW     = Math.max(3, Math.floor(xStep * 0.7));
+
+    // Y-axis grid lines
+    const yTicks = maxCount <= 4 ? maxCount : maxCount <= 8 ? Math.ceil(maxCount/2)*2 : Math.ceil(maxCount/5)*5;
+    const ySteps = Math.min(yTicks, 5);
+    let gridLines = '';
+    for (let i = 0; i <= ySteps; i++) {
+      const val = Math.round((i / ySteps) * yTicks);
+      const y   = padT + chartH - (val / yTicks) * chartH;
+      gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+chartW}" y2="${y.toFixed(1)}" stroke="#f3f4f6" stroke-width="1"/>`;
+      gridLines += `<text x="${padL-4}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#9ca3af">${val}</text>`;
+    }
+
+    let bars = '', xLabels = '';
+    for (let cw = 1; cw <= maxCW; cw++) {
+      const cnt    = cwBuckets[cw].count;
+      const cx     = padL + (cw - 0.5) * xStep;
+      const bH     = cnt > 0 ? Math.max(5, (cnt / yTicks) * chartH) : 0;
+      const by     = padT + chartH - bH;
+      const isPast = cw < CUR_WEEK;
+      const isCur  = cw === CUR_WEEK;
+      const isSel  = _dashOpenSelCW === cw;
+      const col    = isSel ? '#1d4ed8' : isPast ? '#ef4444' : isCur ? '#2563eb' : '#93c5fd';
+      if (cnt > 0) {
+        bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bW}" height="${bH.toFixed(1)}" fill="${col}" rx="2" style="cursor:pointer" onclick="setDashOpenCW(${cw})" title="CW${cw}: ${cnt} ticket${cnt!==1?'s':''}"/>`;
+        if (bH > 12) bars += `<text x="${cx.toFixed(1)}" y="${(by-3).toFixed(1)}" text-anchor="middle" font-size="8" fill="${col}" font-weight="700">${cnt}</text>`;
+      }
+      if (isCur || cw % 4 === 0 || cw === 1 || cw === maxCW) {
+        xLabels += `<text x="${cx.toFixed(1)}" y="${(H-4).toFixed(1)}" text-anchor="middle" font-size="${isCur?9:8}" fill="${isCur?'#2563eb':'#9ca3af'}" font-weight="${isCur?'700':'400'}">CW${cw}</text>`;
+      }
+    }
+    // Current CW vertical line
+    const curX = padL + (CUR_WEEK - 0.5) * xStep;
+    const curLine = `<line x1="${curX.toFixed(1)}" y1="${padT-4}" x2="${curX.toFixed(1)}" y2="${padT+chartH}" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4,3" opacity=".7"/>`;
+    const curTri  = `<polygon points="${curX.toFixed(1)},${padT-4} ${(curX-4).toFixed(1)},${(padT-11).toFixed(1)} ${(curX+4).toFixed(1)},${(padT-11).toFixed(1)}" fill="#2563eb" opacity=".8"/>`;
+    // Axes
+    const axes = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>
+      <line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>`;
+
+    const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block;overflow:visible">${gridLines}${axes}${bars}${curLine}${curTri}${xLabels}</svg>`;
+
+    // Selected CW detail panel
+    let selDetail = '';
+    if (_dashOpenSelCW !== null) {
+      const selBucket = cwBuckets[_dashOpenSelCW] || { tickets: [] };
+      const selTkts   = selBucket.tickets;
+      const isPastSel = _dashOpenSelCW < CUR_WEEK;
+      const isCurSel  = _dashOpenSelCW === CUR_WEEK;
+      const labelCol  = isPastSel ? 'var(--primary)' : isCurSel ? '#2563eb' : '#b45309';
+      const statusTxt = isPastSel ? '· Overdue' : isCurSel ? '· This Week' : '· Upcoming';
+      const rows = selTkts.length
+        ? selTkts.map(t => {
+            const u  = updates[t.id] || {};
+            const ep = effPhase(t);
+            const phCol = ep ? (phClrs[ep] || '#888') : '#888';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:11px">
+              <span style="font-family:monospace;font-weight:700;color:var(--primary);white-space:nowrap">${esc(t.id)}</span>
+              ${ep ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${phCol}22;color:${phCol};font-weight:700;flex-shrink:0">P${ep}</span>` : ''}
+              <span style="flex:1;color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,55))}</span>
+              <span style="color:var(--gray-400);font-size:10px;white-space:nowrap;flex-shrink:0">Shift to CW:</span>
+              <input type="text" class="od-cw-inp" style="width:52px;flex-shrink:0" placeholder="CW" data-id="${esc(t.id)}" data-field="finishPhaseCW" value="" onblur="setDashCwField(this)">
+            </div>`;
+          }).join('')
+        : `<div style="color:var(--gray-400);font-size:11px;padding:6px 0">No tickets planned for CW${_dashOpenSelCW}</div>`;
+      selDetail = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--gray-100)">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:${labelCol};margin-bottom:8px">
+          CW${_dashOpenSelCW} — ${selTkts.length} ticket${selTkts.length!==1?'s':''} ${statusTxt}
+        </div>
+        ${rows}
+      </div>`;
+    }
+
+    dashGridTop.innerHTML = `<div class="dash-card-dk acc-blue">
+      <h3><span>Open Tickets — Phase Deadlines per CW</span><span class="h3-badge h3-blue">${activeTotal} open · ${_now.year}</span></h3>
+      <div style="font-size:10px;color:var(--gray-400);margin-bottom:10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Past / Overdue</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;margin-right:4px;vertical-align:middle"></span>CW${CUR_WEEK} (now)</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#93c5fd;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Upcoming</span>
+        <span style="color:var(--gray-400)">▲ = CW${CUR_WEEK} · Click a bar to see tickets &amp; shift deadline</span>
+      </div>
+      ${svg}
+      ${selDetail}
+    </div>`;
   } else if (_dashTopPanel === 'tasks') {
     dashGridTop.innerHTML = `
       <div style="display:flex;gap:14px;align-items:flex-start">
@@ -2522,11 +2628,17 @@ function renderDashboard() {
 function setDashPanel(panel) {
   _dashTopPanel = _dashTopPanel === panel ? null : panel;
   _dashFpCW = null;
+  _dashOpenSelCW = null;
   renderDashboard();
 }
 
 function setDashFpCW(cw) {
   _dashFpCW = cw;
+  renderDashboard();
+}
+
+function setDashOpenCW(cw) {
+  _dashOpenSelCW = (_dashOpenSelCW === cw) ? null : cw;
   renderDashboard();
 }
 
@@ -2728,16 +2840,19 @@ function renderEffTicketTable() {
 
     const completions = u.phaseCompletions || [];
     const phStatus = {};
-    completions.forEach(c => { phStatus[c.fromPhase] = c.onTime ? 'ok' : 'late'; });
+    completions.forEach(c => { phStatus[c.fromPhase] = { st: c.onTime ? 'ok' : 'late', cw: c.finishCW }; });
 
     const phaseCells = phOrder.map(p => {
-      const st = phStatus[p];
-      if (st === 'ok') {
-        return `<td style="text-align:center;background:rgba(5,150,105,.06)"><span style="font-size:13px;color:#059669" title="Phase ${p}: on time">${PC_TICK}</span><br><span style="font-size:8px;color:#059669">on time</span></td>`;
-      } else if (st === 'late') {
-        return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:13px;color:var(--primary)" title="Phase ${p}: late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">late</span></td>`;
+      const ps = phStatus[p];
+      if (ps && ps.st === 'ok') {
+        const cwTxt = ps.cw ? `<br><span style="font-size:8px;color:#059669;opacity:.8">CW${esc(String(ps.cw))}</span>` : '';
+        return `<td style="text-align:center;background:rgba(5,150,105,.06)"><span style="font-size:13px;color:#059669" title="Phase ${p}: on time">${PC_TICK}</span><br><span style="font-size:8px;color:#059669">on time</span>${cwTxt}</td>`;
+      } else if (ps && ps.st === 'late') {
+        const cwTxt = ps.cw ? `<br><span style="font-size:8px;color:var(--primary);opacity:.8">CW${esc(String(ps.cw))}</span>` : '';
+        return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:13px;color:var(--primary)" title="Phase ${p}: late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">not on time</span>${cwTxt}</td>`;
       } else if (p === curPh && curFpOD) {
-        return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:12px;color:#d97706" title="Finish CW ${effFP} passed">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span></td>`;
+        const cwTxt = effFP ? `<br><span style="font-size:8px;color:#d97706;opacity:.8">CW${esc(String(effFP))}</span>` : '';
+        return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:12px;color:#d97706" title="Finish CW ${effFP} passed">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span>${cwTxt}</td>`;
       } else if (p === curPh) {
         return `<td style="text-align:center;background:rgba(37,99,235,.05);border-top:2px solid #93c5fd"><span style="font-size:8px;color:#2563eb;font-weight:700;letter-spacing:.06em">CUR</span><br><span style="font-size:9px;color:#93c5fd;font-weight:700">${effFP?`CW${esc(effFP)}`:'—'}</span></td>`;
       } else {
@@ -2764,7 +2879,7 @@ function renderEffTicketTable() {
     </div>
     <div style="font-size:10px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:14px;flex-wrap:wrap">
       <span><span style="color:#059669;font-size:12px">✓</span> On time</span>
-      <span><span style="color:var(--primary);font-size:12px">✗</span> Late</span>
+      <span><span style="color:var(--primary);font-size:12px">✗</span> Not on time</span>
       <span><span style="color:#d97706;font-size:12px">⏱</span> Overdue</span>
       <span style="color:#2563eb;font-weight:700">CUR</span><span>Active phase</span>
       <span style="color:var(--gray-300);font-size:14px">·</span><span>Not reached</span>
