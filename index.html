@@ -63,7 +63,7 @@
     .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
 
     /* ── Dashboard ── */
-    .stat-cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 18px; }
+    .stat-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
     .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 20px 18px 15px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
     .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gray-200); }
     .stat-card.s-alert::before { background: var(--primary); }
@@ -735,7 +735,7 @@ let colFilters = {};
 let selectedTicketId = null;
 let _kpiMonth  = new Date().toISOString().slice(0, 7);
 let _skipFilterRowRebuild = false;
-let _dashTopPanel = null;     // null | 'high' | 'fp' | 'overdue' | 'lastweek' | 'thisweek'
+let _dashTopPanel = 'high';   // null | 'high' | 'fp' | 'overdue' | 'tasks'
 let _dashFpCW     = null;     // null = CUR_WEEK (which week is selected in fp panel)
 let _btFilter     = 'open';   // 'open' | 'closed' | 'all'
 let _detailEdit      = null;
@@ -1995,22 +1995,32 @@ function renderDashboard() {
     return parseCW(fp) === _fpSelCW;
   });
 
-  // Quick counts for task stat cards (full HTML built later)
+  // Quick counts for task stat card
   const _lwCount = active.filter(t => !!((updates[t.id]||{}).taskHistory||{})[PREV_WK_KEY]).length;
   const _twCount = active.filter(t => !!(updates[t.id]||{}).taskThisWeek).length;
+  const _tasksSel = _dashTopPanel === 'tasks';
 
   // ── STAT CARDS ───────────────────────────────────────
   const _sc = [
     { val: activeTotal, label: 'Open Tickets',             valColor: '#2563eb',             accentCls: 's-blue',  fn: `switchTab('tracker')`,       sel: false },
     { val: p1Count,     label: 'High Priority',            valColor: p1Count>0?'var(--primary)':'var(--gray-300)', accentCls: p1Count>0?'s-alert':'', fn: `setDashPanel('high')`,     sel: _dashTopPanel==='high' },
-    { val: _lwCount,    label: `Tasks CW${PREV_WEEK}`,     valColor: _lwCount>0?'#059669':'var(--gray-300)',        accentCls: _lwCount>0?'s-green':'', fn: `setDashPanel('lastweek')`, sel: _dashTopPanel==='lastweek' },
-    { val: _twCount,    label: `Tasks CW${CUR_WEEK}`,      valColor: _twCount>0?'#2563eb':'var(--gray-300)',        accentCls: _twCount>0?'s-blue':'',  fn: `setDashPanel('thisweek')`, sel: _dashTopPanel==='thisweek' },
+    {
+      custom: `<div style="display:flex;gap:6px;align-items:flex-end;line-height:1;margin-bottom:2px">
+        <span style="font-size:30px;font-weight:900;color:${_lwCount>0?'#059669':'var(--gray-300)'}">${_lwCount}</span>
+        <span style="font-size:16px;color:var(--gray-300);margin-bottom:3px">/</span>
+        <span style="font-size:30px;font-weight:900;color:${_twCount>0?'#2563eb':'var(--gray-300)'}">${_twCount}</span>
+      </div>`,
+      label: `Tasks CW${PREV_WEEK} &amp; CW${CUR_WEEK}`,
+      accentCls: _tasksSel ? 's-blue' : (_lwCount>0||_twCount>0)?'s-blue':'',
+      fn: `setDashPanel('tasks')`,
+      sel: _tasksSel
+    },
     { val: fpThisCW,    label: 'Phases to Finish This CW', valColor: fpThisCW>0?'#b45309':'var(--gray-300)',        accentCls: fpThisCW>0?'s-amber':'', fn: `setDashPanel('fp')`,       sel: _dashTopPanel==='fp' },
     { val: fpOD,        label: 'Finish Phase CW Overdue',  valColor: fpOD>0?'var(--primary)':'var(--gray-300)',     accentCls: fpOD>0?'s-alert':'',    fn: `setDashPanel('overdue')`,  sel: _dashTopPanel==='overdue' },
   ];
   statCards.innerHTML = _sc.map(s =>
     `<div class="stat-card stat-card-btn ${s.accentCls}${s.sel?' stat-card-sel':''}" onclick="${s.fn}" title="Click to view">
-      <div class="stat-val" style="color:${s.valColor}">${s.val}</div>
+      ${s.custom ? s.custom : `<div class="stat-val" style="color:${s.valColor}">${s.val}</div>`}
       <div class="stat-label">${s.label}</div>
     </div>`
   ).join('');
@@ -2163,13 +2173,16 @@ function renderDashboard() {
 
   function lastWeekItem(t, taskText) {
     const ep    = effPri(t);
+    const upd   = updates[t.id] || {};
     const idTag = tktLink(t.id, 'week-id');
     const dot   = ep === 'HIGH' ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-left:4px;vertical-align:middle"></span>` : '';
-    const st    = ((updates[t.id]||{}).taskHistoryStatus||{})[PREV_WK_KEY] || '';
+    const st    = ((upd.taskHistoryStatus||{})[PREV_WK_KEY]) || '';
+    const dept  = ((upd.taskHistoryDept||{})[PREV_WK_KEY]) || (upd.taskDept || '');
     const doneCls   = st === 'done'   ? ' done'   : ' idle';
     const missedCls = st === 'missed' ? ' missed' : ' idle';
     const itemCls   = st === 'done'   ? ' done-item' : st === 'missed' ? ' missed-item' : '';
     const idSafe    = esc(t.id).replace(/'/g,"\\'");
+    const deptBadge = dept ? `<span style="display:inline-flex;align-items:center;padding:1px 6px;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:var(--radius);font-size:9px;font-weight:700;color:var(--gray-600);white-space:nowrap">${esc(dept)}</span>` : '';
     return `<li class="week-item${itemCls}">
       <div class="week-id-col">
         ${idTag}${dot}
@@ -2179,7 +2192,10 @@ function renderDashboard() {
         </div>
       </div>
       <div class="week-body">
-        <div class="week-summary">${esc((t.summary||'').slice(0,50))}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <div class="week-summary" style="margin-bottom:0;flex:1">${esc((t.summary||'').slice(0,50))}</div>
+          ${deptBadge}
+        </div>
         <div class="week-task">${esc(taskText)}</div>
       </div>
     </li>`;
@@ -2349,24 +2365,24 @@ function renderDashboard() {
 
   if (_dashTopPanel === null) {
     dashGridTop.innerHTML = '';
-  } else if (_dashTopPanel === 'lastweek') {
+  } else if (_dashTopPanel === 'tasks') {
     dashGridTop.innerHTML = `
-      <div class="dash-card-dk acc-gray" style="overflow-y:auto;max-height:640px">
-        <h3><span>Tasks Last Week</span><span class="h3-badge h3-gray">CW${PREV_WEEK}</span></h3>
-        ${lastWeekHTML}
-      </div>`;
-  } else if (_dashTopPanel === 'thisweek') {
-    dashGridTop.innerHTML = `
-      <div class="dash-card-dk acc-blue" style="overflow-y:auto;max-height:640px">
-        <h3><span>Tasks This Week</span><span class="h3-badge h3-blue">CW${CUR_WEEK}</span></h3>
-        ${thisWeekHTML}
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div class="dash-card-dk acc-gray" style="flex:1">
+          <h3><span>Tasks Last Week</span><span class="h3-badge h3-gray">CW${PREV_WEEK}</span></h3>
+          ${lastWeekHTML}
+        </div>
+        <div class="dash-card-dk acc-blue" style="flex:1">
+          <h3><span>Tasks This Week</span><span class="h3-badge h3-blue">CW${CUR_WEEK}</span></h3>
+          ${thisWeekHTML}
+        </div>
       </div>`;
   } else if (_dashTopPanel === 'overdue') {
     const odAccent = overdueItems.length ? '' : 'acc-gray';
     const odTitle  = `<span>CW Overdue</span>${overdueItems.length ? `<span class="h3-badge h3-red">${overdueItems.length} ticket${overdueItems.length>1?'s':''}</span>` : `<span class="h3-badge h3-gray">None</span>`}`;
     dashGridTop.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:14px">
-        <div class="dash-card-dk ${odAccent}" style="overflow-y:auto;max-height:420px">
+        <div class="dash-card-dk ${odAccent}">
           <h3>${odTitle}</h3>
           ${overdueHTML}
         </div>
@@ -2391,7 +2407,7 @@ function renderDashboard() {
     dashGridTop.innerHTML = `
       <div style="display:flex;gap:14px;align-items:flex-start">
         ${_phDistSidebar}
-        <div class="dash-card-dk ${dynAccent}" style="flex:1;overflow-y:auto;max-height:480px">
+        <div class="dash-card-dk ${dynAccent}" style="flex:1">
           <h3>${dynTitle}</h3>
           ${dynHTML}
         </div>
