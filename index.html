@@ -144,7 +144,7 @@
     .hi-meta { display: flex; gap: 10px; font-size: 10px; color: var(--gray-500); margin-bottom: 4px; flex-wrap: wrap; }
     .hi-meta strong { color: var(--gray-700); }
     .hi-progress { font-size: 11px; color: var(--gray-500); font-style: italic; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hi-task-inp { flex: 1; min-width: 0; box-sizing: border-box; background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.25); color: #1e40af; border-radius: var(--radius); padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.5; resize: none; outline: none; display: block; }
+    .hi-task-inp { flex: 1; min-width: 0; box-sizing: border-box; background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.25); color: #1e40af; border-radius: var(--radius); padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.5; resize: none; outline: none; display: block; overflow: hidden; min-height: 34px; }
     .hi-task-inp::placeholder { color: var(--gray-400); font-style: italic; }
     .hi-task-inp:focus { border-color: rgba(37,99,235,0.5); background: rgba(37,99,235,0.1); box-shadow: 0 0 0 2px rgba(37,99,235,0.12); }
     /* Urgent card treatment */
@@ -945,7 +945,10 @@ function mergeTickets(parsed) {
       }
       updCount++;
     } else {
+      if (!t.p) t.p = 'MEDIUM';
       tickets.push(t);
+      if (!updates[t.id]) updates[t.id] = {};
+      if (!updates[t.id].changeRequest) updates[t.id].changeRequest = 'PM';
       newCount++;
     }
   });
@@ -1153,8 +1156,8 @@ function exportPDF(type) {
         ${ticketRows(twSorted, 4, t => { const u=updates[t.id]||{}; return `<tr><td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td><td>${esc((t.summary||'').slice(0,60))}</td><td style="text-align:center">${esc(u.taskDept||'—')}</td><td style="white-space:pre-wrap">${esc(u.taskThisWeek||'')}</td></tr>`; })}
       </table>
       <h2>Change Requests — PM &amp; Sent</h2>
-      <table><tr><th>ID</th><th>Summary</th><th>Phase</th><th>CR Status</th><th>Finish CW</th></tr>
-        ${ticketRows(crSorted, 5, t => { const u=updates[t.id]||{}; const fp=u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase; const ep=effPhase(t); return `<tr><td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td><td>${esc((t.summary||'').slice(0,60))}</td><td style="text-align:center">${ep?'P'+ep:'—'}</td><td style="text-align:center;font-weight:700">${esc(u.changeRequest||'')}</td><td style="text-align:center">${esc(fp||'—')}</td></tr>`; })}
+      <table><tr><th>ID</th><th>Summary</th><th>Phase</th><th>CR Status</th><th>Product Manager</th><th>Finish CW</th></tr>
+        ${ticketRows(crSorted, 6, t => { const u=updates[t.id]||{}; const fp=u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase; const ep=effPhase(t); return `<tr><td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td><td>${esc((t.summary||'').slice(0,60))}</td><td style="text-align:center">${ep?'P'+ep:'—'}</td><td style="text-align:center;font-weight:700">${esc(u.changeRequest||'')}</td><td>${esc(t.productManager||'—')}</td><td style="text-align:center">${esc(fp||'—')}</td></tr>`; })}
       </table>`;
   }
 
@@ -1520,12 +1523,18 @@ function setNote(el) {
   save();
 }
 
+function autoResizeTA(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 function setTask(el) {
   const id    = el.dataset.id;
   const field = el.dataset.field;
   if (!updates[id]) updates[id] = {};
   updates[id][field] = el.value;
   el.classList.toggle('has-val', !!el.value);
+  autoResizeTA(el);
   save();
 }
 
@@ -2083,7 +2092,7 @@ function renderDashboard() {
               </div>
               <div style="display:flex;gap:6px;align-items:flex-start">
                 <span style="font-size:9px;font-weight:700;color:#1d4ed8;white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK}</span>
-                <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
+                <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" oninput="autoResizeTA(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
                 <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
                   <option value="">dept</option>
                   ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
@@ -2161,7 +2170,7 @@ function renderDashboard() {
       <div class="week-body" style="flex:1;min-width:0">
         <div class="week-summary">${esc((t.summary||'').slice(0,50))}</div>
         <div style="display:flex;gap:5px;align-items:flex-start;margin-top:4px">
-          <textarea class="hi-task-inp" rows="1" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1;font-size:11px">${esc(taskText)}</textarea>
+          <textarea class="hi-task-inp" rows="1" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" oninput="autoResizeTA(this)" style="flex:1;font-size:11px">${esc(taskText)}</textarea>
           <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;width:60px;max-width:60px;margin-top:0">
             <option value="">dept</option>
             ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
@@ -2196,7 +2205,15 @@ function renderDashboard() {
           <div class="week-summary" style="margin-bottom:0;flex:1">${esc((t.summary||'').slice(0,50))}</div>
           ${deptBadge}
         </div>
-        <div class="week-task">${esc(taskText)}</div>
+        <div class="week-task" style="margin-bottom:6px">${esc(taskText)}</div>
+        <div style="display:flex;gap:5px;align-items:flex-start;padding-top:5px;border-top:1px solid var(--gray-100)">
+          <span style="font-size:9px;font-weight:700;color:#1d4ed8;white-space:nowrap;padding-top:7px;flex-shrink:0">CW${CUR_WEEK}</span>
+          <textarea class="hi-task-inp" rows="1" placeholder="Add task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" oninput="autoResizeTA(this)" style="flex:1">${esc(upd.taskThisWeek||'')}</textarea>
+          <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;width:60px;max-width:60px;align-self:center">
+            <option value="">dept</option>
+            ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
       </div>
     </li>`;
   }
@@ -2314,7 +2331,7 @@ function renderDashboard() {
             </div>
             <div style="display:flex;gap:6px;align-items:flex-start">
               <span style="font-size:9px;font-weight:700;color:#1d4ed8;white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK}</span>
-              <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
+              <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}…" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" oninput="autoResizeTA(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
               <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
                 <option value="">dept</option>
                 ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
@@ -2415,6 +2432,10 @@ function renderDashboard() {
   }
 
   dashGrid.innerHTML = '';
+  // Auto-resize all task textareas after render so no in-box scrolling
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.hi-task-inp').forEach(autoResizeTA);
+  });
 }
 
 function setDashPanel(panel) {
