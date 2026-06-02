@@ -1150,7 +1150,7 @@ function exportPDF(type) {
     const crSorted = [...crTickets].sort((a,b) => {
       const ca = (updates[a.id]||{}).changeRequest||'';
       const cb = (updates[b.id]||{}).changeRequest||'';
-      return ca.localeCompare(cb) || (a.id||'').localeCompare(b.id||'');
+      return ca.localeCompare(cb) || (a.productManager||'').localeCompare(b.productManager||'') || (a.id||'').localeCompare(b.id||'');
     });
 
     function ticketRows(list, colCount, rowFn) {
