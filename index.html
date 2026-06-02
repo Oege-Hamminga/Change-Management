@@ -331,6 +331,8 @@
     .cw-input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 2px var(--primary-light); }
     .cw-input.od { color: var(--primary); font-weight: 700; }
     td.cw-od .cw-input { background: transparent; }
+    .cw-cell-wrap { position: relative; display: inline-block; }
+    .cw-move-badge { position: absolute; top: -5px; right: -7px; background: #d97706; color: #fff; font-size: 9px; font-weight: 800; line-height: 1; min-width: 14px; height: 14px; border-radius: 7px; display: flex; align-items: center; justify-content: center; padding: 0 3px; pointer-events: none; }
 
     .st-sel { padding: 3px 5px; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 11px; background: white; cursor: pointer; outline: none; min-width: 95px; font-family: inherit; }
     .st-sel:focus { border-color: var(--primary); }
@@ -1453,7 +1455,9 @@ function renderTable() {
     const idCell = tktLink(t.id, 'cell-id');
 
     const sopCell    = `<td${sopOD?' class="cw-od"':''}><input class="cw-input${sopOD?' od':''}" type="text" value="${esc(effSop||'')}" placeholder="CW" title="${sopOD?'⚠ Overdue':'SOP (calendar week)'}" data-id="${esc(t.id)}" data-field="sopCW" onblur="setCwField(this)"></td>`;
-    const finishCell = `<td${fpOD?' class="cw-od"':''}><input class="cw-input${fpOD?' od':''}" type="text" value="${esc(effFP||'')}" placeholder="CW" title="${fpOD?'⚠ Overdue':'Finish Phase (calendar week)'}" data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setCwField(this)"></td>`;
+    const _fpMoves = (upd.fpCWChanges || 0);
+    const _moveBadge = _fpMoves > 0 ? `<span class="cw-move-badge" title="Deadline moved ${_fpMoves}×">${_fpMoves}</span>` : '';
+    const finishCell = `<td${fpOD?' class="cw-od"':''}><span class="cw-cell-wrap"><input class="cw-input${fpOD?' od':''}" type="text" value="${esc(effFP||'')}" placeholder="CW" title="${fpOD?'⚠ Overdue':'Finish Phase (calendar week)'}" data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setCwField(this)">${_moveBadge}</span></td>`;
 
     const ep      = effPri(t);
     const priCls  = ep ? `pp-${ep.toLowerCase()}` : '';
@@ -1664,17 +1668,20 @@ function confirmPhaseChange() {
   if (_phModalCompleting) {
     // Mark ticket as Completed / Closed
     if (_phModalPrev) {
-      const fpNum  = parseCW(_phModalPrevFP);
-      const onTime = fpNum !== null && CUR_WEEK <= fpNum;
       if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
-      updates[id].phaseCompletions.push({
-        fromPhase:   _phModalPrev,
-        toPhase:     'completed',
-        finishCW:    _phModalPrevFP,
-        completedCW: CUR_WEEK,
-        onTime:      onTime,
-        month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
-      });
+      const alreadyRecorded = updates[id].phaseCompletions.some(c => String(c.fromPhase) === String(_phModalPrev));
+      if (!alreadyRecorded) {
+        const fpNum  = parseCW(_phModalPrevFP);
+        const onTime = fpNum !== null && CUR_WEEK <= fpNum;
+        updates[id].phaseCompletions.push({
+          fromPhase:   _phModalPrev,
+          toPhase:     'completed',
+          finishCW:    _phModalPrevFP,
+          completedCW: CUR_WEEK,
+          onTime:      onTime,
+          month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
+        });
+      }
     }
     updates[id].status = 'Closed';
     _phModalEl.value = _phModalPrev;
@@ -1693,19 +1700,22 @@ function confirmPhaseChange() {
 
   const newPhase = _phModalEl.value;
 
-  // Record phase completion event (only when phase actually changes)
-  if (_phModalPrev && _phModalPrev !== newPhase) {
-    const fpNum  = parseCW(_phModalPrevFP);
-    const onTime = fpNum !== null && CUR_WEEK <= fpNum;
+  // Record phase completion: only if moving forward (toPhase > fromPhase) and not yet recorded for this fromPhase
+  if (_phModalPrev && _phModalPrev !== newPhase && Number(newPhase) > Number(_phModalPrev)) {
     if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
-    updates[id].phaseCompletions.push({
-      fromPhase:   _phModalPrev,
-      toPhase:     newPhase,
-      finishCW:    _phModalPrevFP,
-      completedCW: CUR_WEEK,
-      onTime:      onTime,
-      month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
-    });
+    const alreadyRecorded = updates[id].phaseCompletions.some(c => String(c.fromPhase) === String(_phModalPrev));
+    if (!alreadyRecorded) {
+      const fpNum  = parseCW(_phModalPrevFP);
+      const onTime = fpNum !== null && CUR_WEEK <= fpNum;
+      updates[id].phaseCompletions.push({
+        fromPhase:   _phModalPrev,
+        toPhase:     newPhase,
+        finishCW:    _phModalPrevFP,
+        completedCW: CUR_WEEK,
+        onTime:      onTime,
+        month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
+      });
+    }
   }
 
   updates[id].phase = newPhase;
