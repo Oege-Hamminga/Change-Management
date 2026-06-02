@@ -1796,6 +1796,12 @@ function setDashCwField(el) {
       : (tk ? (tk.finishPhase || '') : '');
     const newVal  = el.value.trim();
     const parsed  = parseCW(newVal);
+    if (!newVal) {
+      el.value = prevVal;
+      el.className = `od-cw-inp${cwIsOverdue(prevVal) ? ' od-active' : ''}`;
+      showMsg('err', 'Finish Phase CW cannot be empty — enter a valid CW number.');
+      return;
+    }
     if (parsed !== null && parsed < CUR_WEEK) {
       el.value = prevVal;
       el.className = `od-cw-inp${cwIsOverdue(prevVal) ? ' od-active' : ''}`;
@@ -1984,6 +1990,14 @@ function setCwField(el) {
       : (tk ? (tk.finishPhase || '') : '');
     const newVal  = el.value.trim();
     const parsed  = parseCW(newVal);
+    if (!newVal) {
+      el.value = prevVal;
+      const td0 = el.closest('td');
+      if (td0) td0.className = cwIsOverdue(prevVal) ? 'cw-od' : '';
+      el.className = `cw-input${cwIsOverdue(prevVal) ? ' od' : ''}`;
+      showMsg('err', 'Finish Phase CW cannot be empty — enter a valid CW number.');
+      return;
+    }
     if (parsed !== null && parsed < CUR_WEEK) {
       el.value = prevVal;
       const td2 = el.closest('td');
