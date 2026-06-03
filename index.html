@@ -991,6 +991,57 @@ function importData() {
   toast(`${newCount} new, ${updCount} updated`);
 }
 
+function buildPdfDeadlinesSVG() {
+  const W = 700, H = 110;
+  const padL = 26, padR = 8, padT = 12, padB = 22;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+  const maxCW = 52, xStep = chartW / maxCW;
+  const bW = Math.max(2, Math.floor(xStep * 0.55));
+
+  const cwBkt = {};
+  for (let w = 1; w <= maxCW; w++) cwBkt[w] = 0;
+  tickets.filter(t => !isClosed(t)).forEach(t => {
+    const u  = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : (t.finishPhase || '');
+    const n  = parseCW(String(fp));
+    if (n && n >= 1 && n <= maxCW) cwBkt[n]++;
+  });
+  const maxC = Math.max(...Object.values(cwBkt), 1);
+  const yT   = maxC <= 5 ? maxC : maxC <= 10 ? Math.ceil(maxC/2)*2 : Math.ceil(maxC/5)*5;
+  const yS   = Math.min(yT, 5);
+
+  let grid = '', bars = '', xlbls = '';
+  for (let i = 1; i <= yS; i++) {
+    const v = Math.round((i/yS)*yT);
+    const y = padT + chartH - (v/yT)*chartH;
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+chartW}" y2="${y.toFixed(1)}" stroke="#f3f4f6" stroke-width="1"/>`;
+    if (i === yS) grid += `<text x="${(padL-3).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="6.5" fill="#d1d5db">${v}</text>`;
+  }
+  for (let cw = 1; cw <= maxCW; cw++) {
+    const cnt = cwBkt[cw];
+    const cx  = padL + (cw - 0.5) * xStep;
+    const isP = cw < CUR_WEEK, isC = cw === CUR_WEEK;
+    const col = isP ? '#fca5a5' : isC ? '#3b82f6' : '#a5b4fc';
+    if (cnt > 0) {
+      const bH = Math.max(3, (cnt/yT)*chartH);
+      const ty = padT + chartH - bH;
+      bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${ty.toFixed(1)}" width="${bW}" height="${bH.toFixed(1)}" fill="${col}" rx="2"/>`;
+      if (bH > 12) bars += `<text x="${cx.toFixed(1)}" y="${(ty-2).toFixed(1)}" text-anchor="middle" font-size="6.5" fill="${isP?'#f87171':isC?'#2563eb':'#818cf8'}" font-weight="700">${cnt}</text>`;
+    }
+    if (isC || cw % 4 === 0 || cw === 1) {
+      const close = !isC && Math.abs(cw - CUR_WEEK) < 3;
+      if (!close) {
+        const ly = isC ? H - 8 : H - 1;
+        xlbls += `<text x="${cx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="${isC?7:6}" fill="${isC?'#3b82f6':'#d1d5db'}" font-weight="${isC?700:400}">CW${cw}</text>`;
+      }
+    }
+  }
+  const cx = padL + (CUR_WEEK - 0.5) * xStep;
+  const bl = `<line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>`;
+  const cl = `<line x1="${cx.toFixed(1)}" y1="${padT}" x2="${cx.toFixed(1)}" y2="${padT+chartH}" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,3" opacity=".5"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="font-family:Arial,sans-serif;display:block">${grid}${bl}${bars}${cl}${xlbls}</svg>`;
+}
+
 function exportPDF(type) {
   const MON_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const now = new Date();
@@ -1182,6 +1233,22 @@ function exportPDF(type) {
         ${ticketRows(crSorted, 6, t => { const u=updates[t.id]||{}; const fp=u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase; const ep=effPhase(t); return `<tr><td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td><td>${esc((t.summary||'').slice(0,60))}</td><td style="text-align:center">${ep?'P'+ep:'—'}</td><td style="text-align:center;font-weight:700">${esc(u.changeRequest||'')}</td><td>${esc(t.productManager||'—')}</td><td style="text-align:center">${esc(fp||'—')}</td></tr>`; })}
       </table>`;
   }
+
+  // ── Phase Deadlines Overview — prepended as first section for both report types ──
+  const _allAct = tickets.filter(t => !isClosed(t));
+  const _odCnt  = _allAct.filter(t => { const u=updates[t.id]||{}; const fp=u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase; return cwIsOverdue(fp); }).length;
+  const _curCnt = _allAct.filter(t => { const u=updates[t.id]||{}; const fp=u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase; return parseCW(String(fp||''))===CUR_WEEK; }).length;
+  const _upcCnt = _allAct.length - _odCnt - _curCnt;
+  const _dlSVG  = buildPdfDeadlinesSVG();
+  const _dlSection = `
+    <h2 style="margin-top:0">Phase Deadlines Overview — ${_now.year} &nbsp;<span style="font-weight:400;font-size:10px;color:#6b7280">(${_allAct.length} active tickets · CW${CUR_WEEK} current week)</span></h2>
+    <div style="margin-bottom:6px">${_dlSVG}</div>
+    <div style="display:flex;gap:18px;font-size:9.5px;color:#6b7280;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #e5e7eb">
+      <span><span style="display:inline-block;width:9px;height:9px;background:#fca5a5;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Overdue: <strong>${_odCnt}</strong></span>
+      <span><span style="display:inline-block;width:9px;height:9px;background:#3b82f6;border-radius:2px;margin-right:4px;vertical-align:middle"></span>CW${CUR_WEEK} this week: <strong>${_curCnt}</strong></span>
+      <span><span style="display:inline-block;width:9px;height:9px;background:#a5b4fc;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Upcoming: <strong>${_upcCnt}</strong></span>
+    </div>`;
+  bodyHTML = _dlSection + bodyHTML;
 
   const filename = type === 'kpi'
     ? `KPI_Stats_${now.toISOString().slice(0,10)}.pdf`
@@ -3297,136 +3364,115 @@ function renderPhaseSuccessChart() {
   const el = document.getElementById('effPhaseSuccess');
   if (!el) return;
 
-  const phOrder  = ['1','2','3','4','5'];
-  const phClr    = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-  const phName   = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
-  const _MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const selMoLabel = _MN[+_kpiMonth.slice(5,7)-1] + ' ' + _kpiMonth.slice(0,4);
-
-  // ── count for selected month ────────────────────────────────────────────────
-  // Two sources:
-  // 1. Recorded phase_transition completions whose month == _kpiMonth
-  //    (fall back to deriving month from completedCW if month field missing)
-  // 2. Active tickets currently in a phase — on-time if FP deadline ≥ today AND no CW moves;
-  //    included only when their finishPhaseCW CW falls in _kpiMonth.
-
-  const mk = {}; // { '1':{ on:0, off:0 }, ... }
-  phOrder.forEach(p => { mk[p] = { on: 0, off: 0 }; });
+  const phOrder = ['1','2','3','4','5'];
+  const phClr   = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+  const phName  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
+  const _MN     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   function cwToMo(cw) {
     const n = parseCW(String(cw == null ? '' : cw));
     return n ? cwToYearMonth(_now.year, n) : null;
   }
 
-  // Source 1: recorded completions
+  // Build { month → { phase → { on, off } } } from all sources
+  const moData = {};
+  function ensureMo(mo) {
+    if (!moData[mo]) { moData[mo] = {}; phOrder.forEach(p => { moData[mo][p] = { on:0, off:0 }; }); }
+  }
+
+  // Source 1: recorded phase_transition completions (all months)
   const seenPairs = new Set();
   tickets.forEach(t => {
     ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
       if (c.type === 'deadline_moved') return;
       const mo = c.month || cwToMo(c.completedCW) || cwToMo(c.finishCW);
-      if (!mo || mo !== _kpiMonth) return;
+      if (!mo) return;
       const p = String(c.fromPhase);
-      if (!mk[p]) return;
-      c.onTime ? mk[p].on++ : mk[p].off++;
-      seenPairs.add(t.id + '|' + p);
+      if (!phOrder.includes(p)) return;
+      ensureMo(mo);
+      c.onTime ? moData[mo][p].on++ : moData[mo][p].off++;
+      seenPairs.add(`${t.id}|${p}|${mo}`);
     });
   });
 
-  // Source 2: active tickets not yet recorded, whose FP deadline is in selected month
+  // Source 2: active tickets not yet recorded — bucket by FP deadline month
   tickets.forEach(t => {
     if (isDone(t)) return;
     const ph = String(effPhase(t) || '');
-    if (!mk[ph]) return;
-    if (seenPairs.has(t.id + '|' + ph)) return;
+    if (!phOrder.includes(ph)) return;
     const u  = updates[t.id] || {};
     const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : (t.finishPhase || '');
     const mo = cwToMo(fp);
-    if (!mo || mo !== _kpiMonth) return;
-    const fpN = parseCW(String(fp));
-    const moves = u.fpCWChanges || 0;
-    fpN !== null && CUR_WEEK <= fpN && moves === 0 ? mk[ph].on++ : mk[ph].off++;
+    if (!mo) return;
+    if (seenPairs.has(`${t.id}|${ph}|${mo}`)) return;
+    const fpN  = parseCW(String(fp));
+    const mov  = u.fpCWChanges || 0;
+    ensureMo(mo);
+    fpN !== null && CUR_WEEK <= fpN && mov === 0 ? moData[mo][ph].on++ : moData[mo][ph].off++;
   });
 
-  const totOn  = phOrder.reduce((s, p) => s + mk[p].on,  0);
-  const totOff = phOrder.reduce((s, p) => s + mk[p].off, 0);
-  const tot    = totOn + totOff;
-
-  // ── if no data for selected month, show current snapshot of all active tickets ──
-  let fallback = false;
-  if (tot === 0) {
-    fallback = true;
-    phOrder.forEach(p => { mk[p] = { on: 0, off: 0 }; });
-    tickets.forEach(t => {
-      if (isDone(t)) return;
-      const ph = String(effPhase(t) || '');
-      if (!mk[ph]) return;
-      const u  = updates[t.id] || {};
-      const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : (t.finishPhase || '');
-      const fpN = parseCW(String(fp));
-      if (fpN === null) return; // no deadline set — skip
-      const moves = u.fpCWChanges || 0;
-      fpN !== null && CUR_WEEK <= fpN && moves === 0 ? mk[ph].on++ : mk[ph].off++;
-    });
-  }
-
-  const fTotOn  = phOrder.reduce((s, p) => s + mk[p].on,  0);
-  const fTotOff = phOrder.reduce((s, p) => s + mk[p].off, 0);
-  const fTot    = fTotOn + fTotOff;
-
-  if (fTot === 0) {
-    el.innerHTML = `<p style="color:var(--gray-500);font-size:12px;padding:10px 0">No tickets with Finish Phase deadlines found. Set a Finish Phase CW on tickets to see data here.</p>`;
+  const months = Object.keys(moData).sort();
+  if (months.length === 0) {
+    el.innerHTML = `<p style="color:var(--gray-500);font-size:12px;padding:14px 0;text-align:center">No Finish Phase CW deadlines set. Add a Finish Phase CW to tickets to see data here.</p>`;
     return;
   }
 
-  const displayOnTime = fallback ? fTotOn  : totOn;
-  const displayOff    = fallback ? fTotOff : totOff;
-  const displayTotal  = fallback ? fTot    : tot;
-  const overallPct    = Math.round(displayOnTime / displayTotal * 100);
-  const overallCol    = overallPct >= 80 ? '#059669' : overallPct >= 50 ? '#d97706' : '#CC0000';
-  const label         = fallback
-    ? `<span style="font-size:9px;color:var(--gray-400);margin-left:6px">(no transitions recorded for ${selMoLabel} — showing all active tickets)</span>`
-    : `<span style="font-size:9px;color:var(--gray-400);margin-left:6px">${selMoLabel}</span>`;
+  const TH = 'padding:5px 6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:center;border-bottom:2px solid var(--gray-100)';
+  const phHeaders = phOrder.map(p =>
+    `<th style="${TH};color:${phClr[p]};width:110px">${phName[p].slice(0,5)}.</th>`
+  ).join('');
 
-  const header = `<div style="display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:12px">
-    <div style="font-size:32px;font-weight:900;color:${overallCol};line-height:1">${overallPct}%</div>
-    <div style="width:1px;height:36px;background:var(--gray-200)"></div>
-    <div style="font-size:11px;color:var(--gray-600);line-height:2.1">
-      <span style="font-weight:800;color:#059669">${displayOnTime}</span> on time
-      &nbsp;&middot;&nbsp;
-      <span style="font-weight:800;color:#CC0000">${displayOff}</span> not on time
-      &nbsp;&middot;&nbsp;
-      <span style="font-weight:800;color:var(--gray-700)">${displayTotal}</span> total${label}
-    </div>
+  const monthRows = months.map(mo => {
+    const moLabel = _MN[+mo.slice(5,7)-1] + ' ' + mo.slice(0,4);
+    const isCur   = mo === _kpiMonth;
+
+    const phCells = phOrder.map(p => {
+      const d  = moData[mo][p];
+      const t2 = d.on + d.off;
+      if (t2 === 0) return `<td style="text-align:center;padding:7px 4px;color:var(--gray-200);font-size:14px">·</td>`;
+      const pct = Math.round(d.on / t2 * 100);
+      const col = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
+      return `<td style="text-align:center;padding:7px 4px">
+        <div style="font-weight:900;font-size:13px;color:${col};line-height:1.1">${pct}%</div>
+        <div style="font-size:9px;color:var(--gray-400);margin-top:2px">${d.on}<span style="color:#059669;margin:0 1px">✓</span>${d.off}<span style="color:#CC0000;margin-left:1px">✗</span></div>
+      </td>`;
+    }).join('');
+
+    const totOn  = phOrder.reduce((s, p) => s + moData[mo][p].on,  0);
+    const totOff = phOrder.reduce((s, p) => s + moData[mo][p].off, 0);
+    const totAll = totOn + totOff;
+    const ovPct  = totAll > 0 ? Math.round(totOn / totAll * 100) : null;
+    const ovCol  = ovPct === null ? 'var(--gray-300)' : ovPct >= 80 ? '#059669' : ovPct >= 50 ? '#d97706' : '#CC0000';
+    const ovCell = `<td style="text-align:center;padding:7px 10px;border-left:2px solid var(--gray-100)">
+      <div style="font-weight:900;font-size:14px;color:${ovCol};line-height:1.1">${ovPct !== null ? ovPct+'%' : '—'}</div>
+      <div style="font-size:9px;color:var(--gray-400);margin-top:2px">${totOn}<span style="color:#059669;margin:0 1px">✓</span>${totOff}<span style="color:#CC0000;margin-left:1px">✗</span></div>
+    </td>`;
+
+    return `<tr style="${isCur?'background:rgba(99,102,241,.06)':''};border-bottom:1px solid var(--gray-100)">
+      <td style="padding:7px 10px;font-size:11px;font-weight:${isCur?700:400};color:var(--gray-700);white-space:nowrap">
+        ${moLabel}${isCur?'<span style="color:#6366f1;font-size:8px;font-weight:800;margin-left:5px;letter-spacing:.04em">NOW</span>':''}
+      </td>
+      ${phCells}${ovCell}
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr>
+          <th style="${TH};text-align:left;color:var(--gray-400);width:90px">Month</th>
+          ${phHeaders}
+          <th style="${TH};color:var(--gray-500);border-left:2px solid var(--gray-100);width:90px">Overall</th>
+        </tr>
+        <tr>
+          <th></th>
+          ${phOrder.map(p => `<th style="padding:1px 4px;font-size:8px;font-weight:400;text-align:center;color:${phClr[p]};opacity:.65">${phName[p]}</th>`).join('')}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${monthRows}</tbody>
+    </table>
   </div>`;
-
-  const rows = phOrder.map(p => {
-    const on  = mk[p].on;
-    const off = mk[p].off;
-    const t2  = on + off;
-    if (t2 === 0) return '';
-    const pct = Math.round(on / t2 * 100);
-    const col = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100)">
-      <div style="display:flex;align-items:center;gap:7px;width:170px;flex-shrink:0">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${phClr[p]};flex-shrink:0"></span>
-        <span style="font-size:12px;font-weight:900;color:${phClr[p]}">P${p}</span>
-        <span style="font-size:10px;color:var(--gray-400)">${phName[p]}</span>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;width:170px;flex-shrink:0">
-        <span style="font-size:14px;font-weight:800;color:#059669;min-width:24px;text-align:right">${on}</span>
-        <span style="font-size:9px;color:#059669;font-weight:700">on time</span>
-        <span style="color:var(--gray-200);padding:0 2px">|</span>
-        <span style="font-size:14px;font-weight:800;color:#CC0000;min-width:24px;text-align:right">${off}</span>
-        <span style="font-size:9px;color:#CC0000;font-weight:700">not on time</span>
-      </div>
-      <div style="flex:1;background:var(--gray-100);border-radius:3px;height:7px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${col};border-radius:3px"></div>
-      </div>
-      <div style="font-size:15px;font-weight:900;color:${col};min-width:44px;text-align:right">${pct}%</div>
-    </div>`;
-  }).filter(Boolean).join('');
-
-  el.innerHTML = header + `<div style="padding:0 4px">${rows}</div>`;
 }
 
 // ─────────────────────────────────────────────────────
