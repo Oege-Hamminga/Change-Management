@@ -1466,8 +1466,9 @@ function renderTable() {
 
     const eph      = effPhase(t);
     const phaseCls = eph ? `ph-${eph}` : 'ph-x';
-    const phBaseOpts = [['','— phase —'],['1','1. Investigation'],['2','2. Design'],['3','3. Testing'],['4','4. Implementation'],['5','5. Finalization']];
-    if (!isClosed(t)) phBaseOpts.push(['completed','✓ Completed']);
+    const phAllOpts = [['','— phase —'],['1','1. Investigation'],['2','2. Design'],['3','3. Testing'],['4','4. Implementation'],['5','5. Finalization']];
+    if (!isClosed(t)) phAllOpts.push(['completed','✓ Completed']);
+    const phBaseOpts = phAllOpts.filter(([v]) => !v || v === 'completed' || !eph || Number(v) >= Number(eph));
     const phOpts = phBaseOpts.map(([v,l]) => `<option value="${v}" ${eph===v?'selected':''}>${l}</option>`).join('');
 
     const isSelected = selectedTicketId === t.id;
@@ -1626,6 +1627,17 @@ function setPhase(el) {
   const PH_NAMES = {'1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization'};
   const id   = el.dataset.id;
   const newP = el.value;
+  const prevP = el.dataset.prevPhase || el.dataset.prevphase || '';
+
+  // Forward-only guard
+  if (newP && newP !== 'completed' && prevP && Number(newP) < Number(prevP)) {
+    el.value = prevP;
+    el.dataset.prevPhase = prevP;
+    showMsg('err', `Phase can only advance forward. P${prevP} → P${newP} is not allowed.`);
+    return;
+  }
+  if (!newP) { el.value = prevP; return; }
+
   const upd  = updates[id] || {};
   const curFP = upd.finishPhaseCW !== undefined ? upd.finishPhaseCW : ((tickets.find(t=>t.id===id)||{}).finishPhase||'');
 
@@ -1814,6 +1826,14 @@ function setDashCwField(el) {
       return;
     }
     if (newVal !== prevVal) {
+      if (prevVal) {
+        const ok = window.confirm(`You are changing the Finish Phase deadline from CW${prevVal} to CW${newVal}.\n\nThis confirms you cannot meet the original deadline. Proceed?`);
+        if (!ok) {
+          el.value = prevVal;
+          el.className = `od-cw-inp${cwIsOverdue(prevVal) ? ' od-active' : ''}`;
+          return;
+        }
+      }
       updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
       const curPh2 = tk ? String(effPhase(tk)) : null;
       if (curPh2) {
@@ -2024,6 +2044,16 @@ function setCwField(el) {
       return;
     }
     if (newVal !== prevVal) {
+      if (prevVal) {
+        const ok2 = window.confirm(`You are changing the Finish Phase deadline from CW${prevVal} to CW${newVal}.\n\nThis confirms you cannot meet the original deadline. Proceed?`);
+        if (!ok2) {
+          el.value = prevVal;
+          const td2r = el.closest('td');
+          if (td2r) td2r.className = cwIsOverdue(prevVal) ? 'cw-od' : '';
+          el.className = `cw-input${cwIsOverdue(prevVal) ? ' od' : ''}`;
+          return;
+        }
+      }
       updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
       const curPh3 = tk ? String(effPhase(tk)) : null;
       if (curPh3) {
@@ -2208,11 +2238,14 @@ function renderDashboard() {
                             : lastSt === 'missed' ? 'background:rgba(220,38,38,0.1);color:#dc2626;'
                             :                       'background:var(--gray-100);color:var(--gray-400);';
           const lastStTxt = lastSt === 'done' ? '✓ done' : lastSt === 'missed' ? '✗ missed' : 'pending';
+          const hiNextOpts = [['1','1. Investigation'],['2','2. Design'],['3','3. Testing'],['4','4. Implementation'],['5','5. Finalization'],['completed','✓ Completed']]
+            .filter(([v]) => v === 'completed' || !ep || Number(v) >= Number(ep))
+            .map(([v,l]) => `<option value="${v}" ${String(ep)===v?'selected':''}>${l}</option>`).join('');
           return `<li class="hi-ext${isOD?' hi-od':''}">
             <div class="hi-head">
               ${idTag}
               <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
-              ${phaseBadge(ep)}
+              <select class="phase-sel ph-${ep||'x'}" data-id="${esc(t.id)}" data-prev-phase="${esc(String(ep||''))}" onchange="setPhase(this)" style="flex-shrink:0">${hiNextOpts}</select>
               ${isOD ? `<span style="flex-shrink:0;font-size:9px;font-weight:800;color:var(--primary);background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.18);border-radius:var(--radius);padding:1px 5px;text-transform:uppercase;letter-spacing:.05em">Overdue</span>` : ''}
             </div>
             <div class="hi-meta">
@@ -2359,8 +2392,7 @@ function renderDashboard() {
       <div class="od-cws">
         <div class="od-cw-group">
           <span class="od-cw-lbl">SOP CW</span>
-          <input class="od-cw-inp${sopOD?' od-active':''}" type="text" value="${esc(c.sop||'')}"
-            data-id="${esc(t.id)}" data-field="sopCW" onblur="setDashCwField(this)" placeholder="CW">
+          <span class="od-cw-inp${sopOD?' od-active':''}" style="cursor:default;display:inline-flex;align-items:center" title="Edit SOP in the Tracker tab">${esc(c.sop||'—')}</span>
         </div>
         <div class="od-cw-group">
           <span class="od-cw-lbl">Finish CW</span>
@@ -2629,21 +2661,13 @@ function renderDashboard() {
                       : lastSt2==='missed' ? 'background:rgba(220,38,38,.1);color:#dc2626;'
                       : 'background:var(--gray-100);color:var(--gray-400);';
       const stTxt = lastSt2==='done' ? '&#10003; done' : lastSt2==='missed' ? '&#10007; missed' : 'pending';
-      const nextPh = String(Number(ep2) + 1);
-      const phClr5 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-      const canAdv = Number(ep2) >= 1 && Number(ep2) < 5 && !isClosed(t);
-      const advRow = canAdv ? `
-        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-100);flex-wrap:wrap">
-          <span style="font-size:9px;font-weight:700;color:var(--gray-400);white-space:nowrap">Advance phase</span>
-          <button onclick="dashAdvancePhase('${esc(t.id)}','${nextPh}',this.closest('li').querySelector('[data-adv-fp]'))"
-            style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:5px;border:1.5px solid ${phClr5[nextPh]||'var(--gray-400)'};background:transparent;color:${phClr5[nextPh]||'var(--gray-400)'};cursor:pointer;white-space:nowrap">P${ep2} &#8594; P${nextPh}</button>
-          <span style="font-size:9px;color:var(--gray-400)">new FP CW:</span>
-          <input data-adv-fp type="text" class="od-cw-inp" placeholder="CW" style="width:48px;font-size:11px">
-        </div>` : '';
+      const riOpts = [['1','1. Investigation'],['2','2. Design'],['3','3. Testing'],['4','4. Implementation'],['5','5. Finalization'],['completed','✓ Completed']]
+        .filter(([v]) => v === 'completed' || !ep2 || Number(v) >= Number(ep2))
+        .map(([v,l]) => `<option value="${v}" ${String(ep2)===v?'selected':''}>${l}</option>`).join('');
       return `<li class="hi-ext">
         <div class="hi-head">${tktLink(t.id,'hi-id')}
           <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
-          ${phaseBadge(ep2)}
+          <select class="phase-sel ph-${ep2||'x'}" data-id="${esc(t.id)}" data-prev-phase="${esc(String(ep2||''))}" onchange="setPhase(this)" style="flex-shrink:0">${riOpts}</select>
         </div>
         <div class="hi-meta">
           <span>SOP <strong>CW${esc(c2.sop||'&#8212;')}</strong></span>
@@ -2667,7 +2691,6 @@ function renderDashboard() {
             </select>
           </div>
         </div>
-        ${advRow}
       </li>`;
     }
 
@@ -3029,31 +3052,23 @@ function renderEffTicketTable() {
 
     const completions = u.phaseCompletions || [];
     const phStatus = {};
-    // Phase transitions (authoritative — overwrite deadline_moved if present)
+    // Phase transitions (authoritative)
     completions.filter(c => c.type !== 'deadline_moved').forEach(c => {
-      phStatus[c.fromPhase] = { st: c.onTime ? 'ok' : 'late', cw: c.finishCW };
+      phStatus[c.fromPhase] = c.onTime ? 'ok' : 'not_ok';
     });
-    // Deadline moved — only shown if no actual transition recorded for that phase
+    // Deadline moved: mark as not on time if no transition yet
     completions.filter(c => c.type === 'deadline_moved').forEach(c => {
-      if (!phStatus[c.fromPhase]) phStatus[c.fromPhase] = { st: 'moved', cw: c.finishCW };
+      if (!phStatus[c.fromPhase]) phStatus[c.fromPhase] = 'not_ok';
     });
+    // Current active phase with overdue deadline → not on time
+    if (curPh && curFpOD && !phStatus[curPh]) phStatus[curPh] = 'not_ok';
 
     const phaseCells = phOrder.map(p => {
-      const ps = phStatus[p];
-      if (ps && ps.st === 'ok') {
-        const cwTxt = ps.cw ? `<br><span style="font-size:8px;color:#059669;opacity:.8">CW${esc(String(ps.cw))}</span>` : '';
-        return `<td style="text-align:center;background:rgba(5,150,105,.06)"><span style="font-size:13px;color:#059669" title="Phase ${p}: on time">${PC_TICK}</span><br><span style="font-size:8px;color:#059669">on time</span>${cwTxt}</td>`;
-      } else if (ps && ps.st === 'late') {
-        const cwTxt = ps.cw ? `<br><span style="font-size:8px;color:var(--primary);opacity:.8">CW${esc(String(ps.cw))}</span>` : '';
-        return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:13px;color:var(--primary)" title="Phase ${p}: late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">not on time</span>${cwTxt}</td>`;
-      } else if (ps && ps.st === 'moved') {
-        const cwTxt = ps.cw ? `<br><span style="font-size:8px;color:#d97706;opacity:.8">CW${esc(String(ps.cw))}</span>` : '';
-        return `<td style="text-align:center;background:rgba(217,119,6,.06)"><span style="font-size:11px;color:#d97706" title="Deadline moved in Phase ${p}">D</span><br><span style="font-size:8px;color:#d97706">moved</span>${cwTxt}</td>`;
-      } else if (p === curPh && curFpOD) {
-        const cwTxt = effFP ? `<br><span style="font-size:8px;color:#d97706;opacity:.8">CW${esc(String(effFP))}</span>` : '';
-        return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:12px;color:#d97706" title="Finish CW ${effFP} passed">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span>${cwTxt}</td>`;
-      } else if (p === curPh) {
-        return `<td style="text-align:center;background:rgba(37,99,235,.05);border-top:2px solid #93c5fd"><span style="font-size:8px;color:#2563eb;font-weight:700;letter-spacing:.06em">CUR</span><br><span style="font-size:9px;color:#93c5fd;font-weight:700">${effFP?`CW${esc(effFP)}`:'—'}</span></td>`;
+      const st = phStatus[p];
+      if (st === 'ok') {
+        return `<td style="text-align:center;background:rgba(5,150,105,.06);padding:6px 4px"><span style="font-size:10px;font-weight:800;color:#059669;display:block;letter-spacing:.02em">On Time</span></td>`;
+      } else if (st === 'not_ok') {
+        return `<td style="text-align:center;background:rgba(204,0,0,.06);padding:6px 4px"><span style="font-size:10px;font-weight:800;color:var(--primary);display:block;letter-spacing:.02em">Not on<br>Time</span></td>`;
       } else {
         return `<td style="text-align:center"><span style="font-size:15px;color:var(--gray-200)">${PC_NA}</span></td>`;
       }
