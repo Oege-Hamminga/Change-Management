@@ -2413,8 +2413,21 @@ function renderDashboard() {
     </li>`;
   }
 
-  const thisWeekItems = active.filter(t => (updates[t.id]||{}).taskThisWeek);
-  const lastWeekItems = active.filter(t => !!((updates[t.id]||{}).taskHistory||{})[PREV_WK_KEY]);
+  const DEPT_ORD_WK = ['PM','R&D','PUR','CC','SQE'];
+  const sortByDeptWk = (arr, deptFn) => [...arr].sort((a, b) => {
+    const da = deptFn(a), db = deptFn(b);
+    const ia = DEPT_ORD_WK.indexOf(da), ib = DEPT_ORD_WK.indexOf(db);
+    return (ia < 0 ? DEPT_ORD_WK.length : ia) - (ib < 0 ? DEPT_ORD_WK.length : ib) || (a.id||'').localeCompare(b.id||'');
+  });
+
+  const thisWeekItems = sortByDeptWk(
+    active.filter(t => (updates[t.id]||{}).taskThisWeek),
+    t => (updates[t.id]||{}).taskDept || ''
+  );
+  const lastWeekItems = sortByDeptWk(
+    active.filter(t => !!((updates[t.id]||{}).taskHistory||{})[PREV_WK_KEY]),
+    t => ((updates[t.id]||{}).taskHistoryDept||{})[PREV_WK_KEY] || (updates[t.id]||{}).taskDept || ''
+  );
 
   const thisWeekHTML = thisWeekItems.length
     ? `<ul class="week-list">${thisWeekItems.map(t => weekItem(t, updates[t.id].taskThisWeek)).join('')}</ul>`
@@ -3285,109 +3298,135 @@ function renderPhaseSuccessChart() {
   if (!el) return;
 
   const phOrder  = ['1','2','3','4','5'];
-  const phColors = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-  const phNames  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
+  const phClr    = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+  const phName   = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
   const _MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const selMoLabel = _MN[+_kpiMonth.slice(5,7)-1] + ' ' + _kpiMonth.slice(0,4);
 
-  const phCount = {};
-  phOrder.forEach(p => { phCount[p] = { onTime: 0, notOnTime: 0 }; });
+  // ── count for selected month ────────────────────────────────────────────────
+  // Two sources:
+  // 1. Recorded phase_transition completions whose month == _kpiMonth
+  //    (fall back to deriving month from completedCW if month field missing)
+  // 2. Active tickets currently in a phase — on-time if FP deadline ≥ today AND no CW moves;
+  //    included only when their finishPhaseCW CW falls in _kpiMonth.
 
-  // Helper: derive month from a CW number, trying both ISO year and calendar year
-  function cwMonth(cw) {
-    if (!cw && cw !== 0) return null;
-    const n = typeof cw === 'number' ? cw : parseCW(String(cw));
-    if (n === null || n === undefined) return null;
-    return cwToYearMonth(_now.year, n);
+  const mk = {}; // { '1':{ on:0, off:0 }, ... }
+  phOrder.forEach(p => { mk[p] = { on: 0, off: 0 }; });
+
+  function cwToMo(cw) {
+    const n = parseCW(String(cw == null ? '' : cw));
+    return n ? cwToYearMonth(_now.year, n) : null;
   }
 
-  // 1. Count recorded phase_transition entries for the selected month.
-  //    Match on stored month field; if missing, fall back to completedCW-derived month.
-  const recordedPhases = new Set(); // track "ticketId|phase" pairs already counted
+  // Source 1: recorded completions
+  const seenPairs = new Set();
   tickets.forEach(t => {
     ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
       if (c.type === 'deadline_moved') return;
-      const entryMo = c.month || cwMonth(c.completedCW);
-      if (!entryMo || entryMo !== _kpiMonth) return;
+      const mo = c.month || cwToMo(c.completedCW) || cwToMo(c.finishCW);
+      if (!mo || mo !== _kpiMonth) return;
       const p = String(c.fromPhase);
-      if (!phCount[p]) return;
-      if (c.onTime) phCount[p].onTime++;
-      else phCount[p].notOnTime++;
-      recordedPhases.add(`${t.id}|${p}`);
+      if (!mk[p]) return;
+      c.onTime ? mk[p].on++ : mk[p].off++;
+      seenPairs.add(t.id + '|' + p);
     });
   });
 
-  // 2. Include active tickets whose FP deadline month = selected month
-  //    and whose current phase hasn't already been counted above.
-  tickets.filter(t => !isDone(t)).forEach(t => {
+  // Source 2: active tickets not yet recorded, whose FP deadline is in selected month
+  tickets.forEach(t => {
+    if (isDone(t)) return;
     const ph = String(effPhase(t) || '');
-    if (!ph || !phCount[ph]) return;
-    if (recordedPhases.has(`${t.id}|${ph}`)) return; // already counted
+    if (!mk[ph]) return;
+    if (seenPairs.has(t.id + '|' + ph)) return;
     const u  = updates[t.id] || {};
-    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
-    const fpN = parseCW(fp);
-    if (!fpN) return;
-    if (cwMonth(fpN) !== _kpiMonth) return;
-    const fpMoves = u.fpCWChanges || 0;
-    const isOnTime = CUR_WEEK <= fpN && fpMoves === 0;
-    if (isOnTime) phCount[ph].onTime++;
-    else phCount[ph].notOnTime++;
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : (t.finishPhase || '');
+    const mo = cwToMo(fp);
+    if (!mo || mo !== _kpiMonth) return;
+    const fpN = parseCW(String(fp));
+    const moves = u.fpCWChanges || 0;
+    fpN !== null && CUR_WEEK <= fpN && moves === 0 ? mk[ph].on++ : mk[ph].off++;
   });
 
-  const totalOnTime = phOrder.reduce((s, p) => s + phCount[p].onTime, 0);
-  const totalNotOT  = phOrder.reduce((s, p) => s + phCount[p].notOnTime, 0);
-  const total = totalOnTime + totalNotOT;
+  const totOn  = phOrder.reduce((s, p) => s + mk[p].on,  0);
+  const totOff = phOrder.reduce((s, p) => s + mk[p].off, 0);
+  const tot    = totOn + totOff;
 
-  if (total === 0) {
-    el.innerHTML = `<div style="padding:14px 0;color:var(--gray-500);font-size:13px;text-align:center">
-      No phase data for <strong>${selMoLabel}</strong>.<br>
-      <span style="font-size:11px;color:var(--gray-400)">Advance tickets through phases or ensure Finish Phase CW deadlines fall in this month.</span>
-    </div>`;
+  // ── if no data for selected month, show current snapshot of all active tickets ──
+  let fallback = false;
+  if (tot === 0) {
+    fallback = true;
+    phOrder.forEach(p => { mk[p] = { on: 0, off: 0 }; });
+    tickets.forEach(t => {
+      if (isDone(t)) return;
+      const ph = String(effPhase(t) || '');
+      if (!mk[ph]) return;
+      const u  = updates[t.id] || {};
+      const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : (t.finishPhase || '');
+      const fpN = parseCW(String(fp));
+      if (fpN === null) return; // no deadline set — skip
+      const moves = u.fpCWChanges || 0;
+      fpN !== null && CUR_WEEK <= fpN && moves === 0 ? mk[ph].on++ : mk[ph].off++;
+    });
+  }
+
+  const fTotOn  = phOrder.reduce((s, p) => s + mk[p].on,  0);
+  const fTotOff = phOrder.reduce((s, p) => s + mk[p].off, 0);
+  const fTot    = fTotOn + fTotOff;
+
+  if (fTot === 0) {
+    el.innerHTML = `<p style="color:var(--gray-500);font-size:12px;padding:10px 0">No tickets with Finish Phase deadlines found. Set a Finish Phase CW on tickets to see data here.</p>`;
     return;
   }
 
-  const moPct    = Math.round(totalOnTime / total * 100);
-  const moPctCol = moPct >= 80 ? '#059669' : moPct >= 50 ? '#d97706' : '#CC0000';
+  const displayOnTime = fallback ? fTotOn  : totOn;
+  const displayOff    = fallback ? fTotOff : totOff;
+  const displayTotal  = fallback ? fTot    : tot;
+  const overallPct    = Math.round(displayOnTime / displayTotal * 100);
+  const overallCol    = overallPct >= 80 ? '#059669' : overallPct >= 50 ? '#d97706' : '#CC0000';
+  const label         = fallback
+    ? `<span style="font-size:9px;color:var(--gray-400);margin-left:6px">(no transitions recorded for ${selMoLabel} — showing all active tickets)</span>`
+    : `<span style="font-size:9px;color:var(--gray-400);margin-left:6px">${selMoLabel}</span>`;
 
-  const overallRow = `<div style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:12px">
-    <div style="font-size:30px;font-weight:900;color:${moPctCol};line-height:1">${moPct}%</div>
-    <div style="width:1px;height:32px;background:var(--gray-200)"></div>
-    <div style="font-size:11px;color:var(--gray-600);line-height:2">
-      <span style="font-weight:700;color:#059669">${totalOnTime}</span> on time &nbsp;·&nbsp;
-      <span style="font-weight:700;color:#CC0000">${totalNotOT}</span> not on time &nbsp;·&nbsp;
-      <span style="font-weight:700;color:var(--gray-700)">${total}</span> phases evaluated
+  const header = `<div style="display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:12px">
+    <div style="font-size:32px;font-weight:900;color:${overallCol};line-height:1">${overallPct}%</div>
+    <div style="width:1px;height:36px;background:var(--gray-200)"></div>
+    <div style="font-size:11px;color:var(--gray-600);line-height:2.1">
+      <span style="font-weight:800;color:#059669">${displayOnTime}</span> on time
+      &nbsp;&middot;&nbsp;
+      <span style="font-weight:800;color:#CC0000">${displayOff}</span> not on time
+      &nbsp;&middot;&nbsp;
+      <span style="font-weight:800;color:var(--gray-700)">${displayTotal}</span> total${label}
     </div>
-    <div style="margin-left:auto;font-size:10px;font-weight:700;color:var(--gray-400);letter-spacing:.05em;text-transform:uppercase">${selMoLabel}</div>
   </div>`;
 
-  const phRows = phOrder.map(p => {
-    const onT  = phCount[p].onTime;
-    const notT = phCount[p].notOnTime;
-    const tot  = onT + notT;
-    if (tot === 0) return '';
-    const pct  = Math.round(onT / tot * 100);
-    const pCol = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)">
-      <div style="display:flex;align-items:center;gap:6px;width:160px;flex-shrink:0">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${phColors[p]};flex-shrink:0"></span>
-        <span style="font-size:11px;font-weight:900;color:${phColors[p]}">P${p}</span>
-        <span style="font-size:10px;color:var(--gray-500)">${phNames[p]}</span>
+  const rows = phOrder.map(p => {
+    const on  = mk[p].on;
+    const off = mk[p].off;
+    const t2  = on + off;
+    if (t2 === 0) return '';
+    const pct = Math.round(on / t2 * 100);
+    const col = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100)">
+      <div style="display:flex;align-items:center;gap:7px;width:170px;flex-shrink:0">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${phClr[p]};flex-shrink:0"></span>
+        <span style="font-size:12px;font-weight:900;color:${phClr[p]}">P${p}</span>
+        <span style="font-size:10px;color:var(--gray-400)">${phName[p]}</span>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;width:160px">
-        <span style="font-size:13px;font-weight:800;color:#059669;min-width:22px;text-align:right">${onT}</span>
-        <span style="font-size:9px;color:#059669;font-weight:600">on time</span>
-        <span style="color:var(--gray-200)">|</span>
-        <span style="font-size:13px;font-weight:800;color:#CC0000;min-width:22px;text-align:right">${notT}</span>
-        <span style="font-size:9px;color:#CC0000;font-weight:600">not on time</span>
+      <div style="display:flex;gap:6px;align-items:center;width:170px;flex-shrink:0">
+        <span style="font-size:14px;font-weight:800;color:#059669;min-width:24px;text-align:right">${on}</span>
+        <span style="font-size:9px;color:#059669;font-weight:700">on time</span>
+        <span style="color:var(--gray-200);padding:0 2px">|</span>
+        <span style="font-size:14px;font-weight:800;color:#CC0000;min-width:24px;text-align:right">${off}</span>
+        <span style="font-size:9px;color:#CC0000;font-weight:700">not on time</span>
       </div>
-      <div style="flex:1;height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${pCol};border-radius:3px;transition:width .3s"></div>
+      <div style="flex:1;background:var(--gray-100);border-radius:3px;height:7px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${col};border-radius:3px"></div>
       </div>
-      <div style="font-size:13px;font-weight:900;color:${pCol};min-width:40px;text-align:right">${pct}%</div>
+      <div style="font-size:15px;font-weight:900;color:${col};min-width:44px;text-align:right">${pct}%</div>
     </div>`;
   }).filter(Boolean).join('');
 
-  el.innerHTML = overallRow + `<div style="padding:0 2px">${phRows}</div>`;
+  el.innerHTML = header + `<div style="padding:0 4px">${rows}</div>`;
 }
 
 // ─────────────────────────────────────────────────────
