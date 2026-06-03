@@ -63,7 +63,7 @@
     .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
 
     /* ── Dashboard ── */
-    .stat-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
+    .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
     .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 20px 18px 15px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
     .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gray-200); }
     .stat-card.s-alert::before { background: var(--primary); }
@@ -2135,8 +2135,6 @@ function renderDashboard() {
       fn: `setDashPanel('tasks')`,
       sel: _tasksSel
     },
-    { val: fpThisCW,    label: 'Phases to Finish This CW', valColor: fpThisCW>0?'#b45309':'var(--gray-300)',        accentCls: fpThisCW>0?'s-amber':'', fn: `setDashPanel('fp')`,       sel: _dashTopPanel==='fp' },
-    { val: fpOD,        label: 'Finish Phase CW Overdue',  valColor: fpOD>0?'var(--primary)':'var(--gray-300)',     accentCls: fpOD>0?'s-alert':'',    fn: `setDashPanel('overdue')`,  sel: _dashTopPanel==='overdue' },
   ];
   statCards.innerHTML = _sc.map(s =>
     `<div class="stat-card stat-card-btn ${s.accentCls}${s.sel?' stat-card-sel':''}" onclick="${s.fn}" title="Click to view">
@@ -2464,21 +2462,18 @@ function renderDashboard() {
   if (_dashTopPanel === null) {
     dashGridTop.innerHTML = '';
   } else if (_dashTopPanel === 'open') {
-    // ── Open Tickets — Phase Deadline Hub ───────────────────────────────
-    const maxCW   = isoWeekCount(_now.year);
+    // ── Open Tickets — Deadline Hub ──────────────────────────────────────
+    const maxCW  = isoWeekCount(_now.year);
     const phClrs5 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-    const phOrd5  = ['1','2','3','4','5'];
 
     // Per-CW buckets
     const cwBuckets = {};
-    for (let w = 1; w <= maxCW; w++) cwBuckets[w] = { count: 0, tickets: [], byPhase: {} };
+    for (let w = 1; w <= maxCW; w++) cwBuckets[w] = { count: 0, tickets: [] };
     active.forEach(t => {
       const fp = parseCW(getEC(t).fp);
       if (fp !== null && fp >= 1 && fp <= maxCW) {
-        const ep = String(effPhase(t) || '1');
         cwBuckets[fp].count++;
         cwBuckets[fp].tickets.push(t);
-        cwBuckets[fp].byPhase[ep] = (cwBuckets[fp].byPhase[ep] || 0) + 1;
       }
     });
     const maxCount = Math.max(...Object.values(cwBuckets).map(b => b.count), 1);
@@ -2489,170 +2484,157 @@ function renderDashboard() {
     const futureCwCount= Object.entries(cwBuckets).filter(([w]) => +w > CUR_WEEK).reduce((s,[,b]) => s+b.count, 0);
 
     // ── SVG Chart ──────────────────────────────────────────────────────
-    const W = 860, H = 230;
-    const padL = 30, padR = 14, padT = 28, padB = 36;
+    // ── SVG Chart — compact professional ───────────────────────────
+    const W = 860, H = 155;
+    const padL = 26, padR = 10, padT = 18, padB = 28;
     const chartW = W - padL - padR;
     const chartH = H - padT - padB;
     const xStep  = chartW / maxCW;
-    const bW     = Math.max(4, Math.floor(xStep * 0.76));
+    const bW     = Math.max(3, Math.floor(xStep * 0.6));
 
-    const yTicks = maxCount <= 4 ? maxCount : maxCount <= 8 ? Math.ceil(maxCount/2)*2 : Math.ceil(maxCount/5)*5;
-    const ySteps = Math.min(yTicks, 6);
+    const yTicks = maxCount <= 3 ? maxCount : maxCount <= 6 ? maxCount : maxCount <= 10 ? Math.ceil(maxCount/2)*2 : Math.ceil(maxCount/5)*5;
+    const ySteps = Math.min(yTicks, 5);
 
-    // Zone backgrounds
-    let zones = '';
-    if (CUR_WEEK > 1) {
-      zones += `<rect x="${padL}" y="${padT}" width="${((CUR_WEEK-1)*xStep).toFixed(1)}" height="${chartH}" fill="rgba(239,68,68,0.07)" rx="0"/>`;
-    }
-    zones += `<rect x="${(padL+(CUR_WEEK-1)*xStep).toFixed(1)}" y="${padT}" width="${xStep.toFixed(1)}" height="${chartH}" fill="rgba(37,99,235,0.07)" rx="0"/>`;
-    if (CUR_WEEK < maxCW) {
-      zones += `<rect x="${(padL+CUR_WEEK*xStep).toFixed(1)}" y="${padT}" width="${((maxCW-CUR_WEEK)*xStep).toFixed(1)}" height="${chartH}" fill="rgba(99,102,241,0.04)" rx="0"/>`;
-    }
-
-    // Zone labels
-    let zoneLabels = '';
-    if (CUR_WEEK > 4) {
-      zoneLabels += `<text x="${(padL+(CUR_WEEK-1)*xStep/2).toFixed(1)}" y="${(padT+11).toFixed(1)}" text-anchor="middle" font-size="8" fill="rgba(220,38,38,0.55)" font-weight="800" letter-spacing=".07em">◄ OVERDUE</text>`;
-    }
-    if (CUR_WEEK < maxCW - 4) {
-      zoneLabels += `<text x="${(padL+CUR_WEEK*xStep+(maxCW-CUR_WEEK)*xStep/2).toFixed(1)}" y="${(padT+11).toFixed(1)}" text-anchor="middle" font-size="8" fill="rgba(99,102,241,0.45)" font-weight="800" letter-spacing=".07em">UPCOMING ►</text>`;
-    }
-
-    // Grid lines
     let gridLines = '';
-    for (let i = 0; i <= ySteps; i++) {
+    for (let i = 1; i <= ySteps; i++) {
       const val = Math.round((i / ySteps) * yTicks);
       const y   = padT + chartH - (val / yTicks) * chartH;
-      gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+chartW}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="1" opacity="${i===0?'1':'.7'}"/>`;
-      gridLines += `<text x="${(padL-4).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#9ca3af">${val}</text>`;
+      gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+chartW}" y2="${y.toFixed(1)}" stroke="#f3f4f6" stroke-width="1"/>`;
+      if (i === ySteps) gridLines += `<text x="${(padL-4).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#d1d5db">${val}</text>`;
     }
 
-    // Bars
     let bars = '', xLabels = '';
     for (let cw = 1; cw <= maxCW; cw++) {
-      const bkt    = cwBuckets[cw];
-      const cnt    = bkt.count;
+      const cnt    = cwBuckets[cw].count;
       const cx     = padL + (cw - 0.5) * xStep;
       const isPast = cw < CUR_WEEK;
       const isCur  = cw === CUR_WEEK;
       const isSel  = _dashOpenSelCW === cw;
+      const col    = isSel ? '#1d4ed8' : isPast ? '#fca5a5' : isCur ? '#3b82f6' : '#a5b4fc';
       if (cnt > 0) {
-        const bH   = Math.max(6, (cnt / yTicks) * chartH);
+        const bH   = Math.max(4, (cnt / yTicks) * chartH);
         const topY = padT + chartH - bH;
-        const opac = isPast ? '0.6' : '1';
-        let segY = padT + chartH;
-        ['5','4','3','2','1'].forEach(p => {
-          const pc = bkt.byPhase[p] || 0;
-          if (!pc) return;
-          const segH = Math.max(2, (pc / yTicks) * chartH);
-          segY -= segH;
-          bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${segY.toFixed(1)}" width="${bW}" height="${segH.toFixed(1)}" fill="${phClrs5[p]}" opacity="${opac}" rx="1"><title>CW${cw} · P${p}: ${pc}</title></rect>`;
-        });
-        if (bH > 14) bars += `<text x="${cx.toFixed(1)}" y="${(topY-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="${isPast?'#ef4444':isCur?'#1d4ed8':'#6b7280'}" font-weight="800">${cnt}</text>`;
-        const phTip = phOrd5.filter(p=>bkt.byPhase[p]).map(p=>`P${p}:${bkt.byPhase[p]}`).join(' ');
-        bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${topY.toFixed(1)}" width="${bW}" height="${bH.toFixed(1)}" fill="transparent" style="cursor:pointer" onclick="setDashOpenCW(${cw})"><title>CW${cw}: ${cnt} (${phTip})</title></rect>`;
-        if (isSel)      bars += `<rect x="${(cx-bW/2-2).toFixed(1)}" y="${(topY-2).toFixed(1)}" width="${bW+4}" height="${bH+4}" fill="none" stroke="#1d4ed8" stroke-width="2.5" rx="3"/>`;
-        else if (isCur) bars += `<rect x="${(cx-bW/2-1).toFixed(1)}" y="${(topY-1).toFixed(1)}" width="${bW+2}" height="${bH+2}" fill="none" stroke="#2563eb" stroke-width="2" rx="2"/>`;
+        bars += `<rect x="${(cx-bW/2).toFixed(1)}" y="${topY.toFixed(1)}" width="${bW}" height="${bH.toFixed(1)}" fill="${col}" rx="2" style="cursor:pointer" onclick="setDashOpenCW(${cw})"><title>CW${cw}: ${cnt} ticket${cnt!==1?'s':''}</title></rect>`;
+        if (bH > 16) bars += `<text x="${cx.toFixed(1)}" y="${(topY-3).toFixed(1)}" text-anchor="middle" font-size="8" fill="${isPast?'#f87171':isCur||isSel?'#2563eb':'#818cf8'}" font-weight="700">${cnt}</text>`;
+        if (isSel) bars += `<rect x="${(cx-bW/2-2).toFixed(1)}" y="${(topY-2).toFixed(1)}" width="${bW+4}" height="${bH+4}" fill="none" stroke="#1d4ed8" stroke-width="2" rx="3"/>`;
       }
       if (isCur || cw % 4 === 0 || cw === 1 || cw === maxCW) {
-        xLabels += `<text x="${cx.toFixed(1)}" y="${(H-4).toFixed(1)}" text-anchor="middle" font-size="${isCur?9:8}" fill="${isCur?'#2563eb':'#9ca3af'}" font-weight="${isCur?'800':'400'}">CW${cw}</text>`;
+        xLabels += `<text x="${cx.toFixed(1)}" y="${(H-3).toFixed(1)}" text-anchor="middle" font-size="${isCur?8.5:7.5}" fill="${isCur?'#3b82f6':'#d1d5db'}" font-weight="${isCur?'700':'400'}">CW${cw}</text>`;
       }
     }
     const curX    = padL + (CUR_WEEK - 0.5) * xStep;
-    const curLine = `<line x1="${curX.toFixed(1)}" y1="${padT}" x2="${curX.toFixed(1)}" y2="${padT+chartH}" stroke="#2563eb" stroke-width="2" stroke-dasharray="4,3" opacity=".5"/>`;
-    const curTri  = `<polygon points="${curX.toFixed(1)},${padT} ${(curX-5).toFixed(1)},${(padT-10).toFixed(1)} ${(curX+5).toFixed(1)},${(padT-10).toFixed(1)}" fill="#2563eb" opacity=".9"/>`;
-    const axes    = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+chartH}" stroke="#d1d5db" stroke-width="1"/>
-      <line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#d1d5db" stroke-width="1"/>`;
+    const curLine = `<line x1="${curX.toFixed(1)}" y1="${padT}" x2="${curX.toFixed(1)}" y2="${padT+chartH}" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,3" opacity=".4"/>`;
+    const baseline = `<line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>`;
+    const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block">${gridLines}${baseline}${bars}${curLine}${xLabels}</svg>`;
 
-    const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block;overflow:visible">${zones}${zoneLabels}${gridLines}${axes}${bars}${curLine}${curTri}${xLabels}</svg>`;
-
-    // ── Summary strip ────────────────────────────────────────────────
-    const summaryStrip = `<div style="display:flex;gap:0;margin:12px 0 0;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
-      <div style="flex:1;padding:10px 12px;background:rgba(239,68,68,0.05);border-right:1px solid var(--gray-200);text-align:center;cursor:pointer" onclick="setDashOpenCW(${odFpCount>0?Object.entries(cwBuckets).filter(([w])=>+w<CUR_WEEK&&cwBuckets[+w].count>0).map(([w])=>+w).sort((a,b)=>a-b)[0]||CUR_WEEK:CUR_WEEK})">
-        <div style="font-size:22px;font-weight:900;color:${odFpCount>0?'#dc2626':'var(--gray-300)'};line-height:1">${odFpCount}</div>
-        <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.09em;margin-top:3px">Overdue</div>
+    // Summary strip
+    const summaryStrip = `<div style="display:flex;margin:10px 0 0;border:1px solid var(--gray-100);border-radius:8px;overflow:hidden;background:white">
+      <div style="flex:1;padding:9px 12px;border-right:1px solid var(--gray-100);text-align:center">
+        <div style="font-size:20px;font-weight:900;color:${odFpCount>0?'#ef4444':'var(--gray-200)'};line-height:1">${odFpCount}</div>
+        <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-top:2px">Overdue</div>
       </div>
-      <div style="flex:1;padding:10px 12px;background:rgba(37,99,235,0.05);border-right:1px solid var(--gray-200);text-align:center;cursor:pointer" onclick="setDashOpenCW(${CUR_WEEK})">
-        <div style="font-size:22px;font-weight:900;color:${curCwCount>0?'#2563eb':'var(--gray-300)'};line-height:1">${curCwCount}</div>
-        <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.09em;margin-top:3px">This Week · CW${CUR_WEEK}</div>
+      <div style="flex:1;padding:9px 12px;border-right:1px solid var(--gray-100);text-align:center">
+        <div style="font-size:20px;font-weight:900;color:${curCwCount>0?'#3b82f6':'var(--gray-200)'};line-height:1">${curCwCount}</div>
+        <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-top:2px">CW${CUR_WEEK} · This Week</div>
       </div>
-      <div style="flex:1;padding:10px 12px;background:rgba(99,102,241,0.04);text-align:center">
-        <div style="font-size:22px;font-weight:900;color:${futureCwCount>0?'#6366f1':'var(--gray-300)'};line-height:1">${futureCwCount}</div>
-        <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.09em;margin-top:3px">Upcoming</div>
+      <div style="flex:1;padding:9px 12px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:${futureCwCount>0?'#818cf8':'var(--gray-200)'};line-height:1">${futureCwCount}</div>
+        <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-top:2px">Upcoming</div>
       </div>
     </div>`;
 
-    // ── Ticket row helper ────────────────────────────────────────────
-    function cwTktRow(t, showCwBadge) {
-      const ep    = effPhase(t);
-      const phCol = ep ? (phClrs5[ep]||'#888') : '#888';
-      const cwBadge = showCwBadge ? `<span style="color:#dc2626;font-size:10px;font-weight:700;white-space:nowrap;flex-shrink:0">CW${esc(String(getEC(t).fp||'?'))} ⚠</span>` : '';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--gray-100);font-size:11px">
-        <span style="font-family:monospace;font-weight:700;color:var(--primary);white-space:nowrap">${esc(t.id)}</span>
-        ${ep ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${phCol}22;color:${phCol};font-weight:700;flex-shrink:0">P${ep}</span>` : ''}
-        <span style="flex:1;color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.summary)}">${esc((t.summary||'').slice(0,52))}</span>
-        ${cwBadge}
-        <span style="color:var(--gray-400);font-size:10px;white-space:nowrap;flex-shrink:0">Move to CW:</span>
-        <input type="text" class="od-cw-inp${showCwBadge?' od-active':''}" style="width:52px;flex-shrink:0" placeholder="CW${CUR_WEEK}+" data-id="${esc(t.id)}" data-field="finishPhaseCW" value="" onblur="setDashCwField(this)">
-      </div>`;
+    // Rich ticket item — same as "Phases to Finish" format, with editable FP CW
+    function richTktItem(t) {
+      const upd2 = updates[t.id]||{};
+      const c2   = getEC(t);
+      const ep2  = effPhase(t);
+      const fpOD2 = cwIsOverdue(c2.fp);
+      const lastTask2 = ((upd2.taskHistory||{})[PREV_WK_KEY]) || '';
+      const lastSt2   = ((upd2.taskHistoryStatus||{})[PREV_WK_KEY]) || '';
+      const stStyle   = lastSt2==='done' ? 'background:rgba(5,150,105,.1);color:#059669;'
+                      : lastSt2==='missed' ? 'background:rgba(220,38,38,.1);color:#dc2626;'
+                      : 'background:var(--gray-100);color:var(--gray-400);';
+      const stTxt = lastSt2==='done' ? '&#10003; done' : lastSt2==='missed' ? '&#10007; missed' : 'pending';
+      return `<li class="hi-ext">
+        <div class="hi-head">${tktLink(t.id,'hi-id')}
+          <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
+          ${phaseBadge(ep2)}
+        </div>
+        <div class="hi-meta">
+          <span>SOP <strong>CW${esc(c2.sop||'&#8212;')}</strong></span>
+          <span style="display:inline-flex;align-items:center;gap:4px">Finish&nbsp;<input class="od-cw-inp${fpOD2?' od-active':''}" type="text" value="${esc(c2.fp||'')}" style="width:46px" data-id="${esc(t.id)}" data-field="finishPhaseCW" onblur="setDashCwField(this)" placeholder="CW"></span>
+          ${t.productManager?`<span>PM: <strong>${esc(t.productManager)}</strong></span>`:''}
+        </div>
+        ${t.progressUpdate?`<div class="hi-progress" title="${esc(t.progressUpdate)}">${esc(t.progressUpdate).slice(0,130)}</div>`:''}
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;gap:6px;align-items:flex-start">
+            <span style="font-size:9px;font-weight:700;color:var(--gray-400);white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${PREV_WEEK}</span>
+            <div style="flex:1;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:5px 8px;font-size:12px;color:var(--gray-600);line-height:1.4;min-height:30px;word-break:break-word">${lastTask2?esc(lastTask2):'<span style="opacity:.4">&#8212;</span>'}</div>
+            <span style="flex-shrink:0;font-size:9px;padding:3px 6px;border-radius:var(--radius);white-space:nowrap;align-self:flex-start;margin-top:2px;${stStyle}">${stTxt}</span>
+            <span style="flex-shrink:0;font-size:10px;font-weight:700;color:var(--gray-500);padding-top:5px;min-width:28px;text-align:center">${esc(upd2.taskDept||'')}</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:flex-start">
+            <span style="font-size:9px;font-weight:700;color:#1d4ed8;white-space:nowrap;width:42px;padding-top:5px;flex-shrink:0">CW${CUR_WEEK}</span>
+            <textarea class="hi-task-inp" rows="1" placeholder="Task for CW${CUR_WEEK}&#8230;" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)" oninput="autoResizeTA(this)" style="flex:1">${esc(upd2.taskThisWeek||'')}</textarea>
+            <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
+              <option value="">dept</option>
+              ${ ['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('') }
+            </select>
+          </div>
+        </div>
+      </li>`;
     }
 
-    function sectionHeader(color, label, count, borderColor) {
-      return `<div style="margin-top:16px;padding-top:14px;border-top:2px solid ${borderColor}">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:${color};margin-bottom:9px;display:flex;align-items:center;gap:8px">
-          <span style="display:inline-block;width:3px;height:14px;background:${color};border-radius:1px;flex-shrink:0"></span>
+    function secHdr(color, label, countStr, borderCol) {
+      return `<div style="margin-top:18px;padding-top:14px;border-top:1px solid ${borderCol}">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:${color};margin-bottom:10px;display:flex;align-items:center;gap:8px">
+          <span style="width:3px;height:12px;background:${color};border-radius:1px;display:inline-block;flex-shrink:0"></span>
           ${label}
-          <span style="font-size:9px;font-weight:600;padding:1px 7px;border-radius:var(--radius);background:${color}18;color:${color}">${count} ticket${count!==1?'s':''}</span>
-        </div>`;
+          <span style="font-size:9px;font-weight:600;padding:1px 8px;border-radius:10px;background:${color}15;color:${color}">${countStr}</span>
+        </div><ul class="hi-list">`;
     }
 
-    // ── Overdue section (auto-shown) ─────────────────────────────────
+    // Overdue section
     let odSection = '';
     const odFpTickets = Object.entries(cwBuckets)
       .filter(([w]) => +w < CUR_WEEK && cwBuckets[+w].count > 0)
       .sort(([a],[b]) => +a - +b)
-      .flatMap(([w,b]) => b.tickets.map(t => ({ t, cw: +w })));
+      .flatMap(([,b]) => b.tickets);
     if (odFpTickets.length) {
-      odSection = sectionHeader('#dc2626','Overdue Deadlines',odFpTickets.length,'rgba(220,38,38,0.2)');
-      odSection += odFpTickets.map(({t}) => cwTktRow(t, true)).join('');
-      odSection += '</div>';
+      odSection = secHdr('#ef4444','Overdue Deadlines',`${odFpTickets.length} ticket${odFpTickets.length!==1?'s':''}`, 'rgba(239,68,68,0.15)');
+      odSection += odFpTickets.map(richTktItem).join('') + '</ul></div>';
     }
 
-    // ── This week section (auto-shown) ──────────────────────────────
+    // This week section
     let twSection = '';
     const twTickets = cwBuckets[CUR_WEEK].tickets;
     if (twTickets.length) {
-      twSection = sectionHeader('#2563eb',`This Week · CW${CUR_WEEK}`,twTickets.length,'rgba(37,99,235,0.2)');
-      twSection += twTickets.map(t => cwTktRow(t, false)).join('');
-      twSection += '</div>';
+      twSection = secHdr('#3b82f6',`Phases to Finish This Week · CW${CUR_WEEK}`,`${twTickets.length} ticket${twTickets.length!==1?'s':''}`, 'rgba(59,130,246,0.15)');
+      twSection += twTickets.map(richTktItem).join('') + '</ul></div>';
     }
 
-    // ── Selected upcoming CW (on bar click, skip cur/overdue — already shown) ──
+    // Selected CW section (any bar click)
     let selDetail = '';
-    if (_dashOpenSelCW !== null && _dashOpenSelCW > CUR_WEEK) {
-      const selTkts = (cwBuckets[_dashOpenSelCW]||{tickets:[]}).tickets;
-      selDetail = sectionHeader('#6366f1',`Selected · CW${_dashOpenSelCW}`,selTkts.length,'rgba(99,102,241,0.2)');
-      selDetail += selTkts.length
-        ? selTkts.map(t => cwTktRow(t, false)).join('')
-        : `<div style="color:var(--gray-400);font-size:11px;padding:4px 0">No tickets planned for CW${_dashOpenSelCW}</div>`;
-      selDetail += '</div>';
+    if (_dashOpenSelCW !== null && _dashOpenSelCW !== CUR_WEEK) {
+      const selTkts  = (cwBuckets[_dashOpenSelCW]||{tickets:[]}).tickets;
+      const isSelPast = _dashOpenSelCW < CUR_WEEK;
+      const selCol    = isSelPast ? '#ef4444' : '#818cf8';
+      const selBord   = isSelPast ? 'rgba(239,68,68,0.15)' : 'rgba(129,140,248,0.2)';
+      selDetail = secHdr(selCol, `CW${_dashOpenSelCW}${isSelPast?' · Overdue':' · Upcoming'}`, `${selTkts.length} ticket${selTkts.length!==1?'s':''}`, selBord);
+      selDetail += (selTkts.length ? selTkts.map(richTktItem).join('') : `<li style="color:var(--gray-400);font-size:11px;padding:6px 0;list-style:none">No tickets for CW${_dashOpenSelCW}</li>`) + '</ul></div>';
     }
-
-    const phLegend = phOrd5.map(p => `<span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:9px;height:9px;background:${phClrs5[p]};border-radius:2px"></span>P${p}</span>`).join('');
 
     dashGridTop.innerHTML = `
       <div style="display:flex;gap:14px;align-items:flex-start">
         ${_phDistSidebar}
         <div class="dash-card-dk acc-blue" style="flex:1">
-          <h3><span>Phase Deadlines — ${_now.year}</span><span class="h3-badge h3-blue">${activeTotal} open</span></h3>
-          <div style="font-size:10px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            ${phLegend}
-            <span style="color:var(--gray-300)">|</span>
-            <span style="font-size:9px;color:#dc2626;font-weight:700;opacity:.7">◄ OVERDUE</span>
-            <span style="color:#2563eb;font-weight:700;font-size:9px">▲ CW${CUR_WEEK} NOW</span>
-            <span style="font-size:9px;color:#6366f1;font-weight:700;opacity:.7">UPCOMING ►</span>
-            <span style="color:var(--gray-300)">·</span>
-            <span style="font-size:9px;color:var(--gray-400)">Click a bar to select upcoming CW</span>
+          <h3><span>Phase Deadlines · ${_now.year}</span><span class="h3-badge h3-blue">${activeTotal} open</span></h3>
+          <div style="font-size:9px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fca5a5;border-radius:2px;display:inline-block"></span>Overdue</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#3b82f6;border-radius:2px;display:inline-block"></span>CW${CUR_WEEK} this week</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#a5b4fc;border-radius:2px;display:inline-block"></span>Upcoming</span>
+            <span style="color:var(--gray-200)">·</span>
+            <span>Click a bar to select CW &amp; view tickets</span>
           </div>
           ${svg}
           ${summaryStrip}
@@ -2661,6 +2643,7 @@ function renderDashboard() {
           ${selDetail}
         </div>
       </div>`;
+
   } else if (_dashTopPanel === 'tasks') {
     dashGridTop.innerHTML = `
       <div style="display:flex;gap:14px;align-items:flex-start">
