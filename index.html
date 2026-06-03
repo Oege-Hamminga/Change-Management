@@ -585,11 +585,7 @@
       <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap" id="effChartLegend"></div>
     </div>
     <div class="eff-grid">
-      <div class="eff-section" style="grid-column:1/-1">
-        <h3>Phase Completion Success Rate <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)">— % of phase transitions completed on or before their Finish Phase CW deadline, per phase</span></h3>
-        <div id="effPhaseSuccess"></div>
-      </div>
-      <div class="eff-section" style="grid-column:1/-1"><h3>Bugtracker Tickets — Phase Completion</h3><div id="effTicketTable"></div></div>
+<div class="eff-section" style="grid-column:1/-1"><h3>Bugtracker Tickets — Phase Completion</h3><div id="effTicketTable"></div></div>
     </div>
   </div>
 
@@ -3233,7 +3229,6 @@ function renderEfficiency() {
   renderEffTicketTable();
 
   renderEfficiencyChart();
-  renderPhaseSuccessChart();
 }
 
 // ─────────────────────────────────────────────────────
@@ -3438,101 +3433,6 @@ function calcMonthPhaseSuccess(year) {
   });
 
   return result;
-}
-
-function renderPhaseSuccessChart() {
-  const el = document.getElementById('effPhaseSuccess');
-  if (!el) return;
-
-  const phOrder = ['1','2','3','4','5'];
-  const phClr   = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
-  const phName  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
-
-  // For each phase, count active (non-done) tickets currently in that phase
-  const phData = {};
-  phOrder.forEach(p => { phData[p] = { onTime: 0, notOnTime: 0 }; });
-
-  tickets.forEach(t => {
-    if (isDone(t)) return;
-    const ph = String(effPhase(t) || '');
-    if (!phOrder.includes(ph)) return;
-    const u  = updates[t.id] || {};
-    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : (t.finishPhase || '');
-    const fpN = parseCW(String(fp == null ? '' : fp));
-    if (fpN === null) return; // no parseable deadline — skip
-    const changes = u.fpCWChanges || 0;
-    if (fpN >= CUR_WEEK && changes === 0) {
-      phData[ph].onTime++;
-    } else {
-      phData[ph].notOnTime++;
-    }
-  });
-
-  const activePhases = phOrder.filter(p => (phData[p].onTime + phData[p].notOnTime) > 0);
-
-  if (activePhases.length === 0) {
-    el.innerHTML = `<p style="color:var(--gray-500);font-size:12px;padding:14px 0;text-align:center">No Finish Phase deadlines set on active tickets.</p>`;
-    return;
-  }
-
-  const totOn  = activePhases.reduce((s, p) => s + phData[p].onTime,    0);
-  const totOff = activePhases.reduce((s, p) => s + phData[p].notOnTime, 0);
-  const totAll = totOn + totOff;
-  const totPct = totAll > 0 ? Math.round(totOn / totAll * 100) : 0;
-  const totCol = totPct >= 80 ? '#059669' : totPct >= 50 ? '#d97706' : '#CC0000';
-
-  const TH = 'padding:5px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--gray-100)';
-
-  function barCell(on, off) {
-    const total = on + off;
-    const pct   = total > 0 ? Math.round(on / total * 100) : 0;
-    const col   = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
-    const barW  = pct;
-    return `<td style="padding:6px 8px;min-width:120px">
-      <div style="background:var(--gray-100);border-radius:2px;height:8px;width:100%;overflow:hidden">
-        <div style="background:${col};height:100%;width:${barW}%;border-radius:2px;transition:width .3s"></div>
-      </div>
-    </td>
-    <td style="padding:6px 8px;font-weight:900;color:${col};font-size:13px;white-space:nowrap">${pct}%</td>`;
-  }
-
-  const summaryRow = `<tr style="background:var(--gray-50);border-bottom:2px solid var(--gray-100)">
-    <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--gray-700)">Overall</td>
-    <td style="padding:6px 8px;text-align:center;font-weight:700;color:#059669;font-size:13px">${totOn}</td>
-    <td style="padding:6px 8px;text-align:center;font-weight:700;color:#CC0000;font-size:13px">${totOff}</td>
-    ${barCell(totOn, totOff)}
-  </tr>`;
-
-  const phRows = activePhases.map(p => {
-    const d = phData[p];
-    return `<tr style="border-bottom:1px solid var(--gray-100)">
-      <td style="padding:6px 8px;white-space:nowrap">
-        <span style="display:inline-block;padding:2px 8px;border-radius:2px;background:${phClr[p]};color:#fff;font-size:10px;font-weight:700">P${p} ${phName[p]}</span>
-      </td>
-      <td style="padding:6px 8px;text-align:center;font-weight:700;color:#059669">${d.onTime}</td>
-      <td style="padding:6px 8px;text-align:center;font-weight:700;color:#CC0000">${d.notOnTime}</td>
-      ${barCell(d.onTime, d.notOnTime)}
-    </tr>`;
-  }).join('');
-
-  el.innerHTML = `<div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead>
-        <tr>
-          <th style="${TH};text-align:left;width:160px">Phase</th>
-          <th style="${TH};text-align:center;color:#059669;width:70px">On Time</th>
-          <th style="${TH};text-align:center;color:#CC0000;width:80px">Not On Time</th>
-          <th style="${TH};text-align:left;width:130px">Bar</th>
-          <th style="${TH};text-align:left;width:60px">%</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${summaryRow}
-        ${phRows}
-      </tbody>
-    </table>
-    <p style="font-size:10px;color:var(--gray-400);margin-top:6px">On time = deadline &ge; CW${CUR_WEEK} with no deadline changes. Active tickets with FP deadline only.</p>
-  </div>`;
 }
 
 // ─────────────────────────────────────────────────────
