@@ -2594,33 +2594,16 @@ function renderDashboard() {
         </div><ul class="hi-list">`;
     }
 
-    // Overdue section
-    let odSection = '';
-    const odFpTickets = Object.entries(cwBuckets)
-      .filter(([w]) => +w < CUR_WEEK && cwBuckets[+w].count > 0)
-      .sort(([a],[b]) => +a - +b)
-      .flatMap(([,b]) => b.tickets);
-    if (odFpTickets.length) {
-      odSection = secHdr('#ef4444','Overdue Deadlines',`${odFpTickets.length} ticket${odFpTickets.length!==1?'s':''}`, 'rgba(239,68,68,0.15)');
-      odSection += odFpTickets.map(richTktItem).join('') + '</ul></div>';
-    }
-
-    // This week section
-    let twSection = '';
-    const twTickets = cwBuckets[CUR_WEEK].tickets;
-    if (twTickets.length) {
-      twSection = secHdr('#3b82f6',`Phases to Finish This Week · CW${CUR_WEEK}`,`${twTickets.length} ticket${twTickets.length!==1?'s':''}`, 'rgba(59,130,246,0.15)');
-      twSection += twTickets.map(richTktItem).join('') + '</ul></div>';
-    }
-
-    // Selected CW section (any bar click)
+    // Selected CW section — shown only when a bar is clicked
     let selDetail = '';
-    if (_dashOpenSelCW !== null && _dashOpenSelCW !== CUR_WEEK) {
-      const selTkts  = (cwBuckets[_dashOpenSelCW]||{tickets:[]}).tickets;
+    if (_dashOpenSelCW !== null) {
+      const selTkts   = (cwBuckets[_dashOpenSelCW]||{tickets:[]}).tickets;
       const isSelPast = _dashOpenSelCW < CUR_WEEK;
-      const selCol    = isSelPast ? '#ef4444' : '#818cf8';
-      const selBord   = isSelPast ? 'rgba(239,68,68,0.15)' : 'rgba(129,140,248,0.2)';
-      selDetail = secHdr(selCol, `CW${_dashOpenSelCW}${isSelPast?' · Overdue':' · Upcoming'}`, `${selTkts.length} ticket${selTkts.length!==1?'s':''}`, selBord);
+      const isSelCur  = _dashOpenSelCW === CUR_WEEK;
+      const selCol    = isSelPast ? '#ef4444' : isSelCur ? '#3b82f6' : '#818cf8';
+      const selBord   = isSelPast ? 'rgba(239,68,68,0.15)' : isSelCur ? 'rgba(59,130,246,0.15)' : 'rgba(129,140,248,0.2)';
+      const selLabel  = isSelPast ? `CW${_dashOpenSelCW} · Overdue` : isSelCur ? `CW${_dashOpenSelCW} · This Week` : `CW${_dashOpenSelCW} · Upcoming`;
+      selDetail = secHdr(selCol, selLabel, `${selTkts.length} ticket${selTkts.length!==1?'s':''}`, selBord);
       selDetail += (selTkts.length ? selTkts.map(richTktItem).join('') : `<li style="color:var(--gray-400);font-size:11px;padding:6px 0;list-style:none">No tickets for CW${_dashOpenSelCW}</li>`) + '</ul></div>';
     }
 
@@ -2638,8 +2621,6 @@ function renderDashboard() {
           </div>
           ${svg}
           ${summaryStrip}
-          ${odSection}
-          ${twSection}
           ${selDetail}
         </div>
       </div>`;
