@@ -509,7 +509,6 @@
     .pw-btn:hover { background: var(--primary-dark); }
     .pw-error { font-size: 11px; color: #f87171; text-align: center; margin-top: 10px; min-height: 16px; letter-spacing: 0.03em; }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -711,6 +710,27 @@
         </p>
       </div>
 
+      <div class="card">
+        <h2>Contact Persons</h2>
+        <p>Add contacts to assign responsible persons to tasks and send task emails.</p>
+        <div id="contactsTable"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--gray-100)">
+          <input id="ctcName"  type="text"  placeholder="Name"              style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:12px;font-family:inherit">
+          <select id="ctcDept" style="padding:5px 8px;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:12px;font-family:inherit">
+            <option value="">Dept</option>
+            <option>PM</option><option>R&amp;D</option><option>PUR</option><option>CC</option><option>SQE</option>
+          </select>
+          <input id="ctcEmail" type="email" placeholder="email@company.com" style="flex:2;min-width:180px;padding:5px 8px;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:12px;font-family:inherit">
+          <button class="btn btn-primary" onclick="addContact()">Add Contact</button>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn btn-secondary" onclick="sendTaskEmails()" style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:14px">✉</span> Send Tasks This Week (CW<span id="sendTasksCwLabel"></span>)
+          </button>
+          <p style="font-size:11px;color:var(--gray-400);margin-top:5px">Opens one email draft per contact who has tasks assigned for this week.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -760,6 +780,7 @@ let _dashFpCW     = null;     // null = CUR_WEEK (which week is selected in fp p
 let _dashOpenSelCW    = null;  // selected CW in the open-tickets phase-deadline chart
 let _dashOpenPhFilter = null;  // null = all phases, '1'..'5' = filter
 let _btFilter     = 'open';   // 'open' | 'closed' | 'all'
+let contacts = []; // { id, name, dept, email }
 let _detailEdit      = null;
 
 // ═══════════════════════════════════════════════════════
@@ -818,6 +839,7 @@ function save() {
   try {
     localStorage.setItem('cm_tickets', JSON.stringify(tickets));
     localStorage.setItem('cm_updates', JSON.stringify(updates));
+    localStorage.setItem('cm_contacts', JSON.stringify(contacts));
   } catch(e) {}
 }
 
@@ -827,6 +849,8 @@ function loadStorage() {
     const u = localStorage.getItem('cm_updates');
     if (t) tickets = JSON.parse(t);
     if (u) updates  = JSON.parse(u);
+    const c = localStorage.getItem('cm_contacts');
+    if (c) contacts = JSON.parse(c);
   } catch(e) {}
 }
 
@@ -1250,60 +1274,32 @@ function exportPDF(type) {
     </div>`;
   bodyHTML = _dlSection + bodyHTML;
 
-  const filename = type === 'kpi'
-    ? `KPI_Stats_${now.toISOString().slice(0,10)}.pdf`
-    : `Tasks_Report_CW${CUR_WEEK}_${now.toISOString().slice(0,10)}.pdf`;
-
-  // Build a styled off-screen container for html2pdf
-  const pdfStyle = document.createElement('style');
-  pdfStyle.id = 'pdf-tmp-style';
-  pdfStyle.textContent = [
-    '#pdf-export-root{font-family:"Segoe UI",Arial,sans-serif;font-size:12px;color:#1a1a1a;background:#fff;padding:24px 32px;width:750px}',
-    '#pdf-export-root h1{font-size:17px;font-weight:900;border-bottom:2px solid #CC0000;padding-bottom:5px;margin-bottom:16px;color:#1a1a1a}',
-    '#pdf-export-root h2{font-size:13px;font-weight:700;margin:20px 0 7px;color:#333;border-bottom:1px solid #e5e7eb;padding-bottom:3px}',
-    '#pdf-export-root table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10.5px}',
-    '#pdf-export-root th{background:#f3f4f6;text-align:left;padding:5px 7px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border-bottom:2px solid #e5e7eb}',
-    '#pdf-export-root td{padding:4px 7px;border-bottom:1px solid #f0f0f0;vertical-align:top}',
-    '#pdf-export-root .rpt-footer{margin-top:28px;font-size:9px;color:#9ca3af;text-align:right}'
-  ].join('');
-  document.head.appendChild(pdfStyle);
-
-  const container = document.createElement('div');
-  container.id = 'pdf-export-root';
-  container.style.cssText = 'position:absolute;left:-9999px;top:0;background:#fff';
-  container.innerHTML = `<h1>${esc(title)}</h1>${bodyHTML}<div class="rpt-footer">Generated ${dateStr} · Change Management Tracker</div>`;
-  document.body.appendChild(container);
-
-  const doExport = typeof html2pdf === 'function' ? html2pdf : null;
-  if (!doExport) {
-    document.head.removeChild(pdfStyle);
-    document.body.removeChild(container);
-    // Fallback: open in new tab without auto-print
-    const win = window.open('', '_blank');
-    if (!win) { alert('Pop-up blocked — please allow pop-ups for this page.'); return; }
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a1a;margin:24px 32px}h1{font-size:18px;font-weight:900;border-bottom:2px solid #CC0000;padding-bottom:6px;margin-bottom:18px}h2{font-size:14px;font-weight:700;margin:22px 0 8px;color:#333;border-bottom:1px solid #e5e7eb;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:11px}th{background:#f3f4f6;text-align:left;padding:5px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;border-bottom:2px solid #e5e7eb}td{padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top}.footer{margin-top:32px;font-size:10px;color:#9ca3af;text-align:right}</style></head><body><h1>${esc(title)}</h1>${bodyHTML}<div class="footer">Generated ${dateStr} · Change Management Tracker</div></body></html>`);
-    win.document.close();
-    return;
-  }
-
-  doExport()
-    .set({
-      margin: [10, 10, 12, 10],
-      filename,
-      image: { type: 'jpeg', quality: 0.97 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    })
-    .from(container)
-    .save()
-    .then(() => {
-      document.head.removeChild(pdfStyle);
-      document.body.removeChild(container);
-    })
-    .catch(() => {
-      document.head.removeChild(pdfStyle);
-      document.body.removeChild(container);
-    });
+  // Open in new window with print button
+  const win = window.open('', '_blank');
+  if (!win) { alert('Pop-up blocked — please allow pop-ups for this page.'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a1a1a; margin: 0; }
+  .print-btn { position:sticky; top:0; z-index:99; background:#1d4ed8; color:#fff; border:none; padding:8px 18px; font-size:13px; font-weight:700; cursor:pointer; width:100%; letter-spacing:.04em; }
+  .print-btn:hover { background:#1e40af; }
+  .report-body { padding: 24px 32px; }
+  h1 { font-size: 18px; font-weight: 900; border-bottom: 2px solid #CC0000; padding-bottom: 6px; margin-bottom: 18px; }
+  h2 { font-size: 13px; font-weight: 700; margin: 20px 0 7px; color: #333; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 11px; }
+  th { background: #f3f4f6; text-align: left; padding: 5px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
+  td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  .footer { margin-top: 32px; font-size: 10px; color: #9ca3af; text-align: right; }
+  @media print { .print-btn { display:none; } body { margin: 0; } }
+</style></head>
+<body>
+  <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <div class="report-body">
+    <h1>${title}</h1>
+    ${bodyHTML}
+    <div class="footer">Generated ${dateStr} · Change Management Tracker</div>
+  </div>
+</body></html>`);
+  win.document.close();
 }
 
 function clearAll() {
@@ -1313,6 +1309,75 @@ function clearAll() {
   tickets = []; updates = {};
   save(); updateHdrCount(); renderDashboard(); renderTable();
   toast('All data cleared');
+}
+
+function saveContacts() {
+  try { localStorage.setItem('cm_contacts', JSON.stringify(contacts)); } catch(e) {}
+  renderContactsTable();
+}
+function addContact() {
+  const name  = (document.getElementById('ctcName') ||{}).value?.trim() || '';
+  const dept  = (document.getElementById('ctcDept') ||{}).value || '';
+  const email = (document.getElementById('ctcEmail')||{}).value?.trim() || '';
+  if (!name) { showMsg('err', 'Contact name is required.'); return; }
+  contacts.push({ id: 'c_' + Date.now(), name, dept, email });
+  saveContacts();
+  ['ctcName','ctcDept','ctcEmail'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+}
+function removeContact(id) {
+  contacts = contacts.filter(c => c.id !== id);
+  saveContacts();
+}
+function renderContactsTable() {
+  const el = document.getElementById('contactsTable');
+  if (!el) return;
+  if (!contacts.length) { el.innerHTML = '<p style="font-size:12px;color:var(--gray-400)">No contacts yet.</p>'; return; }
+  const rows = contacts.map(c => `<tr>
+    <td style="font-weight:700;white-space:nowrap">${esc(c.name)}</td>
+    <td style="text-align:center">${esc(c.dept||'')}</td>
+    <td>${esc(c.email||'')}</td>
+    <td style="text-align:center"><button onclick="removeContact('${c.id.replace(/'/g,"\\'")}')">✕</button></td>
+  </tr>`).join('');
+  el.innerHTML = `<table style="width:100%;font-size:11px;border-collapse:collapse">
+    <tr style="border-bottom:2px solid var(--gray-100)"><th style="padding:4px 6px;text-align:left;font-size:9px;color:var(--gray-400);text-transform:uppercase">Name</th><th style="padding:4px 6px;text-align:center;font-size:9px;color:var(--gray-400);text-transform:uppercase">Dept</th><th style="padding:4px 6px;font-size:9px;color:var(--gray-400);text-transform:uppercase">Email</th><th style="width:32px"></th></tr>
+    ${rows}
+  </table>`;
+}
+function sendTaskEmails() {
+  const active = tickets.filter(t => !isClosed(t));
+  const byPerson = {};
+  active.forEach(t => {
+    const u    = updates[t.id] || {};
+    const task = u.taskThisWeek || '';
+    const pid  = u.taskPerson   || '';
+    if (!task || !pid) return;
+    const ct = contacts.find(c => c.id === pid);
+    if (!ct || !ct.email) return;
+    if (!byPerson[pid]) byPerson[pid] = { ct, tasks: [] };
+    byPerson[pid].tasks.push({ id: t.id, summary: t.summary || '', task });
+  });
+  const entries = Object.values(byPerson);
+  if (!entries.length) { showMsg('err', 'No tasks with assigned contacts found for CW' + CUR_WEEK + '.'); return; }
+  entries.forEach(({ ct, tasks }) => {
+    const body = 'Hi ' + ct.name + ',\n\nYour tasks for CW' + CUR_WEEK + ':\n\n' +
+      tasks.map(t => '[' + t.id + '] ' + t.summary + '\n' + t.task).join('\n\n') +
+      '\n\nBest regards';
+    const url  = 'mailto:' + encodeURIComponent(ct.email) +
+      '?subject=' + encodeURIComponent('Tasks CW' + CUR_WEEK) +
+      '&body='    + encodeURIComponent(body);
+    window.open(url, '_blank');
+  });
+  showMsg('ok', 'Opened ' + entries.length + ' mail draft' + (entries.length > 1 ? 's' : '') + '.');
+}
+function getContactOptions(selId) {
+  const blank = `<option value="">— person —</option>`;
+  return blank + contacts.map(c => `<option value="${esc(c.id)}" ${selId===c.id?'selected':''}>${esc(c.name)}${c.dept?' ('+esc(c.dept)+')':''}</option>`).join('');
+}
+function setTaskPerson(el) {
+  const id = el.dataset.id;
+  if (!updates[id]) updates[id] = {};
+  updates[id].taskPerson = el.value;
+  save();
 }
 
 function showMsg(type, msg) {
@@ -2386,6 +2451,9 @@ function renderDashboard() {
                   <option value="">dept</option>
                   ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
                 </select>
+                <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+                  ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
+                </select>
               </div>
             </div>
           </li>`;
@@ -2437,6 +2505,9 @@ function renderDashboard() {
             <option value="">dept</option>
             ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
           </select>
+          <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+            ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
+          </select>
         </div>
       </div>
     </li>`;
@@ -2474,6 +2545,9 @@ function renderDashboard() {
           <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;width:60px;max-width:60px;align-self:center">
             <option value="">dept</option>
             ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+          </select>
+          <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+            ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
           </select>
         </div>
       </div>
@@ -2609,6 +2683,9 @@ function renderDashboard() {
               <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
                 <option value="">dept</option>
                 ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
+              </select>
+              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+                ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
               </select>
             </div>
           </div>
@@ -2819,6 +2896,9 @@ function renderDashboard() {
             <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)" style="flex-shrink:0;align-self:center;width:64px;max-width:64px">
               <option value="">dept</option>
               ${ ['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('') }
+            </select>
+            <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+              ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
             </select>
           </div>
         </div>
@@ -3367,92 +3447,71 @@ function renderPhaseSuccessChart() {
   const phOrder = ['1','2','3','4','5'];
   const phClr   = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
   const phName  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
-  const _MN     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  function cwToMo(cw) {
-    const n = parseCW(String(cw == null ? '' : cw));
-    return n ? cwToYearMonth(_now.year, n) : null;
-  }
+  // For each phase, count active (non-done) tickets currently in that phase
+  const phData = {};
+  phOrder.forEach(p => { phData[p] = { onTime: 0, notOnTime: 0 }; });
 
-  // Build { month → { phase → { on, off } } } from all sources
-  const moData = {};
-  function ensureMo(mo) {
-    if (!moData[mo]) { moData[mo] = {}; phOrder.forEach(p => { moData[mo][p] = { on:0, off:0 }; }); }
-  }
-
-  // Source 1: recorded phase_transition completions (all months)
-  const seenPairs = new Set();
-  tickets.forEach(t => {
-    ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
-      if (c.type === 'deadline_moved') return;
-      const mo = c.month || cwToMo(c.completedCW) || cwToMo(c.finishCW);
-      if (!mo) return;
-      const p = String(c.fromPhase);
-      if (!phOrder.includes(p)) return;
-      ensureMo(mo);
-      c.onTime ? moData[mo][p].on++ : moData[mo][p].off++;
-      seenPairs.add(`${t.id}|${p}|${mo}`);
-    });
-  });
-
-  // Source 2: active tickets not yet recorded — bucket by FP deadline month
   tickets.forEach(t => {
     if (isDone(t)) return;
     const ph = String(effPhase(t) || '');
     if (!phOrder.includes(ph)) return;
     const u  = updates[t.id] || {};
     const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : (t.finishPhase || '');
-    const mo = cwToMo(fp);
-    if (!mo) return;
-    if (seenPairs.has(`${t.id}|${ph}|${mo}`)) return;
-    const fpN  = parseCW(String(fp));
-    const mov  = u.fpCWChanges || 0;
-    ensureMo(mo);
-    fpN !== null && CUR_WEEK <= fpN && mov === 0 ? moData[mo][ph].on++ : moData[mo][ph].off++;
+    const fpN = parseCW(String(fp == null ? '' : fp));
+    if (fpN === null) return; // no parseable deadline — skip
+    const changes = u.fpCWChanges || 0;
+    if (fpN >= CUR_WEEK && changes === 0) {
+      phData[ph].onTime++;
+    } else {
+      phData[ph].notOnTime++;
+    }
   });
 
-  const months = Object.keys(moData).sort();
-  if (months.length === 0) {
-    el.innerHTML = `<p style="color:var(--gray-500);font-size:12px;padding:14px 0;text-align:center">No Finish Phase CW deadlines set. Add a Finish Phase CW to tickets to see data here.</p>`;
+  const activePhases = phOrder.filter(p => (phData[p].onTime + phData[p].notOnTime) > 0);
+
+  if (activePhases.length === 0) {
+    el.innerHTML = `<p style="color:var(--gray-500);font-size:12px;padding:14px 0;text-align:center">No Finish Phase deadlines set on active tickets.</p>`;
     return;
   }
 
-  const TH = 'padding:5px 6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:center;border-bottom:2px solid var(--gray-100)';
-  const phHeaders = phOrder.map(p =>
-    `<th style="${TH};color:${phClr[p]};width:110px">${phName[p].slice(0,5)}.</th>`
-  ).join('');
+  const totOn  = activePhases.reduce((s, p) => s + phData[p].onTime,    0);
+  const totOff = activePhases.reduce((s, p) => s + phData[p].notOnTime, 0);
+  const totAll = totOn + totOff;
+  const totPct = totAll > 0 ? Math.round(totOn / totAll * 100) : 0;
+  const totCol = totPct >= 80 ? '#059669' : totPct >= 50 ? '#d97706' : '#CC0000';
 
-  const monthRows = months.map(mo => {
-    const moLabel = _MN[+mo.slice(5,7)-1] + ' ' + mo.slice(0,4);
-    const isCur   = mo === _kpiMonth;
+  const TH = 'padding:5px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--gray-100)';
 
-    const phCells = phOrder.map(p => {
-      const d  = moData[mo][p];
-      const t2 = d.on + d.off;
-      if (t2 === 0) return `<td style="text-align:center;padding:7px 4px;color:var(--gray-200);font-size:14px">·</td>`;
-      const pct = Math.round(d.on / t2 * 100);
-      const col = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
-      return `<td style="text-align:center;padding:7px 4px">
-        <div style="font-weight:900;font-size:13px;color:${col};line-height:1.1">${pct}%</div>
-        <div style="font-size:9px;color:var(--gray-400);margin-top:2px">${d.on}<span style="color:#059669;margin:0 1px">✓</span>${d.off}<span style="color:#CC0000;margin-left:1px">✗</span></div>
-      </td>`;
-    }).join('');
+  function barCell(on, off) {
+    const total = on + off;
+    const pct   = total > 0 ? Math.round(on / total * 100) : 0;
+    const col   = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
+    const barW  = pct;
+    return `<td style="padding:6px 8px;min-width:120px">
+      <div style="background:var(--gray-100);border-radius:2px;height:8px;width:100%;overflow:hidden">
+        <div style="background:${col};height:100%;width:${barW}%;border-radius:2px;transition:width .3s"></div>
+      </div>
+    </td>
+    <td style="padding:6px 8px;font-weight:900;color:${col};font-size:13px;white-space:nowrap">${pct}%</td>`;
+  }
 
-    const totOn  = phOrder.reduce((s, p) => s + moData[mo][p].on,  0);
-    const totOff = phOrder.reduce((s, p) => s + moData[mo][p].off, 0);
-    const totAll = totOn + totOff;
-    const ovPct  = totAll > 0 ? Math.round(totOn / totAll * 100) : null;
-    const ovCol  = ovPct === null ? 'var(--gray-300)' : ovPct >= 80 ? '#059669' : ovPct >= 50 ? '#d97706' : '#CC0000';
-    const ovCell = `<td style="text-align:center;padding:7px 10px;border-left:2px solid var(--gray-100)">
-      <div style="font-weight:900;font-size:14px;color:${ovCol};line-height:1.1">${ovPct !== null ? ovPct+'%' : '—'}</div>
-      <div style="font-size:9px;color:var(--gray-400);margin-top:2px">${totOn}<span style="color:#059669;margin:0 1px">✓</span>${totOff}<span style="color:#CC0000;margin-left:1px">✗</span></div>
-    </td>`;
+  const summaryRow = `<tr style="background:var(--gray-50);border-bottom:2px solid var(--gray-100)">
+    <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--gray-700)">Overall</td>
+    <td style="padding:6px 8px;text-align:center;font-weight:700;color:#059669;font-size:13px">${totOn}</td>
+    <td style="padding:6px 8px;text-align:center;font-weight:700;color:#CC0000;font-size:13px">${totOff}</td>
+    ${barCell(totOn, totOff)}
+  </tr>`;
 
-    return `<tr style="${isCur?'background:rgba(99,102,241,.06)':''};border-bottom:1px solid var(--gray-100)">
-      <td style="padding:7px 10px;font-size:11px;font-weight:${isCur?700:400};color:var(--gray-700);white-space:nowrap">
-        ${moLabel}${isCur?'<span style="color:#6366f1;font-size:8px;font-weight:800;margin-left:5px;letter-spacing:.04em">NOW</span>':''}
+  const phRows = activePhases.map(p => {
+    const d = phData[p];
+    return `<tr style="border-bottom:1px solid var(--gray-100)">
+      <td style="padding:6px 8px;white-space:nowrap">
+        <span style="display:inline-block;padding:2px 8px;border-radius:2px;background:${phClr[p]};color:#fff;font-size:10px;font-weight:700">P${p} ${phName[p]}</span>
       </td>
-      ${phCells}${ovCell}
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:#059669">${d.onTime}</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:#CC0000">${d.notOnTime}</td>
+      ${barCell(d.onTime, d.notOnTime)}
     </tr>`;
   }).join('');
 
@@ -3460,18 +3519,19 @@ function renderPhaseSuccessChart() {
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead>
         <tr>
-          <th style="${TH};text-align:left;color:var(--gray-400);width:90px">Month</th>
-          ${phHeaders}
-          <th style="${TH};color:var(--gray-500);border-left:2px solid var(--gray-100);width:90px">Overall</th>
-        </tr>
-        <tr>
-          <th></th>
-          ${phOrder.map(p => `<th style="padding:1px 4px;font-size:8px;font-weight:400;text-align:center;color:${phClr[p]};opacity:.65">${phName[p]}</th>`).join('')}
-          <th></th>
+          <th style="${TH};text-align:left;width:160px">Phase</th>
+          <th style="${TH};text-align:center;color:#059669;width:70px">On Time</th>
+          <th style="${TH};text-align:center;color:#CC0000;width:80px">Not On Time</th>
+          <th style="${TH};text-align:left;width:130px">Bar</th>
+          <th style="${TH};text-align:left;width:60px">%</th>
         </tr>
       </thead>
-      <tbody>${monthRows}</tbody>
+      <tbody>
+        ${summaryRow}
+        ${phRows}
+      </tbody>
     </table>
+    <p style="font-size:10px;color:var(--gray-400);margin-top:6px">On time = deadline &ge; CW${CUR_WEEK} with no deadline changes. Active tickets with FP deadline only.</p>
   </div>`;
 }
 
@@ -3880,6 +3940,9 @@ renderDashboard();
 if (tickets.length) renderTable();
 initBookmarklet();
 checkUrlImport();
+renderContactsTable();
+const _ctcCwLbl = document.getElementById('sendTasksCwLabel');
+if (_ctcCwLbl) _ctcCwLbl.textContent = CUR_WEEK;
 </script>
 </body>
 </html>
