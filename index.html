@@ -1669,18 +1669,21 @@ function confirmPhaseChange() {
     // Mark ticket as Completed / Closed
     if (_phModalPrev) {
       if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
-      const alreadyRecorded = updates[id].phaseCompletions.some(c => String(c.fromPhase) === String(_phModalPrev));
+      const alreadyRecorded = updates[id].phaseCompletions.some(c => String(c.fromPhase) === String(_phModalPrev) && c.type !== 'deadline_moved');
       if (!alreadyRecorded) {
         const fpNum  = parseCW(_phModalPrevFP);
-        const onTime = fpNum !== null && CUR_WEEK <= fpNum;
+        const fpMoves = updates[id].fpCWChanges || 0;
+        const onTime = fpNum !== null && CUR_WEEK <= fpNum && fpMoves === 0;
         updates[id].phaseCompletions.push({
           fromPhase:   _phModalPrev,
           toPhase:     'completed',
           finishCW:    _phModalPrevFP,
           completedCW: CUR_WEEK,
           onTime:      onTime,
+          type:        'phase_transition',
           month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
         });
+        updates[id].fpCWChanges = 0;
       }
     }
     updates[id].status = 'Closed';
@@ -1703,18 +1706,21 @@ function confirmPhaseChange() {
   // Record phase completion: only if moving forward (toPhase > fromPhase) and not yet recorded for this fromPhase
   if (_phModalPrev && _phModalPrev !== newPhase && Number(newPhase) > Number(_phModalPrev)) {
     if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
-    const alreadyRecorded = updates[id].phaseCompletions.some(c => String(c.fromPhase) === String(_phModalPrev));
+    const alreadyRecorded = updates[id].phaseCompletions.some(c => String(c.fromPhase) === String(_phModalPrev) && c.type !== 'deadline_moved');
     if (!alreadyRecorded) {
       const fpNum  = parseCW(_phModalPrevFP);
-      const onTime = fpNum !== null && CUR_WEEK <= fpNum;
+      const fpMoves = updates[id].fpCWChanges || 0;
+      const onTime = fpNum !== null && CUR_WEEK <= fpNum && fpMoves === 0;
       updates[id].phaseCompletions.push({
         fromPhase:   _phModalPrev,
         toPhase:     newPhase,
         finishCW:    _phModalPrevFP,
         completedCW: CUR_WEEK,
         onTime:      onTime,
+        type:        'phase_transition',
         month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
       });
+      updates[id].fpCWChanges = 0;
     }
   }
 
@@ -1809,6 +1815,18 @@ function setDashCwField(el) {
     }
     if (newVal !== prevVal) {
       updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+      const curPh2 = tk ? String(effPhase(tk)) : null;
+      if (curPh2) {
+        if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
+        const movedAlready = updates[id].phaseCompletions.some(c => String(c.fromPhase) === curPh2 && c.type === 'deadline_moved');
+        if (!movedAlready) {
+          updates[id].phaseCompletions.push({
+            fromPhase: curPh2, toPhase: curPh2, finishCW: prevVal,
+            completedCW: CUR_WEEK, onTime: false, type: 'deadline_moved',
+            month: cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
+          });
+        }
+      }
       if (cwIsOverdue(prevVal)) {
         const ph = tk ? effPhase(tk) : null;
         if (ph) {
@@ -2007,6 +2025,18 @@ function setCwField(el) {
     }
     if (newVal !== prevVal) {
       updates[id].fpCWChanges = (updates[id].fpCWChanges||0) + 1;
+      const curPh3 = tk ? String(effPhase(tk)) : null;
+      if (curPh3) {
+        if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
+        const movedAlready3 = updates[id].phaseCompletions.some(c => String(c.fromPhase) === curPh3 && c.type === 'deadline_moved');
+        if (!movedAlready3) {
+          updates[id].phaseCompletions.push({
+            fromPhase: curPh3, toPhase: curPh3, finishCW: prevVal,
+            completedCW: CUR_WEEK, onTime: false, type: 'deadline_moved',
+            month: cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
+          });
+        }
+      }
       if (cwIsOverdue(prevVal)) {
         const ph = tk ? effPhase(tk) : null;
         if (ph) {
@@ -2587,7 +2617,7 @@ function renderDashboard() {
       </div>
     </div>`;
 
-    // Rich ticket item — same as "Phases to Finish" format, with editable FP CW
+    // Rich ticket item — same as "Phases to Finish" format, with editable FP CW + phase advance
     function richTktItem(t) {
       const upd2 = updates[t.id]||{};
       const c2   = getEC(t);
@@ -2599,6 +2629,17 @@ function renderDashboard() {
                       : lastSt2==='missed' ? 'background:rgba(220,38,38,.1);color:#dc2626;'
                       : 'background:var(--gray-100);color:var(--gray-400);';
       const stTxt = lastSt2==='done' ? '&#10003; done' : lastSt2==='missed' ? '&#10007; missed' : 'pending';
+      const nextPh = String(Number(ep2) + 1);
+      const phClr5 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+      const canAdv = Number(ep2) >= 1 && Number(ep2) < 5 && !isClosed(t);
+      const advRow = canAdv ? `
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-100);flex-wrap:wrap">
+          <span style="font-size:9px;font-weight:700;color:var(--gray-400);white-space:nowrap">Advance phase</span>
+          <button onclick="dashAdvancePhase('${esc(t.id)}','${nextPh}',this.closest('li').querySelector('[data-adv-fp]'))"
+            style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:5px;border:1.5px solid ${phClr5[nextPh]||'var(--gray-400)'};background:transparent;color:${phClr5[nextPh]||'var(--gray-400)'};cursor:pointer;white-space:nowrap">P${ep2} &#8594; P${nextPh}</button>
+          <span style="font-size:9px;color:var(--gray-400)">new FP CW:</span>
+          <input data-adv-fp type="text" class="od-cw-inp" placeholder="CW" style="width:48px;font-size:11px">
+        </div>` : '';
       return `<li class="hi-ext">
         <div class="hi-head">${tktLink(t.id,'hi-id')}
           <span class="hi-summary" title="${esc(t.summary)}">${esc(t.summary)||'(no summary)'}</span>
@@ -2626,6 +2667,7 @@ function renderDashboard() {
             </select>
           </div>
         </div>
+        ${advRow}
       </li>`;
     }
 
@@ -2744,6 +2786,49 @@ function setDashOpenPhase(ph) {
   _dashOpenPhFilter = (_dashOpenPhFilter === ph) ? null : ph;
   _dashOpenSelCW = null;
   renderDashboard();
+}
+
+function dashAdvancePhase(id, newPhase, inputEl) {
+  const t = tickets.find(x => x.id === id);
+  if (!t) return;
+  if (!updates[id]) updates[id] = {};
+  const prevPhase = String(effPhase(t));
+  if (Number(newPhase) <= Number(prevPhase)) {
+    showMsg('err', 'Can only advance to a higher phase number.');
+    return;
+  }
+  const newFP    = inputEl ? inputEl.value.trim() : '';
+  const parsedFP = parseCW(newFP);
+  if (!newFP) {
+    showMsg('err', 'Enter a new Finish Phase CW before advancing.');
+    return;
+  }
+  if (parsedFP !== null && parsedFP < CUR_WEEK) {
+    showMsg('err', `CW${parsedFP} has already passed — enter CW${CUR_WEEK} or later.`);
+    return;
+  }
+  // Record completion for current phase
+  if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
+  const alreadyRec = updates[id].phaseCompletions.some(c => String(c.fromPhase) === prevPhase && c.type !== 'deadline_moved');
+  if (!alreadyRec) {
+    const prevFP  = getEC(t).fp;
+    const fpNum   = parseCW(prevFP);
+    const fpMoves = updates[id].fpCWChanges || 0;
+    const onTime  = fpNum !== null && CUR_WEEK <= fpNum && fpMoves === 0;
+    updates[id].phaseCompletions.push({
+      fromPhase: prevPhase, toPhase: newPhase,
+      finishCW: prevFP, completedCW: CUR_WEEK,
+      onTime, type: 'phase_transition',
+      month: cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
+    });
+    updates[id].fpCWChanges = 0;
+  }
+  updates[id].phase = newPhase;
+  updates[id].finishPhaseCW = newFP;
+  save();
+  renderDashboard();
+  renderTable();
+  showMsg('ok', `${id} advanced to Phase ${newPhase} · FP CW${newFP}`);
 }
 
 function setBtFilter(f) {
@@ -2944,7 +3029,14 @@ function renderEffTicketTable() {
 
     const completions = u.phaseCompletions || [];
     const phStatus = {};
-    completions.forEach(c => { phStatus[c.fromPhase] = { st: c.onTime ? 'ok' : 'late', cw: c.finishCW }; });
+    // Phase transitions (authoritative — overwrite deadline_moved if present)
+    completions.filter(c => c.type !== 'deadline_moved').forEach(c => {
+      phStatus[c.fromPhase] = { st: c.onTime ? 'ok' : 'late', cw: c.finishCW };
+    });
+    // Deadline moved — only shown if no actual transition recorded for that phase
+    completions.filter(c => c.type === 'deadline_moved').forEach(c => {
+      if (!phStatus[c.fromPhase]) phStatus[c.fromPhase] = { st: 'moved', cw: c.finishCW };
+    });
 
     const phaseCells = phOrder.map(p => {
       const ps = phStatus[p];
@@ -2954,6 +3046,9 @@ function renderEffTicketTable() {
       } else if (ps && ps.st === 'late') {
         const cwTxt = ps.cw ? `<br><span style="font-size:8px;color:var(--primary);opacity:.8">CW${esc(String(ps.cw))}</span>` : '';
         return `<td style="text-align:center;background:rgba(204,0,0,.06)"><span style="font-size:13px;color:var(--primary)" title="Phase ${p}: late">${PC_CROSS}</span><br><span style="font-size:8px;color:var(--primary)">not on time</span>${cwTxt}</td>`;
+      } else if (ps && ps.st === 'moved') {
+        const cwTxt = ps.cw ? `<br><span style="font-size:8px;color:#d97706;opacity:.8">CW${esc(String(ps.cw))}</span>` : '';
+        return `<td style="text-align:center;background:rgba(217,119,6,.06)"><span style="font-size:11px;color:#d97706" title="Deadline moved in Phase ${p}">D</span><br><span style="font-size:8px;color:#d97706">moved</span>${cwTxt}</td>`;
       } else if (p === curPh && curFpOD) {
         const cwTxt = effFP ? `<br><span style="font-size:8px;color:#d97706;opacity:.8">CW${esc(String(effFP))}</span>` : '';
         return `<td style="text-align:center;background:rgba(217,119,6,.07);border-top:2px solid #d97706"><span style="font-size:12px;color:#d97706" title="Finish CW ${effFP} passed">${PC_OVER}</span><br><span style="font-size:8px;color:#d97706">overdue</span>${cwTxt}</td>`;
@@ -3040,9 +3135,11 @@ function calcMonthPhaseSuccess(year) {
   const result = {};
 
   // Build map: completedCW → recorded completions (keyed by WHEN the shift was made, not the deadline)
+  // Skip 'deadline_moved' entries — they are not real completions
   const compsByCW = {};
   tickets.forEach(t => {
     ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
+      if (c.type === 'deadline_moved') return;
       const n = typeof c.completedCW === 'number' ? c.completedCW : parseCW(String(c.completedCW ?? ''));
       if (n !== null && n !== undefined) {
         if (!compsByCW[n]) compsByCW[n] = [];
