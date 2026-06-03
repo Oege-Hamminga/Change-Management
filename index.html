@@ -756,7 +756,8 @@ let _kpiMonth  = new Date().toISOString().slice(0, 7);
 let _skipFilterRowRebuild = false;
 let _dashTopPanel = 'high';   // null | 'high' | 'fp' | 'overdue' | 'tasks' | 'open'
 let _dashFpCW     = null;     // null = CUR_WEEK (which week is selected in fp panel)
-let _dashOpenSelCW = null;    // selected CW in the open-tickets phase-deadline chart
+let _dashOpenSelCW    = null;  // selected CW in the open-tickets phase-deadline chart
+let _dashOpenPhFilter = null;  // null = all phases, '1'..'5' = filter
 let _btFilter     = 'open';   // 'open' | 'closed' | 'all'
 let _detailEdit      = null;
 
@@ -2466,10 +2467,13 @@ function renderDashboard() {
     const maxCW  = isoWeekCount(_now.year);
     const phClrs5 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
 
-    // Per-CW buckets
+    // Per-CW buckets (optionally filtered by phase)
+    const phFiltered = _dashOpenPhFilter
+      ? active.filter(t => String(effPhase(t)) === String(_dashOpenPhFilter))
+      : active;
     const cwBuckets = {};
     for (let w = 1; w <= maxCW; w++) cwBuckets[w] = { count: 0, tickets: [] };
-    active.forEach(t => {
+    phFiltered.forEach(t => {
       const fp = parseCW(getEC(t).fp);
       if (fp !== null && fp >= 1 && fp <= maxCW) {
         cwBuckets[fp].count++;
@@ -2519,13 +2523,32 @@ function renderDashboard() {
         if (isSel) bars += `<rect x="${(cx-bW/2-2).toFixed(1)}" y="${(topY-2).toFixed(1)}" width="${bW+4}" height="${bH+4}" fill="none" stroke="#1d4ed8" stroke-width="2" rx="3"/>`;
       }
       if (isCur || cw % 4 === 0 || cw === 1 || cw === maxCW) {
-        xLabels += `<text x="${cx.toFixed(1)}" y="${(H-3).toFixed(1)}" text-anchor="middle" font-size="${isCur?8.5:7.5}" fill="${isCur?'#3b82f6':'#d1d5db'}" font-weight="${isCur?'700':'400'}">CW${cw}</text>`;
+        const tooClose = !isCur && Math.abs(cw - CUR_WEEK) < 3;
+        if (!tooClose) {
+          const lblY = isCur ? H - 13 : H - 3;
+          xLabels += `<text x="${cx.toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle" font-size="${isCur?8.5:7.5}" fill="${isCur?'#3b82f6':'#d1d5db'}" font-weight="${isCur?'700':'400'}">CW${cw}</text>`;
+        }
       }
     }
     const curX    = padL + (CUR_WEEK - 0.5) * xStep;
     const curLine = `<line x1="${curX.toFixed(1)}" y1="${padT}" x2="${curX.toFixed(1)}" y2="${padT+chartH}" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,3" opacity=".4"/>`;
     const baseline = `<line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#e5e7eb" stroke-width="1"/>`;
     const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="font-family:'Segoe UI',Arial,sans-serif;display:block">${gridLines}${baseline}${bars}${curLine}${xLabels}</svg>`;
+
+    // Phase filter buttons
+    const phClrsBtns = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+    const phFilterBtns = `<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;padding-top:${padT}px">
+      ${[null,'1','2','3','4','5'].map(ph => {
+        const isSel = _dashOpenPhFilter === ph;
+        const clr   = ph ? phClrsBtns[ph] : '#6366f1';
+        const lbl   = ph ? `P${ph}` : 'All';
+        const bg    = isSel ? clr : 'transparent';
+        const fg    = isSel ? '#fff' : clr;
+        const bord  = clr;
+        return `<button onclick="setDashOpenPhase(${ph===null?'null':"'"+ph+"'"})" style="font-size:10px;font-weight:800;padding:3px 7px;border-radius:5px;border:1.5px solid ${bord};background:${bg};color:${fg};cursor:pointer;line-height:1.4;white-space:nowrap;transition:none">${lbl}</button>`;
+      }).join('')}
+    </div>`;
+    const svgRow = `<div style="display:flex;gap:8px;align-items:flex-start">${phFilterBtns}<div style="flex:1">${svg}</div></div>`;
 
     // Summary strip
     const summaryStrip = `<div style="display:flex;margin:10px 0 0;border:1px solid var(--gray-100);border-radius:8px;overflow:hidden;background:white">
@@ -2611,15 +2634,15 @@ function renderDashboard() {
       <div style="display:flex;gap:14px;align-items:flex-start">
         ${_phDistSidebar}
         <div class="dash-card-dk acc-blue" style="flex:1">
-          <h3><span>Phase Deadlines · ${_now.year}</span><span class="h3-badge h3-blue">${activeTotal} open</span></h3>
+          <h3><span>Phase Deadlines · ${_now.year}</span><span class="h3-badge h3-blue">${phFiltered.length} open${_dashOpenPhFilter?` · P${_dashOpenPhFilter}`:''}</span></h3>
           <div style="font-size:9px;color:var(--gray-400);margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
             <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fca5a5;border-radius:2px;display:inline-block"></span>Overdue</span>
             <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#3b82f6;border-radius:2px;display:inline-block"></span>CW${CUR_WEEK} this week</span>
             <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#a5b4fc;border-radius:2px;display:inline-block"></span>Upcoming</span>
             <span style="color:var(--gray-200)">·</span>
-            <span>Click a bar to select CW &amp; view tickets</span>
+            <span>Click a bar to view tickets &nbsp;·&nbsp; Use P1–P5 to filter by phase</span>
           </div>
-          ${svg}
+          ${svgRow}
           ${summaryStrip}
           ${selDetail}
         </div>
@@ -2682,6 +2705,7 @@ function setDashPanel(panel) {
   _dashTopPanel = _dashTopPanel === panel ? null : panel;
   _dashFpCW = null;
   _dashOpenSelCW = null;
+  _dashOpenPhFilter = null;
   renderDashboard();
 }
 
@@ -2692,6 +2716,12 @@ function setDashFpCW(cw) {
 
 function setDashOpenCW(cw) {
   _dashOpenSelCW = (_dashOpenSelCW === cw) ? null : cw;
+  renderDashboard();
+}
+
+function setDashOpenPhase(ph) {
+  _dashOpenPhFilter = (_dashOpenPhFilter === ph) ? null : ph;
+  _dashOpenSelCW = null;
   renderDashboard();
 }
 
