@@ -585,7 +585,8 @@
       <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap" id="effChartLegend"></div>
     </div>
     <div class="eff-grid">
-<div class="eff-section" style="grid-column:1/-1"><h3>Bugtracker Tickets — Phase Completion</h3><div id="effTicketTable"></div></div>
+      <div class="eff-section" style="grid-column:1/-1"><h3>Phase Completion Success — per Phase <span id="effPhaseMonthLabel" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--gray-400)"></span></h3><div id="effPhaseSuccessMonth"></div></div>
+      <div class="eff-section" style="grid-column:1/-1"><h3>Bugtracker Tickets — Phase Completion</h3><div id="effTicketTable"></div></div>
     </div>
   </div>
 
@@ -699,10 +700,14 @@
           <button class="btn btn-primary" onclick="exportPDF('tasks')" style="display:flex;align-items:center;gap:6px">
             <span style="font-size:16px">📋</span> Export Tasks Report
           </button>
+          <button class="btn btn-primary" onclick="exportPDF('cr')" style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:16px">📝</span> Export CR Report
+          </button>
         </div>
         <p style="font-size:12px;color:var(--gray-500);margin-top:8px">
           <strong>KPI Stats Report</strong>: Phase completion, resolving efficiency, and CR pipeline stats.<br>
-          <strong>Tasks Report</strong>: High priority tickets, last week's missed tasks, and this week's tasks — sorted by department.
+          <strong>Tasks Report</strong>: Tasks by person &amp; department, high priority tickets, missed tasks.<br>
+          <strong>CR Report</strong>: All change requests with status PM or Sent.
         </p>
       </div>
 
@@ -1208,6 +1213,50 @@ function exportPDF(type) {
         ${monthRows||'<tr><td colspan="6" style="color:#9CA3AF">No evaluated deadlines yet</td></tr>'}
       </table>`;
 
+  } else if (type === 'cr') {
+    // ── Change Request Report ─────────────────────────────
+    const crTickets = tickets.filter(t => { const cr=(updates[t.id]||{}).changeRequest||''; return cr==='PM'||cr==='Sent'; });
+    const crSorted2 = [...crTickets].sort((a,b) => {
+      const ca=(updates[a.id]||{}).changeRequest||'', cb=(updates[b.id]||{}).changeRequest||'';
+      return ca.localeCompare(cb) || (a.productManager||'').localeCompare(b.productManager||'') || (a.id||'').localeCompare(b.id||'');
+    });
+    function ticketRowsCR(list) {
+      if (!list.length) return `<tr><td colspan="7" style="color:#9CA3AF">No tickets with CR status PM or Sent.</td></tr>`;
+      return list.map(t => {
+        const u=updates[t.id]||{};
+        const fp=u.finishPhaseCW!==undefined?u.finishPhaseCW:t.finishPhase;
+        const ep=effPhase(t);
+        const crStatus=u.changeRequest||'';
+        const crColor=crStatus==='PM'?'#92400e':crStatus==='Sent'?'#1e40af':'#374151';
+        const task=u.taskThisWeek||'';
+        const person=contacts.find(c=>c.id===(u.taskPerson||''));
+        return `<tr>
+          <td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td>
+          <td>${esc((t.summary||'').slice(0,55))}</td>
+          <td style="text-align:center">${ep?'P'+ep:'—'}</td>
+          <td style="text-align:center;font-weight:700;color:${crColor}">${esc(crStatus)}</td>
+          <td>${esc(t.productManager||'—')}</td>
+          <td style="text-align:center">${esc(fp||'—')}</td>
+          <td>${person?esc(person.name):esc(u.taskDept||'—')}</td>
+        </tr>`;
+      }).join('');
+    }
+    const pmCount   = crTickets.filter(t=>(updates[t.id]||{}).changeRequest==='PM').length;
+    const sentCount = crTickets.filter(t=>(updates[t.id]||{}).changeRequest==='Sent').length;
+    title = `Change Request Report — CW${CUR_WEEK} — ${dateStr}`;
+    bodyHTML = `
+      <h2>Summary</h2>
+      <table><tr><th>CR Status</th><th style="text-align:center">Count</th></tr>
+        <tr><td style="color:#92400e;font-weight:700">PM</td><td style="text-align:center">${pmCount}</td></tr>
+        <tr><td style="color:#1e40af;font-weight:700">Sent</td><td style="text-align:center">${sentCount}</td></tr>
+        <tr><td style="font-weight:700">Total</td><td style="text-align:center">${pmCount+sentCount}</td></tr>
+      </table>
+      <h2>Change Requests — PM &amp; Sent</h2>
+      <table>
+        <tr><th>ID</th><th>Summary</th><th>Phase</th><th>CR Status</th><th>Product Manager</th><th>Finish CW</th><th>Responsible</th></tr>
+        ${ticketRowsCR(crSorted2)}
+      </table>`;
+
   } else {
     // ── Tasks Report ──────────────────────────────────────
     const active = tickets.filter(t => !isClosed(t));
@@ -1234,6 +1283,20 @@ function exportPDF(type) {
       return list.map(rowFn).join('');
     }
 
+    // Group this-week tasks by assigned person
+    const byPerson = {};
+    thisWeekAll.forEach(t => {
+      const pid = (updates[t.id]||{}).taskPerson || '';
+      if (!byPerson[pid]) byPerson[pid] = [];
+      byPerson[pid].push(t);
+    });
+    const personSections = Object.entries(byPerson).map(([pid, tks]) => {
+      const ct = contacts.find(c => c.id === pid);
+      const pName = ct ? ct.name + (ct.dept ? ` (${ct.dept})` : '') : (pid ? 'Unknown' : 'Unassigned');
+      const rows = tks.map(t => { const u=updates[t.id]||{}; return `<tr><td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td><td>${esc((t.summary||'').slice(0,55))}</td><td style="text-align:center">${esc(u.taskDept||'—')}</td><td style="white-space:pre-wrap">${esc(u.taskThisWeek||'')}</td></tr>`; }).join('');
+      return `<tr style="background:#eff6ff"><td colspan="4" style="font-weight:700;color:#1e40af;padding:5px 8px;font-size:11px">${esc(pName)}</td></tr>${rows}`;
+    }).join('');
+
     title = `Tasks Report — CW${CUR_WEEK} — ${dateStr}`;
     bodyHTML = `
       <h2>High Priority Tickets</h2>
@@ -1243,6 +1306,10 @@ function exportPDF(type) {
       <h2>Last Week Missed Tasks (CW${PREV_WEEK})</h2>
       <table><tr><th>ID</th><th>Summary</th><th>Dept</th><th>Task CW${PREV_WEEK}</th></tr>
         ${ticketRows(missedLW, 4, t => { const u=updates[t.id]||{}; return `<tr><td style="font-family:monospace;white-space:nowrap">${esc(t.id)}</td><td>${esc((t.summary||'').slice(0,60))}</td><td style="text-align:center">${esc(u.taskDept||'—')}</td><td style="white-space:pre-wrap">${esc((u.taskHistory||{})[PREV_WK_KEY]||'')}</td></tr>`; })}
+      </table>
+      <h2>This Week Tasks (CW${CUR_WEEK}) — by Person</h2>
+      <table><tr><th>ID</th><th>Summary</th><th>Dept</th><th>Task CW${CUR_WEEK}</th></tr>
+        ${personSections || ticketRows([], 4, () => {})}
       </table>
       <h2>This Week Tasks (CW${CUR_WEEK}) — by Department</h2>
       <table><tr><th>ID</th><th>Summary</th><th>Dept</th><th>Task CW${CUR_WEEK}</th></tr>
@@ -1365,9 +1432,10 @@ function sendTaskEmails() {
   });
   showMsg('ok', 'Opened ' + entries.length + ' mail draft' + (entries.length > 1 ? 's' : '') + '.');
 }
-function getContactOptions(selId) {
+function getContactOptions(selId, deptFilter) {
+  const list = deptFilter ? contacts.filter(c => c.dept === deptFilter) : contacts;
   const blank = `<option value="">— person —</option>`;
-  return blank + contacts.map(c => `<option value="${esc(c.id)}" ${selId===c.id?'selected':''}>${esc(c.name)}${c.dept?' ('+esc(c.dept)+')':''}</option>`).join('');
+  return blank + list.map(c => `<option value="${esc(c.id)}" ${selId===c.id?'selected':''}>${esc(c.name)}${(!deptFilter&&c.dept)?' ('+esc(c.dept)+')':''}</option>`).join('');
 }
 function setTaskPerson(el) {
   const id = el.dataset.id;
@@ -1782,6 +1850,11 @@ function setTaskDept(el) {
   if (!updates[id]) updates[id] = {};
   updates[id].taskDept = el.value;
   save();
+  // Refresh person dropdowns filtered to the new dept
+  document.querySelectorAll(`.task-person-sel[data-id="${id}"]`).forEach(sel => {
+    const cur = updates[id].taskPerson || '';
+    sel.innerHTML = getContactOptions(cur, el.value);
+  });
 }
 
 let _phModalEl = null, _phModalPrev = '', _phModalPrevFP = '', _phModalCompleting = false;
@@ -2447,8 +2520,8 @@ function renderDashboard() {
                   <option value="">dept</option>
                   ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
                 </select>
-                <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
-                  ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
+                <select class="task-dept-sel task-person-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+                  ${getContactOptions((updates[t.id]||{}).taskPerson||'', upd.taskDept||'')}
                 </select>
               </div>
             </div>
@@ -2501,8 +2574,8 @@ function renderDashboard() {
             <option value="">dept</option>
             ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
           </select>
-          <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
-            ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
+          <select class="task-dept-sel task-person-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+            ${getContactOptions((updates[t.id]||{}).taskPerson||'', upd.taskDept||'')}
           </select>
         </div>
       </div>
@@ -2542,8 +2615,8 @@ function renderDashboard() {
             <option value="">dept</option>
             ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
           </select>
-          <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
-            ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
+          <select class="task-dept-sel task-person-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+            ${getContactOptions((updates[t.id]||{}).taskPerson||'', upd.taskDept||'')}
           </select>
         </div>
       </div>
@@ -2680,8 +2753,8 @@ function renderDashboard() {
                 <option value="">dept</option>
                 ${['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('')}
               </select>
-              <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
-                ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
+              <select class="task-dept-sel task-person-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+                ${getContactOptions((updates[t.id]||{}).taskPerson||'', upd2.taskDept||'')}
               </select>
             </div>
           </div>
@@ -2893,8 +2966,8 @@ function renderDashboard() {
               <option value="">dept</option>
               ${ ['PM','R&D','PUR','CC','SQE'].map(d=>`<option value="${d}" ${(upd2.taskDept||'')==d?'selected':''}>${d}</option>`).join('') }
             </select>
-            <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
-              ${getContactOptions((updates[t.id]||{}).taskPerson||'')}
+            <select class="task-dept-sel task-person-sel" data-id="${esc(t.id)}" onchange="setTaskPerson(this)" style="flex-shrink:0;width:80px;max-width:80px;align-self:center">
+              ${getContactOptions((updates[t.id]||{}).taskPerson||'', upd2.taskDept||'')}
             </select>
           </div>
         </div>
@@ -3227,6 +3300,7 @@ function renderEfficiency() {
   const phOrder = ['1','2','3','4','5'];
 
   renderEffTicketTable();
+  renderMonthPhaseSuccessChart();
 
   renderEfficiencyChart();
 }
@@ -3358,6 +3432,85 @@ function cwToYearMonth(year, cw) {
 
 function getMonthFromIsoWeek(year, week) {
   return cwToYearMonth(year, week);
+}
+
+function renderMonthPhaseSuccessChart() {
+  const el = document.getElementById('effPhaseSuccessMonth');
+  const lb = document.getElementById('effPhaseMonthLabel');
+  if (!el) return;
+
+  const MON_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const moLabel = MON_NAMES[+_kpiMonth.slice(5,7)-1] + ' ' + _kpiMonth.slice(0,4);
+  if (lb) lb.textContent = '— ' + moLabel;
+
+  const mData  = calcMonthPhaseSuccess(_now.year);
+  const selMo  = mData[_kpiMonth] || {};
+  const phases = selMo.phases || {};
+
+  const phOrder = ['1','2','3','4','5'];
+  const phClr   = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
+  const phName  = { '1':'Investigation','2':'Design','3':'Testing','4':'Implementation','5':'Finalization' };
+
+  const activePhases = phOrder.filter(p => {
+    const d = phases[p] || {};
+    return (d.onTime||0) + (d.overdue||0) > 0;
+  });
+
+  if (activePhases.length === 0) {
+    el.innerHTML = `<p style="color:var(--gray-500);font-size:12px;padding:10px 0;text-align:center">No evaluated phase transitions in ${moLabel}.</p>`;
+    return;
+  }
+
+  const totOn  = activePhases.reduce((s,p) => s + (phases[p]||{}).onTime||0,  0);
+  const totOff = activePhases.reduce((s,p) => s + (phases[p]||{}).overdue||0, 0);
+  const totAll = totOn + totOff;
+  const totPct = totAll > 0 ? Math.round(totOn/totAll*100) : 0;
+  const totCol = totPct >= 80 ? '#059669' : totPct >= 50 ? '#d97706' : '#CC0000';
+
+  const TH = 'padding:5px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--gray-100)';
+
+  function barCell(on, off) {
+    const total = on + off;
+    const pct   = total > 0 ? Math.round(on/total*100) : 0;
+    const col   = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
+    return `<td style="padding:5px 8px;min-width:110px">
+      <div style="background:var(--gray-100);border-radius:2px;height:7px;width:100%;overflow:hidden">
+        <div style="background:${col};height:100%;width:${pct}%;border-radius:2px"></div>
+      </div>
+    </td><td style="padding:5px 8px;font-weight:900;color:${col};font-size:12px;white-space:nowrap">${pct}%</td>`;
+  }
+
+  const summaryRow = `<tr style="background:var(--gray-50);border-bottom:2px solid var(--gray-100)">
+    <td style="padding:5px 8px;font-size:11px;font-weight:700;color:var(--gray-700)">Overall</td>
+    <td style="padding:5px 8px;text-align:center;font-weight:700;color:#059669">${totOn}</td>
+    <td style="padding:5px 8px;text-align:center;font-weight:700;color:#CC0000">${totOff}</td>
+    ${barCell(totOn, totOff)}
+  </tr>`;
+
+  const phRows = activePhases.map(p => {
+    const d = phases[p] || {};
+    return `<tr style="border-bottom:1px solid var(--gray-100)">
+      <td style="padding:5px 8px;white-space:nowrap">
+        <span style="display:inline-block;padding:2px 7px;border-radius:2px;background:${phClr[p]};color:#fff;font-size:10px;font-weight:700">P${p} ${phName[p]}</span>
+      </td>
+      <td style="padding:5px 8px;text-align:center;font-weight:700;color:#059669">${d.onTime||0}</td>
+      <td style="padding:5px 8px;text-align:center;font-weight:700;color:#CC0000">${d.overdue||0}</td>
+      ${barCell(d.onTime||0, d.overdue||0)}
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr>
+        <th style="${TH};text-align:left;width:160px">Phase</th>
+        <th style="${TH};text-align:center;color:#059669;width:70px">On Time</th>
+        <th style="${TH};text-align:center;color:#CC0000;width:80px">Overdue</th>
+        <th style="${TH};text-align:left;width:120px">Bar</th>
+        <th style="${TH};text-align:left;width:50px">%</th>
+      </tr></thead>
+      <tbody>${summaryRow}${phRows}</tbody>
+    </table>
+  </div>`;
 }
 
 function calcMonthPhaseSuccess(year) {
