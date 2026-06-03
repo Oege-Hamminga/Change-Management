@@ -141,7 +141,7 @@
     .hi-id { font-size: 11px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
     .hi-id:hover { text-decoration: underline; }
     .hi-summary { font-size: 12px; font-weight: 600; color: var(--gray-900); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hi-meta { display: flex; gap: 10px; font-size: 10px; color: var(--gray-500); margin-bottom: 4px; flex-wrap: wrap; }
+    .hi-meta { display: flex; gap: 10px; font-size: 10px; color: var(--gray-500); margin-bottom: 4px; flex-wrap: wrap; align-items: center; }
     .hi-meta strong { color: var(--gray-700); }
     .hi-progress { font-size: 11px; color: var(--gray-500); font-style: italic; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hi-task-inp { flex: 1; min-width: 0; box-sizing: border-box; background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.25); color: #1e40af; border-radius: var(--radius); padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.5; resize: none; outline: none; display: block; overflow: hidden; min-height: 34px; }
@@ -1718,6 +1718,7 @@ function confirmPhaseChange() {
   // Record phase completion: only if moving forward (toPhase > fromPhase) and not yet recorded for this fromPhase
   if (_phModalPrev && _phModalPrev !== newPhase && Number(newPhase) > Number(_phModalPrev)) {
     if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
+    const _moNow = cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7);
     const alreadyRecorded = updates[id].phaseCompletions.some(c => String(c.fromPhase) === String(_phModalPrev) && c.type !== 'deadline_moved');
     if (!alreadyRecorded) {
       const fpNum  = parseCW(_phModalPrevFP);
@@ -1730,9 +1731,25 @@ function confirmPhaseChange() {
         completedCW: CUR_WEEK,
         onTime:      onTime,
         type:        'phase_transition',
-        month:       cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
+        month:       _moNow
       });
       updates[id].fpCWChanges = 0;
+    }
+    // Record any skipped intermediate phases as "On Time"
+    const prevN = Number(_phModalPrev), newN = Number(newPhase);
+    if (newN > prevN + 1) {
+      for (let skN = prevN + 1; skN < newN; skN++) {
+        const skP = String(skN);
+        const alreadySk = updates[id].phaseCompletions.some(c => String(c.fromPhase) === skP && c.type !== 'deadline_moved');
+        if (!alreadySk) {
+          updates[id].phaseCompletions.push({
+            fromPhase: skP, toPhase: newPhase,
+            finishCW: _phModalPrevFP, completedCW: CUR_WEEK,
+            onTime: true, type: 'phase_transition',
+            month: _moNow
+          });
+        }
+      }
     }
   }
 
@@ -2523,7 +2540,7 @@ function renderDashboard() {
     dashGridTop.innerHTML = '';
   } else if (_dashTopPanel === 'open') {
     // ── Open Tickets — Deadline Hub ──────────────────────────────────────
-    const maxCW  = isoWeekCount(_now.year);
+    const maxCW  = 52;
     const phClrs5 = { '1':'#CC0000','2':'#880000','3':'#4B4B4B','4':'#888888','5':'#BBBBBB' };
 
     // Per-CW buckets — all tickets (used for background bars + scale)
@@ -2831,6 +2848,7 @@ function dashAdvancePhase(id, newPhase, inputEl) {
   }
   // Record completion for current phase
   if (!updates[id].phaseCompletions) updates[id].phaseCompletions = [];
+  const _daMo = cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7);
   const alreadyRec = updates[id].phaseCompletions.some(c => String(c.fromPhase) === prevPhase && c.type !== 'deadline_moved');
   if (!alreadyRec) {
     const prevFP  = getEC(t).fp;
@@ -2841,9 +2859,25 @@ function dashAdvancePhase(id, newPhase, inputEl) {
       fromPhase: prevPhase, toPhase: newPhase,
       finishCW: prevFP, completedCW: CUR_WEEK,
       onTime, type: 'phase_transition',
-      month: cwToYearMonth(_now.year, CUR_WEEK) || new Date().toISOString().slice(0, 7)
+      month: _daMo
     });
     updates[id].fpCWChanges = 0;
+  }
+  // Record any skipped intermediate phases as "On Time"
+  const _daPN = Number(prevPhase), _daNN = Number(newPhase);
+  if (_daNN > _daPN + 1) {
+    for (let skN = _daPN + 1; skN < _daNN; skN++) {
+      const skP = String(skN);
+      const alreadySk = updates[id].phaseCompletions.some(c => String(c.fromPhase) === skP && c.type !== 'deadline_moved');
+      if (!alreadySk) {
+        updates[id].phaseCompletions.push({
+          fromPhase: skP, toPhase: newPhase,
+          finishCW: getEC(t).fp, completedCW: CUR_WEEK,
+          onTime: true, type: 'phase_transition',
+          month: _daMo
+        });
+      }
+    }
   }
   updates[id].phase = newPhase;
   updates[id].finishPhaseCW = newFP;
@@ -3221,69 +3255,71 @@ function renderPhaseSuccessChart() {
   const _MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const selMoLabel = _MN[+_kpiMonth.slice(5,7)-1] + ' ' + _kpiMonth.slice(0,4);
 
-  const byMonth = calcMonthPhaseSuccess(_now.year);
-  const selMo   = byMonth[_kpiMonth] || { total:0, onTime:0, overdue:0, upcoming:0, phases:{} };
+  // Directly count phase_transition entries whose stored month === selected month
+  const phCount = {};
+  phOrder.forEach(p => { phCount[p] = { onTime: 0, notOnTime: 0 }; });
+  tickets.forEach(t => {
+    ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
+      if (c.type === 'deadline_moved') return;
+      if (c.month !== _kpiMonth) return;
+      const p = String(c.fromPhase);
+      if (!phCount[p]) return;
+      if (c.onTime) phCount[p].onTime++;
+      else phCount[p].notOnTime++;
+    });
+  });
 
-  if (selMo.total === 0 && (selMo.upcoming||0) === 0) {
-    el.innerHTML = `<p style="color:var(--gray-400);font-size:13px;padding:12px 0">No phase completions recorded for ${selMoLabel}.</p>`;
+  const totalOnTime = phOrder.reduce((s, p) => s + phCount[p].onTime, 0);
+  const totalNotOT  = phOrder.reduce((s, p) => s + phCount[p].notOnTime, 0);
+  const total = totalOnTime + totalNotOT;
+
+  if (total === 0) {
+    el.innerHTML = `<p style="color:var(--gray-400);font-size:13px;padding:12px 0">No phase transitions recorded for ${selMoLabel}.</p>`;
     return;
   }
 
-  // Overall for selected month
-  const moTotal   = selMo.total;
-  const moOnTime  = selMo.onTime;
-  const moNotOT   = selMo.overdue || 0;
-  const moUpcoming = selMo.upcoming || 0;
-  const moPct     = moTotal > 0 ? Math.round(moOnTime / moTotal * 100) : null;
-  const moPctCol  = moPct === null ? 'var(--gray-400)' : moPct >= 80 ? '#059669' : moPct >= 50 ? '#d97706' : '#CC0000';
+  const moPct    = Math.round(totalOnTime / total * 100);
+  const moPctCol = moPct >= 80 ? '#059669' : moPct >= 50 ? '#d97706' : '#CC0000';
 
-  const overallRow = `<div style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:16px">
-    <div style="font-size:28px;font-weight:900;color:${moPctCol};line-height:1">${moPct !== null ? moPct+'%' : '—'}</div>
+  const overallRow = `<div style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:14px">
+    <div style="font-size:28px;font-weight:900;color:${moPctCol};line-height:1">${moPct}%</div>
     <div style="width:1px;height:32px;background:var(--gray-200)"></div>
     <div style="font-size:11px;color:var(--gray-600);line-height:1.9">
-      <span style="font-weight:700;color:#059669">${moOnTime}</span> on time &nbsp;·&nbsp;
-      <span style="font-weight:700;color:#CC0000">${moNotOT}</span> not on time &nbsp;·&nbsp;
-      <span style="font-weight:700;color:var(--gray-700)">${moTotal}</span> evaluated
-      ${moUpcoming > 0 ? `&nbsp;·&nbsp;<span style="font-weight:700;color:#9CA3AF">${moUpcoming}</span> upcoming` : ''}
+      <span style="font-weight:700;color:#059669">${totalOnTime}</span> on time &nbsp;·&nbsp;
+      <span style="font-weight:700;color:#CC0000">${totalNotOT}</span> not on time &nbsp;·&nbsp;
+      <span style="font-weight:700;color:var(--gray-700)">${total}</span> total transitions
     </div>
     <div style="margin-left:auto;font-size:10px;font-weight:700;color:var(--gray-400);letter-spacing:.05em;text-transform:uppercase">${selMoLabel}</div>
   </div>`;
 
-  // Per-phase rows
   const phRows = phOrder.map(p => {
-    const pc = (selMo.phases || {})[p] || {};
-    const onT  = pc.onTime  || 0;
-    const notT = pc.overdue || 0;
-    const upco = pc.upcoming || 0;
+    const onT  = phCount[p].onTime;
+    const notT = phCount[p].notOnTime;
     const tot  = onT + notT;
-    if (tot === 0 && upco === 0) return '';
-    const pct   = tot > 0 ? Math.round(onT / tot * 100) : null;
-    const pCol  = pct === null ? 'var(--gray-300)' : pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
-    const barFill = pct !== null ? pct : 0;
+    if (tot === 0) return '';
+    const pct  = Math.round(onT / tot * 100);
+    const pCol = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#CC0000';
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)">
       <div style="display:flex;align-items:center;gap:6px;width:160px;flex-shrink:0">
         <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${phColors[p]};flex-shrink:0"></span>
         <span style="font-size:11px;font-weight:900;color:${phColors[p]}">P${p}</span>
         <span style="font-size:10px;color:var(--gray-500)">${phNames[p]}</span>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;width:140px">
-        <span style="font-size:13px;font-weight:800;color:#059669;min-width:20px;text-align:right">${onT}</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;width:150px">
+        <span style="font-size:13px;font-weight:800;color:#059669;min-width:22px;text-align:right">${onT}</span>
         <span style="font-size:9px;color:#059669;font-weight:600">on time</span>
         <span style="color:var(--gray-200)">|</span>
-        <span style="font-size:13px;font-weight:800;color:#CC0000;min-width:20px;text-align:right">${notT}</span>
+        <span style="font-size:13px;font-weight:800;color:#CC0000;min-width:22px;text-align:right">${notT}</span>
         <span style="font-size:9px;color:#CC0000;font-weight:600">not on time</span>
       </div>
       <div style="flex:1;height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${barFill}%;background:${pCol};border-radius:3px"></div>
+        <div style="height:100%;width:${pct}%;background:${pCol};border-radius:3px"></div>
       </div>
-      <div style="font-size:13px;font-weight:900;color:${pCol};min-width:38px;text-align:right">${pct !== null ? pct+'%' : '—'}</div>
-      ${upco > 0 ? `<div style="font-size:9px;color:var(--gray-400);min-width:60px">${upco} upcoming</div>` : '<div style="min-width:60px"></div>'}
+      <div style="font-size:13px;font-weight:900;color:${pCol};min-width:38px;text-align:right">${pct}%</div>
     </div>`;
   }).filter(Boolean).join('');
 
-  el.innerHTML = overallRow + (phRows
-    ? `<div style="padding:0 2px">${phRows}</div>`
-    : `<p style="color:var(--gray-400);font-size:12px;padding:8px 0">No per-phase data for ${selMoLabel}.</p>`);
+  el.innerHTML = overallRow + `<div style="padding:0 2px">${phRows}</div>`;
 }
 
 // ─────────────────────────────────────────────────────
