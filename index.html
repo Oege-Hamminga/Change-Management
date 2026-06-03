@@ -509,6 +509,7 @@
     .pw-btn:hover { background: var(--primary-dark); }
     .pw-error { font-size: 11px; color: #f87171; text-align: center; margin-top: 10px; min-height: 16px; letter-spacing: 0.03em; }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -1182,26 +1183,60 @@ function exportPDF(type) {
       </table>`;
   }
 
-  const win = window.open('', '_blank');
-  if (!win) { alert('Pop-up blocked — please allow pop-ups for this page.'); return; }
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
-  <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a1a1a; margin: 24px 32px; }
-    h1 { font-size: 18px; font-weight: 900; border-bottom: 2px solid #CC0000; padding-bottom: 6px; margin-bottom: 18px; }
-    h2 { font-size: 14px; font-weight: 700; margin: 22px 0 8px; color: #333; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11px; }
-    th { background: #f3f4f6; text-align: left; padding: 5px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
-    td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-    tr:last-child td { border-bottom: none; }
-    .footer { margin-top: 32px; font-size: 10px; color: #9ca3af; text-align: right; }
-    @media print { body { margin: 12px 16px; } }
-  </style></head><body>
-  <h1>${esc(title)}</h1>
-  ${bodyHTML}
-  <div class="footer">Generated ${dateStr} · Change Management Tracker</div>
-  <script>window.onload=function(){window.print();}<\/script>
-  </body></html>`);
-  win.document.close();
+  const filename = type === 'kpi'
+    ? `KPI_Stats_${now.toISOString().slice(0,10)}.pdf`
+    : `Tasks_Report_CW${CUR_WEEK}_${now.toISOString().slice(0,10)}.pdf`;
+
+  // Build a styled off-screen container for html2pdf
+  const pdfStyle = document.createElement('style');
+  pdfStyle.id = 'pdf-tmp-style';
+  pdfStyle.textContent = [
+    '#pdf-export-root{font-family:"Segoe UI",Arial,sans-serif;font-size:12px;color:#1a1a1a;background:#fff;padding:24px 32px;width:750px}',
+    '#pdf-export-root h1{font-size:17px;font-weight:900;border-bottom:2px solid #CC0000;padding-bottom:5px;margin-bottom:16px;color:#1a1a1a}',
+    '#pdf-export-root h2{font-size:13px;font-weight:700;margin:20px 0 7px;color:#333;border-bottom:1px solid #e5e7eb;padding-bottom:3px}',
+    '#pdf-export-root table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10.5px}',
+    '#pdf-export-root th{background:#f3f4f6;text-align:left;padding:5px 7px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border-bottom:2px solid #e5e7eb}',
+    '#pdf-export-root td{padding:4px 7px;border-bottom:1px solid #f0f0f0;vertical-align:top}',
+    '#pdf-export-root .rpt-footer{margin-top:28px;font-size:9px;color:#9ca3af;text-align:right}'
+  ].join('');
+  document.head.appendChild(pdfStyle);
+
+  const container = document.createElement('div');
+  container.id = 'pdf-export-root';
+  container.style.cssText = 'position:absolute;left:-9999px;top:0;background:#fff';
+  container.innerHTML = `<h1>${esc(title)}</h1>${bodyHTML}<div class="rpt-footer">Generated ${dateStr} · Change Management Tracker</div>`;
+  document.body.appendChild(container);
+
+  const doExport = typeof html2pdf === 'function' ? html2pdf : null;
+  if (!doExport) {
+    document.head.removeChild(pdfStyle);
+    document.body.removeChild(container);
+    // Fallback: open in new tab without auto-print
+    const win = window.open('', '_blank');
+    if (!win) { alert('Pop-up blocked — please allow pop-ups for this page.'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a1a;margin:24px 32px}h1{font-size:18px;font-weight:900;border-bottom:2px solid #CC0000;padding-bottom:6px;margin-bottom:18px}h2{font-size:14px;font-weight:700;margin:22px 0 8px;color:#333;border-bottom:1px solid #e5e7eb;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:11px}th{background:#f3f4f6;text-align:left;padding:5px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;border-bottom:2px solid #e5e7eb}td{padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top}.footer{margin-top:32px;font-size:10px;color:#9ca3af;text-align:right}</style></head><body><h1>${esc(title)}</h1>${bodyHTML}<div class="footer">Generated ${dateStr} · Change Management Tracker</div></body></html>`);
+    win.document.close();
+    return;
+  }
+
+  doExport()
+    .set({
+      margin: [10, 10, 12, 10],
+      filename,
+      image: { type: 'jpeg', quality: 0.97 },
+      html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    })
+    .from(container)
+    .save()
+    .then(() => {
+      document.head.removeChild(pdfStyle);
+      document.body.removeChild(container);
+    })
+    .catch(() => {
+      document.head.removeChild(pdfStyle);
+      document.body.removeChild(container);
+    });
 }
 
 function clearAll() {
@@ -3255,18 +3290,48 @@ function renderPhaseSuccessChart() {
   const _MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const selMoLabel = _MN[+_kpiMonth.slice(5,7)-1] + ' ' + _kpiMonth.slice(0,4);
 
-  // Directly count phase_transition entries whose stored month === selected month
   const phCount = {};
   phOrder.forEach(p => { phCount[p] = { onTime: 0, notOnTime: 0 }; });
+
+  // Helper: derive month from a CW number, trying both ISO year and calendar year
+  function cwMonth(cw) {
+    if (!cw && cw !== 0) return null;
+    const n = typeof cw === 'number' ? cw : parseCW(String(cw));
+    if (n === null || n === undefined) return null;
+    return cwToYearMonth(_now.year, n);
+  }
+
+  // 1. Count recorded phase_transition entries for the selected month.
+  //    Match on stored month field; if missing, fall back to completedCW-derived month.
+  const recordedPhases = new Set(); // track "ticketId|phase" pairs already counted
   tickets.forEach(t => {
     ((updates[t.id] || {}).phaseCompletions || []).forEach(c => {
       if (c.type === 'deadline_moved') return;
-      if (c.month !== _kpiMonth) return;
+      const entryMo = c.month || cwMonth(c.completedCW);
+      if (!entryMo || entryMo !== _kpiMonth) return;
       const p = String(c.fromPhase);
       if (!phCount[p]) return;
       if (c.onTime) phCount[p].onTime++;
       else phCount[p].notOnTime++;
+      recordedPhases.add(`${t.id}|${p}`);
     });
+  });
+
+  // 2. Include active tickets whose FP deadline month = selected month
+  //    and whose current phase hasn't already been counted above.
+  tickets.filter(t => !isDone(t)).forEach(t => {
+    const ph = String(effPhase(t) || '');
+    if (!ph || !phCount[ph]) return;
+    if (recordedPhases.has(`${t.id}|${ph}`)) return; // already counted
+    const u  = updates[t.id] || {};
+    const fp = u.finishPhaseCW !== undefined ? u.finishPhaseCW : t.finishPhase;
+    const fpN = parseCW(fp);
+    if (!fpN) return;
+    if (cwMonth(fpN) !== _kpiMonth) return;
+    const fpMoves = u.fpCWChanges || 0;
+    const isOnTime = CUR_WEEK <= fpN && fpMoves === 0;
+    if (isOnTime) phCount[ph].onTime++;
+    else phCount[ph].notOnTime++;
   });
 
   const totalOnTime = phOrder.reduce((s, p) => s + phCount[p].onTime, 0);
@@ -3274,20 +3339,23 @@ function renderPhaseSuccessChart() {
   const total = totalOnTime + totalNotOT;
 
   if (total === 0) {
-    el.innerHTML = `<p style="color:var(--gray-400);font-size:13px;padding:12px 0">No phase transitions recorded for ${selMoLabel}.</p>`;
+    el.innerHTML = `<div style="padding:14px 0;color:var(--gray-500);font-size:13px;text-align:center">
+      No phase data for <strong>${selMoLabel}</strong>.<br>
+      <span style="font-size:11px;color:var(--gray-400)">Advance tickets through phases or ensure Finish Phase CW deadlines fall in this month.</span>
+    </div>`;
     return;
   }
 
   const moPct    = Math.round(totalOnTime / total * 100);
   const moPctCol = moPct >= 80 ? '#059669' : moPct >= 50 ? '#d97706' : '#CC0000';
 
-  const overallRow = `<div style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:14px">
-    <div style="font-size:28px;font-weight:900;color:${moPctCol};line-height:1">${moPct}%</div>
+  const overallRow = `<div style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--gray-100);border-radius:var(--radius);margin-bottom:12px">
+    <div style="font-size:30px;font-weight:900;color:${moPctCol};line-height:1">${moPct}%</div>
     <div style="width:1px;height:32px;background:var(--gray-200)"></div>
-    <div style="font-size:11px;color:var(--gray-600);line-height:1.9">
+    <div style="font-size:11px;color:var(--gray-600);line-height:2">
       <span style="font-weight:700;color:#059669">${totalOnTime}</span> on time &nbsp;·&nbsp;
       <span style="font-weight:700;color:#CC0000">${totalNotOT}</span> not on time &nbsp;·&nbsp;
-      <span style="font-weight:700;color:var(--gray-700)">${total}</span> total transitions
+      <span style="font-weight:700;color:var(--gray-700)">${total}</span> phases evaluated
     </div>
     <div style="margin-left:auto;font-size:10px;font-weight:700;color:var(--gray-400);letter-spacing:.05em;text-transform:uppercase">${selMoLabel}</div>
   </div>`;
@@ -3305,7 +3373,7 @@ function renderPhaseSuccessChart() {
         <span style="font-size:11px;font-weight:900;color:${phColors[p]}">P${p}</span>
         <span style="font-size:10px;color:var(--gray-500)">${phNames[p]}</span>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;width:150px">
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;width:160px">
         <span style="font-size:13px;font-weight:800;color:#059669;min-width:22px;text-align:right">${onT}</span>
         <span style="font-size:9px;color:#059669;font-weight:600">on time</span>
         <span style="color:var(--gray-200)">|</span>
@@ -3313,9 +3381,9 @@ function renderPhaseSuccessChart() {
         <span style="font-size:9px;color:#CC0000;font-weight:600">not on time</span>
       </div>
       <div style="flex:1;height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${pCol};border-radius:3px"></div>
+        <div style="height:100%;width:${pct}%;background:${pCol};border-radius:3px;transition:width .3s"></div>
       </div>
-      <div style="font-size:13px;font-weight:900;color:${pCol};min-width:38px;text-align:right">${pct}%</div>
+      <div style="font-size:13px;font-weight:900;color:${pCol};min-width:40px;text-align:right">${pct}%</div>
     </div>`;
   }).filter(Boolean).join('');
 
