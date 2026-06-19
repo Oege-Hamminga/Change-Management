@@ -1587,7 +1587,6 @@ const STATIC_COLS = [
   { key:'finishPhase',   label:'Finish Phase (CW)', sortable:true  },
   { key:'priority',      label:'Priority',          sortable:true,  cls:'upd-th' },
   { key:'changeRequest', label:'CR Status',         sortable:true,  cls:'upd-th' },
-  { key:'taskLastWeek',  label:`CW${PREV_WEEK} (Last)`,     sortable:false, cls:'task-prv' },
   { key:'taskThisWeek',  label:`CW${CUR_WEEK} (This Week)`, sortable:false, cls:'task-cur' },
 ];
 
@@ -1729,7 +1728,6 @@ function renderTable() {
       ${finishCell}
       <td><select class="pri-sel ${priCls}" data-id="${esc(t.id)}" onchange="setPriority(this)">${priOpts}</select></td>
       <td><select class="cr-sel ${crCls}" data-id="${esc(t.id)}" onchange="setCR(this)">${crOpts}</select></td>
-      <td><textarea class="task-ta prv${prevVal?' has-val':''}" rows="2" readonly title="Last week CW${PREV_WEEK}">${prevVal}</textarea></td>
       <td>
         <textarea class="task-ta cur${thisVal?' has-val':''}" rows="2" data-id="${esc(t.id)}" data-field="taskThisWeek" onblur="setTask(this)">${thisVal}</textarea>
         <select class="task-dept-sel" data-id="${esc(t.id)}" onchange="setTaskDept(this)">
@@ -3017,6 +3015,10 @@ function renderDashboard() {
   } else if (_dashTopPanel === 'tasks') {
     dashGridTop.innerHTML = `
       <div style="display:flex;gap:14px;align-items:flex-start">
+        <div class="dash-card-dk acc-gray" style="flex:1">
+          <h3><span>Tasks Last Week</span><span class="h3-badge h3-gray">CW${PREV_WEEK}</span></h3>
+          ${lastWeekHTML}
+        </div>
         <div class="dash-card-dk acc-blue" style="flex:1">
           <h3><span>Tasks This Week</span><span class="h3-badge h3-blue">CW${CUR_WEEK}</span></h3>
           ${thisWeekHTML}
