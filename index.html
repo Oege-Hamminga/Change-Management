@@ -3017,10 +3017,6 @@ function renderDashboard() {
   } else if (_dashTopPanel === 'tasks') {
     dashGridTop.innerHTML = `
       <div style="display:flex;gap:14px;align-items:flex-start">
-        <div class="dash-card-dk acc-gray" style="flex:1">
-          <h3><span>Tasks Last Week</span><span class="h3-badge h3-gray">CW${PREV_WEEK}</span></h3>
-          ${lastWeekHTML}
-        </div>
         <div class="dash-card-dk acc-blue" style="flex:1">
           <h3><span>Tasks This Week</span><span class="h3-badge h3-blue">CW${CUR_WEEK}</span></h3>
           ${thisWeekHTML}
